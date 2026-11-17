@@ -1,0 +1,44 @@
+# Оформление установщика Sedmio.
+# Цвета и шрифты QML-страниц задаются в components/Theme.qml,
+# здесь — только то, что читает сам Calamares.
+---
+componentName: sedmio
+
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+
+windowExpanding: normal
+windowSize: 1100px,720px
+windowPlacement: center
+
+# Шаги установки — полосой сверху, кнопки — снизу.
+sidebar: qml,top
+navigation: qml,bottom
+
+strings:
+  productName: "Sedmio"
+  shortProductName: "Sedmio"
+  version: "0.1"
+  shortVersion: "0.1"
+  versionedName: "Sedmio 0.1"
+  shortVersionedName: "Sedmio 0.1"
+  bootloaderEntryName: "Sedmio"
+  productUrl: "https://github.com/Sedmio/sedmio"
+  supportUrl: "https://github.com/Sedmio/sedmio/issues"
+  knownIssuesUrl: "https://github.com/Sedmio/sedmio/issues"
+  releaseNotesUrl: "https://github.com/Sedmio/sedmio/releases"
+
+images:
+  productIcon: "logo.svg"
+  productLogo: "logo.svg"
+  productWelcome: "logo.svg"
+
+# Цвета для виджетных частей (страница разметки диска).
+style:
+  SidebarBackground: "#EEF1EA"
+  SidebarText: "#1B251F"
+  SidebarBackgroundCurrent: "#2F5D46"
+  SidebarTextCurrent: "#F4F7F1"
+
+slideshow: "show.qml"
+slideshowAPI: 2

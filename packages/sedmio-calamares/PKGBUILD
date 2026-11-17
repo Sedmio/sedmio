@@ -1,0 +1,22 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Настройки и оформление установщика Calamares для live-образа.
+# Файлы из files/ копируются в корень как есть.
+#
+# Calamares берётся из репозитория CachyOS (пакет calamares, ветка 3.4).
+
+pkgname=sedmio-calamares
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: установщик (настройки и QML-страницы Calamares)"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=('calamares' 'qt6-svg' 'arch-install-scripts')
+
+package() {
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir/usr/lib/sedmio/installer/postinstall.sh"
+}

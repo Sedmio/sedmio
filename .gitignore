@@ -7,3 +7,8 @@ packages/*/pkg/
 packages/*/src/
 packages/*/*.pkg.tar.*
 packages/*/*.log
+
+# Окружение предпросмотра установщика
+tools/installer-preview/.venv/
+tools/installer-preview/out/
+__pycache__/

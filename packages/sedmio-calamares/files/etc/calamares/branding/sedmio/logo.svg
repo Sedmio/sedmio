@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="-128 -128 256 256">
+  <!-- Знак Sedmio: розетка седума, листья по золотому углу. -->
+  <defs>
+    <linearGradient id="leaf" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#355E47"/>
+      <stop offset="0.55" stop-color="#6E9C74"/>
+      <stop offset="1" stop-color="#A8C59F"/>
+    </linearGradient>
+    <linearGradient id="leafBlush" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#355E47"/>
+      <stop offset="0.55" stop-color="#6E9C74"/>
+      <stop offset="0.85" stop-color="#B9B58C"/>
+      <stop offset="1" stop-color="#C8643B"/>
+    </linearGradient>
+    <path id="big" d="M0 0 C 30 -30, 28 -95, 0 -112 C -28 -95, -30 -30, 0 0 Z"/>
+    <path id="mid" d="M0 0 C 22 -22, 20 -70, 0 -82 C -20 -70, -22 -22, 0 0 Z"/>
+    <path id="small" d="M0 0 C 14 -14, 13 -42, 0 -50 C -13 -42, -14 -14, 0 0 Z"/>
+  </defs>
+  <g fill="url(#leafBlush)">
+    <use href="#big" transform="rotate(0)"/>
+    <use href="#big" transform="rotate(137.5)"/>
+    <use href="#big" transform="rotate(275)"/>
+    <use href="#big" transform="rotate(52.5)"/>
+    <use href="#big" transform="rotate(190)"/>
+  </g>
+  <g fill="url(#leaf)">
+    <use href="#mid" transform="rotate(327.5)"/>
+    <use href="#mid" transform="rotate(105)"/>
+    <use href="#mid" transform="rotate(242.5)"/>
+    <use href="#mid" transform="rotate(20)"/>
+    <use href="#small" transform="rotate(157.5)"/>
+    <use href="#small" transform="rotate(295)"/>
+    <use href="#small" transform="rotate(72.5)"/>
+  </g>
+</svg>

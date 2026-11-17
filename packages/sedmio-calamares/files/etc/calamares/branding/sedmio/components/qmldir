@@ -1,0 +1,14 @@
+singleton Theme 1.0 Theme.qml
+SButton 1.0 SButton.qml
+STextField 1.0 STextField.qml
+SSwitch 1.0 SSwitch.qml
+Card 1.0 Card.qml
+PageHeader 1.0 PageHeader.qml
+Message 1.0 Message.qml
+Logo 1.0 Logo.qml
+SPage 1.0 SPage.qml
+Leaf 1.0 Leaf.qml
+Bloom 1.0 Bloom.qml
+Pot 1.0 Pot.qml
+Sedum 1.0 Sedum.qml
+Backdrop 1.0 Backdrop.qml

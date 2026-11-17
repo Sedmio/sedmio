@@ -1,0 +1,103 @@
+/*
+ * Стили для страниц Calamares на виджетах (разметка диска, ход установки).
+ * Палитра совпадает с components/Theme.qml — менять вместе.
+ * Шрифт Onest должен быть установлен в систему live-образа (TODO: пакет).
+ * Черновик: проверить на живой системе.
+ */
+
+#mainApp {
+    background-color: #EEF1EA;
+}
+
+QWidget {
+    color: #1B251F;
+    font-family: "Onest";
+    font-size: 15px;
+}
+
+QLabel {
+    background: transparent;
+}
+
+QPushButton {
+    background-color: transparent;
+    border: 1px solid #D5DCCF;
+    border-radius: 22px;
+    padding: 9px 20px;
+}
+QPushButton:hover {
+    background-color: #E3E8DE;
+}
+QPushButton:default {
+    background-color: #2F5D46;
+    border: none;
+    color: #F4F7F1;
+}
+QPushButton:disabled {
+    color: #7E8A81;
+}
+
+QComboBox, QLineEdit, QSpinBox {
+    background-color: #F8FAF5;
+    border: 1px solid #D5DCCF;
+    border-radius: 14px;
+    padding: 8px 12px;
+}
+QComboBox:hover, QLineEdit:hover {
+    border-color: #B7C2B0;
+}
+QComboBox:focus, QLineEdit:focus {
+    border: 1.5px solid #2F5D46;
+}
+QComboBox QAbstractItemView {
+    background-color: #F8FAF5;
+    selection-background-color: #DCE7DA;
+    selection-color: #1B251F;
+}
+
+QRadioButton, QCheckBox {
+    spacing: 10px;
+    background: transparent;
+}
+
+QTreeView, QListView, QTableView {
+    background-color: #F8FAF5;
+    alternate-background-color: #F2F5EF;
+    border: 1px solid #D5DCCF;
+    border-radius: 14px;
+    selection-background-color: #DCE7DA;
+    selection-color: #1B251F;
+}
+
+QHeaderView::section {
+    background-color: #EEF1EA;
+    color: #4B5A50;
+    border: none;
+    padding: 8px;
+}
+
+QProgressBar {
+    background-color: #E3E8DE;
+    border: none;
+    border-radius: 3px;
+    max-height: 6px;
+    text-align: center;
+    color: transparent;
+}
+QProgressBar::chunk {
+    background-color: #2F5D46;
+    border-radius: 3px;
+}
+
+QScrollBar:vertical {
+    background: transparent;
+    width: 10px;
+}
+QScrollBar::handle:vertical {
+    background: #D5DCCF;
+    border-radius: 5px;
+    min-height: 24px;
+}
+QScrollBar::add-line, QScrollBar::sub-line {
+    height: 0;
+}
