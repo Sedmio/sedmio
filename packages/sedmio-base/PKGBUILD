@@ -1,0 +1,64 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Метапакет: что входит в систему на обеих машинах.
+# Убрать программу из системы = убрать её отсюда.
+#
+# Службы не включаются из пакета напрямую: для этого есть systemd-пресет.
+# Установщик после установки пакетов выполняет `systemctl preset-all`.
+
+pkgname=sedmio-base
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: состав системы"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'sedmio-settings'
+
+  # Plasma: минимальный набор вместо группы plasma целиком
+  'plasma-desktop'
+  'sddm'
+  'sddm-kcm'
+  'kscreen'
+  'plasma-nm'
+  'plasma-pa'
+  'bluedevil'
+  'powerdevil'
+  'power-profiles-daemon'
+  'kde-gtk-config'
+  'breeze-gtk'
+  'xdg-desktop-portal-kde'
+
+  # Программы
+  'dolphin'
+  'konsole'
+  'ark'
+  'spectacle'
+  'firefox'
+  'firefox-i18n-ru'
+
+  # Звук, сеть, Bluetooth
+  'pipewire'
+  'pipewire-pulse'
+  'wireplumber'
+  'networkmanager'
+  'bluez'
+  'bluez-utils'
+
+  # Шрифты
+  'inter-font'
+  'ttf-jetbrains-mono'
+  'noto-fonts'
+  'noto-fonts-cjk'
+  'noto-fonts-emoji'
+
+  # Система
+  'amd-ucode'
+  'reflector'
+)
+
+package() {
+  install -Dm644 "$startdir/80-sedmio.preset" \
+    "$pkgdir/usr/lib/systemd/system-preset/80-sedmio.preset"
+}

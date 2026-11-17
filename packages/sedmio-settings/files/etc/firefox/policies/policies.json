@@ -1,0 +1,11 @@
+{
+  "policies": {
+    "RequestedLocales": ["ru"],
+    "Preferences": {
+      "ui.key.menuAccessKeyFocuses": {
+        "Value": false,
+        "Status": "default"
+      }
+    }
+  }
+}

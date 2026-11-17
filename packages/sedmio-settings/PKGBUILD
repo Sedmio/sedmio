@@ -1,0 +1,24 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Системные настройки по умолчанию. Файлы из files/ копируются в корень
+# как есть, путь внутри files/ = путь в системе.
+#
+# Конфиги в /etc/xdg намеренно не внесены в backup=(): это значения по
+# умолчанию дистрибутива, и они должны обновляться вместе с пакетом.
+# Личные изменения пользователя лежат в ~/.config и имеют приоритет.
+
+pkgname=sedmio-settings
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: настройки Plasma, раскладок и приложений по умолчанию"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=('plasma-desktop')
+optdepends=('firefox: политики браузера из /etc/firefox/policies')
+
+package() {
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+}

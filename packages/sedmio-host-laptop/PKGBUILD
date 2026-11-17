@@ -1,0 +1,45 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Ноутбук: Ryzen 7 8xxx (Zen 4), RTX 4060 Laptop + Radeon 780M.
+# Экраном управляет Radeon, NVIDIA включается по требованию (PRIME):
+#   prime-run <программа>
+# или пункт «Запустить на дискретной видеокарте» в меню Plasma.
+#
+# TODO: выяснить модель ноутбука и наличие MUX-переключателя.
+#       Для ASUS добавить asusctl/supergfxctl, для Lenovo Legion — свои утилиты.
+# TODO: проверить сон и пробуждение с NVIDIA.
+
+pkgname=sedmio-host-laptop
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: профиль ноутбука (Ryzen 7 8xxx + RTX 4060 Laptop)"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'sedmio-base'
+
+  'linux-cachyos'
+  'linux-cachyos-headers'
+  'linux-cachyos-nvidia-open'
+  'linux-lts'
+  'linux-lts-headers'
+
+  'nvidia-open-dkms'
+  'nvidia-utils'
+  'lib32-nvidia-utils'
+  'nvidia-prime'
+
+  'mesa'
+  'vulkan-radeon'
+
+  # Переключение видеокарт в меню Plasma
+  'switcheroo-control'
+)
+conflicts=('sedmio-host-desktop')
+
+package() {
+  install -Dm644 "$startdir/nvidia.conf" "$pkgdir/etc/modprobe.d/sedmio-nvidia.conf"
+  install -Dm644 "$startdir/81-sedmio-laptop.preset" \
+    "$pkgdir/usr/lib/systemd/system-preset/81-sedmio-laptop.preset"
+}

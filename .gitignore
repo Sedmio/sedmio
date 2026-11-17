@@ -1,0 +1,9 @@
+# Результаты сборки
+out/
+work/
+
+# Артефакты makepkg
+packages/*/pkg/
+packages/*/src/
+packages/*/*.pkg.tar.*
+packages/*/*.log

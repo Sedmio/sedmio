@@ -1,0 +1,6 @@
+# Службы, включаемые после установки командой `systemctl preset-all`.
+enable sddm.service
+enable NetworkManager.service
+enable bluetooth.service
+enable power-profiles-daemon.service
+enable reflector.timer

@@ -1,0 +1,7 @@
+[Layout]
+Use=true
+LayoutList=us,ru
+ResetOldOptions=true
+Options=grp:alt_shift_toggle
+# Global | Desktop | WinClass | Window
+SwitchMode=Window

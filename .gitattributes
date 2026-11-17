@@ -1,0 +1,11 @@
+# Репозиторий редактируется на Windows, а собирается на Linux.
+# Скрипты и конфиги с CRLF ломаются в bash и pacman, поэтому всегда LF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.svg text eol=lf
+*.ttf binary
+*.otf binary
+*.zst binary
+*.iso binary
