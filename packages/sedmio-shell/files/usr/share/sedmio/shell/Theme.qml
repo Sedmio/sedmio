@@ -39,14 +39,14 @@ Singleton {
     // Типографика
     readonly property int fontSmall: 12
     readonly property int fontBody: 14
-    readonly property int fontLarge: 17
+    readonly property int fontLarge: 15
 
     // Рамка и панель
-    readonly property int barWidth: 56       // панель слева
-    readonly property int border: 10         // рамка по остальным краям
-    readonly property int frameRadius: 22    // скругление внутренних углов
-    readonly property int buttonSize: 40
-    readonly property int radius: 12
+    readonly property int barWidth: 48       // панель слева
+    readonly property int border: 6          // рамка по остальным краям
+    readonly property int frameRadius: 18    // скругление внутренних углов
+    readonly property int buttonSize: 36
+    readonly property int radius: 11
 
     // Движение
     readonly property int animFast: 140

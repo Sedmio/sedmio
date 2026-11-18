@@ -11,7 +11,7 @@ Item {
 
     ColumnLayout {
         id: topGroup
-        anchors { top: parent.top; left: parent.left; right: parent.right; topMargin: Theme.border + 2 }
+        anchors { top: parent.top; left: parent.left; right: parent.right; topMargin: Theme.border + 4 }
         spacing: 8
 
         LauncherButton {

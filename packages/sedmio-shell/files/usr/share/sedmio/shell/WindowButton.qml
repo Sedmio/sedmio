@@ -48,7 +48,7 @@ Item {
 
         IconImage {
             anchors.centerIn: parent
-            implicitSize: 26
+            implicitSize: 24
             source: Quickshell.iconPath(root.iconName, true) || Quickshell.iconPath("application-x-executable")
             opacity: root.toplevel.minimized ? 0.45 : 1
             Behavior on opacity { NumberAnimation { duration: Theme.animNormal } }
