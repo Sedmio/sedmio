@@ -1,0 +1,1167 @@
+diff --git a/src/wayland/CMakeLists.txt b/src/wayland/CMakeLists.txt
+index 509fd91..e2dbf58 100644
+--- a/src/wayland/CMakeLists.txt
++++ b/src/wayland/CMakeLists.txt
+@@ -132,6 +132,10 @@ list(APPEND WAYLAND_MODULES Quickshell.Wayland._IdleNotify)
+ add_subdirectory(shortcuts_inhibit)
+ list(APPEND WAYLAND_MODULES Quickshell.Wayland._ShortcutsInhibitor)
+ 
++# Clipboard history (ext-data-control-v1)
++add_subdirectory(clipboard)
++list(APPEND WAYLAND_MODULES Quickshell.Wayland._Clipboard)
++
+ add_subdirectory(windowmanager)
+ 
+ # widgets for qmenu
+diff --git a/src/wayland/clipboard/CMakeLists.txt b/src/wayland/clipboard/CMakeLists.txt
+new file mode 100644
+index 0000000..37e91d5
+--- /dev/null
++++ b/src/wayland/clipboard/CMakeLists.txt
+@@ -0,0 +1,25 @@
++qt_add_library(quickshell-wayland-clipboard STATIC
++	proto.cpp
++	history.cpp
++)
++
++qt_add_qml_module(quickshell-wayland-clipboard
++	URI Quickshell.Wayland._Clipboard
++	VERSION 0.1
++	DEPENDENCIES QtQml
++)
++
++install_qml_module(quickshell-wayland-clipboard)
++
++qs_add_module_deps_light(quickshell-wayland-clipboard Quickshell)
++
++wl_proto(wlp-ext-data-control ext-data-control-v1 "${WAYLAND_PROTOCOLS}/staging/ext-data-control")
++
++target_link_libraries(quickshell-wayland-clipboard PRIVATE
++	Qt::Quick Qt::Gui Qt::WaylandClient Qt::WaylandClientPrivate wayland-client
++	wlp-ext-data-control
++)
++
++qs_module_pch(quickshell-wayland-clipboard SET large)
++
++target_link_libraries(quickshell PRIVATE quickshell-wayland-clipboardplugin)
+diff --git a/src/wayland/clipboard/history.cpp b/src/wayland/clipboard/history.cpp
+new file mode 100644
+index 0000000..8b359e6
+--- /dev/null
++++ b/src/wayland/clipboard/history.cpp
+@@ -0,0 +1,566 @@
++#include "history.hpp"
++
++#include <algorithm>
++#include <csignal>
++
++#include <private/qwaylanddisplay_p.h>
++#include <private/qwaylandinputdevice_p.h>
++#include <private/qwaylandintegration_p.h>
++#include <qbuffer.h>
++#include <qcryptographichash.h>
++#include <qdatetime.h>
++#include <qdir.h>
++#include <qfile.h>
++#include <qimagereader.h>
++#include <qjsonarray.h>
++#include <qjsondocument.h>
++#include <qjsonobject.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qsavefile.h>
++#include <qset.h>
++#include <qstandardpaths.h>
++#include <qtimer.h>
++#include <qurl.h>
++#include <quuid.h>
++#include <wayland-client-core.h>
++
++#include "proto.hpp"
++
++namespace qs::wayland::clipboard {
++
++using impl::DataControlManager;
++using impl::DataDevice;
++using impl::DataOffer;
++using impl::PipeReader;
++
++namespace {
++
++// Marks clipboard contents offered by us, so we do not record them again.
++constexpr auto OWN_MIME = "application/x-quickshell-clipboard-history";
++constexpr auto SECRET_MIME = "x-kde-passwordManagerHint";
++constexpr auto TEXT_MIME = "text/plain;charset=utf-8";
++constexpr auto HTML_MIME = "text/html";
++constexpr auto URI_MIME = "text/uri-list";
++constexpr auto GNOME_FILES_MIME = "x-special/gnome-copied-files";
++
++const QStringList TEXT_MIMES = {TEXT_MIME, "UTF8_STRING", "text/plain", "STRING", "TEXT"};
++const QStringList IMAGE_MIMES =
++    {"image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/tiff"};
++
++constexpr qsizetype TEXT_LIMIT = 4 * 1024 * 1024;
++constexpr qsizetype HTML_LIMIT = 2 * 1024 * 1024;
++constexpr qsizetype IMAGE_LIMIT = 32 * 1024 * 1024;
++constexpr qsizetype URI_LIMIT = 1024 * 1024;
++constexpr qsizetype SHOWN_TEXT = 10000;
++
++QString storageDir() {
++	static const QString dir =
++	    QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/quickshell/clipboard";
++	return dir;
++}
++
++QString extensionFor(const QString& mimeType) {
++	if (mimeType == "image/png") return ".png";
++	if (mimeType == "image/jpeg") return ".jpg";
++	if (mimeType == "image/webp") return ".webp";
++	if (mimeType == "image/gif") return ".gif";
++	if (mimeType == "image/bmp") return ".bmp";
++	if (mimeType == "image/tiff") return ".tiff";
++	if (mimeType == HTML_MIME) return ".html";
++	return ".txt";
++}
++
++qsizetype limitFor(const QString& mimeType) {
++	if (mimeType.startsWith("image/")) return IMAGE_LIMIT;
++	if (mimeType == HTML_MIME) return HTML_LIMIT;
++	if (mimeType == URI_MIME || mimeType == GNOME_FILES_MIME) return URI_LIMIT;
++	return TEXT_LIMIT;
++}
++
++QStringList parseUriList(const QByteArray& data) {
++	QStringList uris;
++	for (const auto& line: QString::fromUtf8(data).split('\n')) {
++		const auto uri = line.trimmed();
++		if (!uri.isEmpty() && !uri.startsWith('#')) uris.append(uri);
++	}
++	return uris;
++}
++
++/// Reads all wanted mime types of one offer.
++class CaptureJob: public QObject {
++public:
++	CaptureJob(DataOffer* offer, QObject* parent): QObject(parent), offer(offer) {}
++	~CaptureJob() override { delete this->offer; }
++	Q_DISABLE_COPY_MOVE(CaptureJob);
++
++	DataOffer* offer;
++	QMap<QString, QByteArray> results;
++	int pending = 0;
++};
++
++} // namespace
++
++// ---- Entry
++
++QString ClipboardEntry::image() const {
++	if (this->mKind != "image" || this->mParts.isEmpty()) return QString();
++	return QUrl::fromLocalFile(storageDir() + '/' + this->mParts.first()).toString();
++}
++
++void ClipboardEntry::setStarred(bool starred) {
++	if (starred == this->mStarred) return;
++	this->mStarred = starred;
++	emit this->starredChanged();
++}
++
++QJsonObject ClipboardEntry::toJson() const {
++	QJsonObject parts;
++	for (auto it = this->mParts.cbegin(); it != this->mParts.cend(); ++it) {
++		parts.insert(it.key(), it.value());
++	}
++
++	return QJsonObject {
++	    {"id", this->mId},
++	    {"kind", this->mKind},
++	    {"text", this->mText},
++	    {"files", QJsonArray::fromStringList(this->mFiles)},
++	    {"imageWidth", this->mImageSize.width()},
++	    {"imageHeight", this->mImageSize.height()},
++	    {"time", this->mTime.toString(Qt::ISODateWithMs)},
++	    {"starred", this->mStarred},
++	    {"hash", QString::fromLatin1(this->mHash.toHex())},
++	    {"parts", parts},
++	};
++}
++
++ClipboardEntry* ClipboardEntry::fromJson(const QJsonObject& json, QObject* parent) {
++	auto* entry = new ClipboardEntry(parent);
++	entry->mId = json.value("id").toString();
++	entry->mKind = json.value("kind").toString();
++	entry->mText = json.value("text").toString();
++	for (const auto& file: json.value("files").toArray()) entry->mFiles.append(file.toString());
++	entry->mImageSize = QSize(json.value("imageWidth").toInt(), json.value("imageHeight").toInt());
++	entry->mTime = QDateTime::fromString(json.value("time").toString(), Qt::ISODateWithMs);
++	entry->mStarred = json.value("starred").toBool();
++	entry->mHash = QByteArray::fromHex(json.value("hash").toString().toLatin1());
++
++	const auto parts = json.value("parts").toObject();
++	for (auto it = parts.constBegin(); it != parts.constEnd(); ++it) {
++		entry->mParts.insert(it.key(), it.value().toString());
++	}
++
++	return entry;
++}
++
++// ---- Engine
++
++ClipboardEngine* ClipboardEngine::instance() {
++	static auto* instance = new ClipboardEngine(); // NOLINT
++	return instance;
++}
++
++ClipboardEngine::ClipboardEngine() {
++	// Writing to a client that stopped reading a paste must not kill the shell.
++	signal(SIGPIPE, SIG_IGN); // NOLINT
++
++	this->dir = storageDir();
++	QDir().mkpath(this->dir);
++	QFile::setPermissions(this->dir, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
++
++	this->load();
++	this->setupDevice();
++}
++
++void ClipboardEngine::setupDevice() {
++	auto* manager = DataControlManager::instance();
++	if (manager == nullptr) {
++		qCWarning(logClipboard) << "The compositor does not support ext-data-control-v1;"
++		                           " clipboard history is not available.";
++		return;
++	}
++
++	auto* display = QtWaylandClient::QWaylandIntegration::instance()->display();
++	auto* seat = display->defaultInputDevice();
++	if (seat == nullptr) {
++		// Seats come with the first roundtrips; try again a little later.
++		QTimer::singleShot(500, this, &ClipboardEngine::setupDevice);
++		return;
++	}
++
++	this->device = new DataDevice(manager->get_data_device(seat->object()));
++	this->device->setParent(this);
++
++	QObject::connect(this->device, &DataDevice::selectionChanged, this, &ClipboardEngine::onSelection);
++	QObject::connect(this->device, &DataDevice::finished, this, [this] {
++		this->device->deleteLater();
++		this->device = nullptr;
++		emit this->availableChanged();
++	});
++
++	emit this->availableChanged();
++}
++
++void ClipboardEngine::onSelection(DataOffer* offer) {
++	this->generation++;
++
++	if (offer == nullptr) {
++		// The program the data came from closed (or the clipboard was
++		// cleared): put the last copied thing back.
++		this->empty = true;
++		this->setCurrentId(QString());
++		const auto generation = this->generation;
++		QTimer::singleShot(300, this, [this, generation] {
++			if (generation == this->generation) this->restore();
++		});
++		return;
++	}
++
++	this->empty = false;
++	const auto& mimes = offer->mimeTypes;
++
++	if (mimes.contains(OWN_MIME)) {
++		delete offer;
++		return;
++	}
++
++	if (mimes.contains(SECRET_MIME)) {
++		this->setCurrentId(QString());
++		delete offer;
++		return;
++	}
++
++	QString textMime;
++	for (const auto& mime: TEXT_MIMES) {
++		if (mimes.contains(mime)) {
++			textMime = mime;
++			break;
++		}
++	}
++
++	QString imageMime;
++	for (const auto& mime: IMAGE_MIMES) {
++		if (mimes.contains(mime)) {
++			imageMime = mime;
++			break;
++		}
++	}
++
++	if (mimes.contains(URI_MIME)) {
++		QStringList wanted = {URI_MIME};
++		if (mimes.contains(GNOME_FILES_MIME)) wanted.append(GNOME_FILES_MIME);
++		if (!textMime.isEmpty()) wanted.append(textMime);
++		this->capture(offer, wanted, "files");
++	} else if (!textMime.isEmpty()) {
++		QStringList wanted = {textMime};
++		if (mimes.contains(HTML_MIME)) wanted.append(HTML_MIME);
++		this->capture(offer, wanted, "text");
++	} else if (!imageMime.isEmpty()) {
++		this->capture(offer, {imageMime}, "image");
++	} else {
++		this->setCurrentId(QString());
++		delete offer;
++	}
++}
++
++void ClipboardEngine::capture(DataOffer* offer, const QStringList& mimeTypes, const QString& kind) {
++	auto* job = new CaptureJob(offer, this);
++	job->pending = static_cast<int>(mimeTypes.size());
++	const auto generation = this->generation;
++
++	for (const auto& mime: mimeTypes) {
++		auto* reader = new PipeReader(offer, mime, limitFor(mime), job);
++		QObject::connect(reader, &PipeReader::done, job, [this, job, reader, kind, generation](bool ok) {
++			if (ok) job->results.insert(reader->mimeType, reader->data);
++			if (--job->pending > 0) return;
++
++			// Something newer was copied meanwhile.
++			if (generation == this->generation) this->addEntry(kind, job->results);
++			job->deleteLater();
++		});
++	}
++}
++
++void ClipboardEngine::addEntry(const QString& requestedKind, const QMap<QString, QByteArray>& data) {
++	auto kind = requestedKind;
++
++	QByteArray textData;
++	for (const auto& mime: TEXT_MIMES) {
++		if (data.contains(mime)) {
++			textData = data.value(mime);
++			break;
++		}
++	}
++
++	QStringList files;
++	if (kind == "files") {
++		files = parseUriList(data.value(URI_MIME));
++		const bool local =
++		    !files.isEmpty() && std::ranges::all_of(files, [](const QString& uri) { return uri.startsWith("file:"); });
++		if (!local) {
++			// Links rather than files: keep as text.
++			kind = "text";
++			if (textData.isEmpty()) textData = files.join('\n').toUtf8();
++		}
++	}
++
++	auto* entry = new ClipboardEntry(this);
++	entry->mKind = kind;
++	QMap<QString, QByteArray> parts;
++
++	if (kind == "text") {
++		const auto text = QString::fromUtf8(textData);
++		if (text.trimmed().isEmpty()) {
++			delete entry;
++			this->setCurrentId(QString());
++			return;
++		}
++		entry->mText = text.left(SHOWN_TEXT);
++		parts.insert(TEXT_MIME, textData);
++		if (data.contains(HTML_MIME) && !data.value(HTML_MIME).isEmpty()) {
++			parts.insert(HTML_MIME, data.value(HTML_MIME));
++		}
++		entry->mHash = QCryptographicHash::hash(textData, QCryptographicHash::Sha1);
++	} else if (kind == "files") {
++		entry->mFiles = files;
++		QStringList paths;
++		for (const auto& uri: files) paths.append(QUrl(uri).toLocalFile());
++		entry->mText = paths.join('\n');
++		parts.insert(URI_MIME, data.value(URI_MIME));
++		if (data.contains(GNOME_FILES_MIME)) parts.insert(GNOME_FILES_MIME, data.value(GNOME_FILES_MIME));
++		entry->mHash = QCryptographicHash::hash(data.value(URI_MIME), QCryptographicHash::Sha1);
++	} else {
++		const auto mime = data.firstKey();
++		const auto bytes = data.value(mime);
++		QBuffer buffer;
++		buffer.setData(bytes);
++		QImageReader reader(&buffer);
++		entry->mImageSize = reader.size();
++		if (bytes.isEmpty() || !entry->mImageSize.isValid()) {
++			delete entry;
++			this->setCurrentId(QString());
++			return;
++		}
++		parts.insert(mime, bytes);
++		entry->mHash = QCryptographicHash::hash(bytes, QCryptographicHash::Sha1);
++	}
++
++	entry->mHash.prepend(kind.toUtf8());
++	entry->mTime = QDateTime::currentDateTime();
++
++	// The same thing copied again: move it up instead of adding a copy.
++	for (auto* existing: this->mEntries.valueList()) {
++		if (existing->mHash != entry->mHash) continue;
++		delete entry;
++		this->mEntries.removeObject(existing);
++		this->mEntries.insertObject(existing, 0);
++		existing->mTime = QDateTime::currentDateTime();
++		emit existing->timeChanged();
++		this->setCurrentId(existing->mId);
++		this->save();
++		return;
++	}
++
++	entry->mId = QUuid::createUuid().toString(QUuid::WithoutBraces);
++	int index = 0;
++	for (auto it = parts.cbegin(); it != parts.cend(); ++it, ++index) {
++		const auto name = entry->mId + '-' + QString::number(index) + extensionFor(it.key());
++		QSaveFile file(this->dir + '/' + name);
++		if (!file.open(QIODevice::WriteOnly) || file.write(it.value()) != it.value().size()
++		    || !file.commit())
++		{
++			qCWarning(logClipboard) << "Could not save a clipboard entry to" << this->dir;
++			entry->mParts.insert(it.key(), name);
++			this->deleteFiles(entry);
++			delete entry;
++			return;
++		}
++		entry->mParts.insert(it.key(), name);
++	}
++
++	QObject::connect(entry, &ClipboardEntry::starredChanged, this, &ClipboardEngine::save);
++	this->mEntries.insertObject(entry, 0);
++	this->setCurrentId(entry->mId);
++	this->trim();
++	this->save();
++}
++
++void ClipboardEngine::offerEntry(ClipboardEntry* entry) {
++	auto* manager = DataControlManager::instance();
++	if (!manager || !this->device) return;
++
++	QMap<QString, QByteArray> stored;
++	for (auto it = entry->mParts.cbegin(); it != entry->mParts.cend(); ++it) {
++		QFile file(this->dir + '/' + it.value());
++		if (!file.open(QIODevice::ReadOnly)) {
++			qCWarning(logClipboard) << "Clipboard entry file is missing:" << file.fileName();
++			return;
++		}
++		stored.insert(it.key(), file.readAll());
++	}
++
++	QMap<QString, QByteArray> offered;
++	if (entry->mKind == "text") {
++		const auto text = stored.value(TEXT_MIME);
++		for (const auto& mime: TEXT_MIMES) offered.insert(mime, text);
++		if (stored.contains(HTML_MIME)) offered.insert(HTML_MIME, stored.value(HTML_MIME));
++	} else if (entry->mKind == "files") {
++		offered.insert(URI_MIME, stored.value(URI_MIME));
++		offered.insert(
++		    GNOME_FILES_MIME,
++		    stored.value(GNOME_FILES_MIME, "copy\n" + entry->mFiles.join('\n').toUtf8())
++		);
++		const auto paths = entry->mText.toUtf8();
++		offered.insert(TEXT_MIME, paths);
++		offered.insert("text/plain", paths);
++	} else {
++		offered = stored;
++	}
++	offered.insert(OWN_MIME, "1");
++
++	impl::SourceThread::instance()->offer(manager->object(), this->device->object(), offered);
++	this->empty = false;
++	this->setCurrentId(entry->mId);
++}
++
++void ClipboardEngine::restore() {
++	if (!this->empty || this->mEntries.valueList().isEmpty()) return;
++	this->offerEntry(this->mEntries.valueList().constFirst());
++}
++
++void ClipboardEngine::select(const QString& id) {
++	auto* entry = this->find(id);
++	if (!entry) return;
++
++	if (this->mEntries.valueList().indexOf(entry) != 0) {
++		this->mEntries.removeObject(entry);
++		this->mEntries.insertObject(entry, 0);
++	}
++	entry->mTime = QDateTime::currentDateTime();
++	emit entry->timeChanged();
++
++	this->offerEntry(entry);
++	this->save();
++}
++
++void ClipboardEngine::remove(const QString& id) {
++	auto* entry = this->find(id);
++	if (!entry) return;
++
++	if (this->mCurrentId == id) this->setCurrentId(QString());
++	this->mEntries.removeObject(entry);
++	this->deleteFiles(entry);
++	entry->deleteLater();
++	this->save();
++}
++
++void ClipboardEngine::clear() {
++	const auto entries = this->mEntries.valueList();
++	for (auto* entry: entries) {
++		if (entry->mStarred) continue;
++		if (this->mCurrentId == entry->mId) this->setCurrentId(QString());
++		this->mEntries.removeObject(entry);
++		this->deleteFiles(entry);
++		entry->deleteLater();
++	}
++	this->save();
++}
++
++void ClipboardEngine::trim() {
++	int unstarred = 0;
++	const auto entries = this->mEntries.valueList();
++	for (auto* entry: entries) {
++		if (entry->mStarred) continue;
++		if (++unstarred <= this->mMaxEntries) continue;
++		this->mEntries.removeObject(entry);
++		this->deleteFiles(entry);
++		entry->deleteLater();
++	}
++}
++
++void ClipboardEngine::setMaxEntries(int max) {
++	max = std::max(1, max);
++	if (max == this->mMaxEntries) return;
++	this->mMaxEntries = max;
++	emit this->maxEntriesChanged();
++	this->trim();
++	this->save();
++}
++
++void ClipboardEngine::deleteFiles(ClipboardEntry* entry) {
++	for (const auto& name: entry->mParts) QFile::remove(this->dir + '/' + name);
++}
++
++ClipboardEntry* ClipboardEngine::find(const QString& id) {
++	for (auto* entry: this->mEntries.valueList()) {
++		if (entry->mId == id) return entry;
++	}
++	return nullptr;
++}
++
++void ClipboardEngine::setCurrentId(const QString& id) {
++	if (id == this->mCurrentId) return;
++	this->mCurrentId = id;
++	emit this->currentIdChanged();
++}
++
++void ClipboardEngine::save() {
++	QJsonArray entries;
++	for (auto* entry: this->mEntries.valueList()) entries.append(entry->toJson());
++
++	QSaveFile file(this->dir + "/history.json");
++	if (!file.open(QIODevice::WriteOnly)) {
++		qCWarning(logClipboard) << "Could not save clipboard history to" << file.fileName();
++		return;
++	}
++	file.write(QJsonDocument(QJsonObject {{"version", 1}, {"entries", entries}}).toJson(QJsonDocument::Compact));
++	file.commit();
++}
++
++void ClipboardEngine::load() {
++	QFile file(this->dir + "/history.json");
++	if (!file.open(QIODevice::ReadOnly)) return;
++
++	const auto json = QJsonDocument::fromJson(file.readAll()).object();
++	QSet<QString> known;
++	for (const auto& value: json.value("entries").toArray()) {
++		auto* entry = ClipboardEntry::fromJson(value.toObject(), this);
++		const bool complete = !entry->mId.isEmpty() && !entry->mParts.isEmpty()
++		                   && std::ranges::all_of(entry->mParts, [this](const QString& name) {
++			                      return QFile::exists(this->dir + '/' + name);
++		                      });
++		if (!complete) {
++			delete entry;
++			continue;
++		}
++		for (const auto& name: entry->mParts) known.insert(name);
++		QObject::connect(entry, &ClipboardEntry::starredChanged, this, &ClipboardEngine::save);
++		this->mEntries.insertObject(entry);
++	}
++
++	// Files of entries that are gone (e.g. after a crash).
++	for (const auto& name: QDir(this->dir).entryList(QDir::Files)) {
++		if (name != "history.json" && !known.contains(name)) QFile::remove(this->dir + '/' + name);
++	}
++}
++
++// ---- QML
++
++ClipboardHistory::ClipboardHistory(QObject* parent): QObject(parent) {
++	auto* engine = ClipboardEngine::instance();
++	QObject::connect(engine, &ClipboardEngine::availableChanged, this, &ClipboardHistory::availableChanged);
++	QObject::connect(engine, &ClipboardEngine::currentIdChanged, this, &ClipboardHistory::currentIdChanged);
++	QObject::connect(engine, &ClipboardEngine::maxEntriesChanged, this, &ClipboardHistory::maxEntriesChanged);
++}
++
++bool ClipboardHistory::available() { return ClipboardEngine::instance()->available(); }
++UntypedObjectModel* ClipboardHistory::entries() { return ClipboardEngine::instance()->entries(); }
++QString ClipboardHistory::currentId() { return ClipboardEngine::instance()->currentId(); }
++int ClipboardHistory::maxEntries() { return ClipboardEngine::instance()->maxEntries(); }
++void ClipboardHistory::setMaxEntries(int max) { ClipboardEngine::instance()->setMaxEntries(max); }
++void ClipboardHistory::select(const QString& id) { ClipboardEngine::instance()->select(id); }
++void ClipboardHistory::remove(const QString& id) { ClipboardEngine::instance()->remove(id); }
++void ClipboardHistory::clear() { ClipboardEngine::instance()->clear(); }
++
++} // namespace qs::wayland::clipboard
+diff --git a/src/wayland/clipboard/history.hpp b/src/wayland/clipboard/history.hpp
+new file mode 100644
+index 0000000..ba11538
+--- /dev/null
++++ b/src/wayland/clipboard/history.hpp
+@@ -0,0 +1,175 @@
++#pragma once
++
++#include <qbytearray.h>
++#include <qdatetime.h>
++#include <qjsonobject.h>
++#include <qlist.h>
++#include <qmap.h>
++#include <qobject.h>
++#include <qqmlintegration.h>
++#include <qsize.h>
++#include <qstring.h>
++#include <qstringlist.h>
++#include <qtclasshelpermacros.h>
++#include <qtmetamacros.h>
++
++#include "../../core/doc.hpp"
++#include "../../core/model.hpp"
++
++namespace qs::wayland::clipboard {
++
++namespace impl {
++class DataDevice;
++class DataOffer;
++} // namespace impl
++
++///! Something that was copied.
++class ClipboardEntry: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	QML_UNCREATABLE("ClipboardEntry can only be obtained from ClipboardHistory");
++	/// Stable id of the entry.
++	Q_PROPERTY(QString id READ id CONSTANT);
++	/// `text`, `image` or `files`.
++	Q_PROPERTY(QString kind READ kind CONSTANT);
++	/// The text (shortened for very long texts); for files, their paths.
++	Q_PROPERTY(QString text READ text CONSTANT);
++	/// For `files`: the URLs.
++	Q_PROPERTY(QStringList files READ files CONSTANT);
++	/// For `image`: URL of the image file, usable as an Image source.
++	Q_PROPERTY(QString image READ image CONSTANT);
++	/// For `image`: its size in pixels.
++	Q_PROPERTY(QSize imageSize READ imageSize CONSTANT);
++	/// When it was last copied.
++	Q_PROPERTY(QDateTime time READ time NOTIFY timeChanged);
++	/// Starred entries are kept by @@ClipboardHistory.clear() and do not count
++	/// towards @@ClipboardHistory.maxEntries.
++	Q_PROPERTY(bool starred READ starred WRITE setStarred NOTIFY starredChanged);
++
++public:
++	explicit ClipboardEntry(QObject* parent = nullptr): QObject(parent) {}
++
++	[[nodiscard]] QString id() const { return this->mId; }
++	[[nodiscard]] QString kind() const { return this->mKind; }
++	[[nodiscard]] QString text() const { return this->mText; }
++	[[nodiscard]] QStringList files() const { return this->mFiles; }
++	[[nodiscard]] QString image() const;
++	[[nodiscard]] QSize imageSize() const { return this->mImageSize; }
++	[[nodiscard]] QDateTime time() const { return this->mTime; }
++	[[nodiscard]] bool starred() const { return this->mStarred; }
++	void setStarred(bool starred);
++
++	[[nodiscard]] QJsonObject toJson() const;
++	static ClipboardEntry* fromJson(const QJsonObject& json, QObject* parent);
++
++	QString mId;
++	QString mKind;
++	QString mText;
++	QStringList mFiles;
++	QSize mImageSize;
++	QDateTime mTime;
++	bool mStarred = false;
++	QByteArray mHash;
++	// mime type -> file name in the storage directory
++	QMap<QString, QString> mParts;
++
++signals:
++	void timeChanged();
++	void starredChanged();
++};
++
++/// The clipboard engine: one per process, shared by all ClipboardHistory users.
++class ClipboardEngine: public QObject {
++	Q_OBJECT;
++
++public:
++	static ClipboardEngine* instance();
++
++	[[nodiscard]] bool available() const { return this->device != nullptr; }
++	[[nodiscard]] ObjectModel<ClipboardEntry>* entries() { return &this->mEntries; }
++	[[nodiscard]] QString currentId() const { return this->mCurrentId; }
++	[[nodiscard]] int maxEntries() const { return this->mMaxEntries; }
++	void setMaxEntries(int max);
++
++	void select(const QString& id);
++	void remove(const QString& id);
++	void clear();
++	void save();
++
++signals:
++	void availableChanged();
++	void currentIdChanged();
++	void maxEntriesChanged();
++
++private:
++	explicit ClipboardEngine();
++
++	void setupDevice();
++	void onSelection(impl::DataOffer* offer);
++	void capture(impl::DataOffer* offer, const QStringList& mimeTypes, const QString& kind);
++	void addEntry(const QString& kind, const QMap<QString, QByteArray>& data);
++	void offerEntry(ClipboardEntry* entry);
++	void restore();
++	void trim();
++	void load();
++	void deleteFiles(ClipboardEntry* entry);
++	void setCurrentId(const QString& id);
++	ClipboardEntry* find(const QString& id);
++
++	QString dir;
++	impl::DataDevice* device = nullptr;
++	ObjectModel<ClipboardEntry> mEntries {this};
++	QString mCurrentId;
++	int mMaxEntries = 50;
++	quint64 generation = 0;
++	bool empty = true;
++};
++
++///! History of the clipboard.
++/// Keeps what was copied and puts it back on request. Also keeps the
++/// clipboard filled: when the program something was copied from closes, the
++/// copied data stays available.
++///
++/// History is saved in `$XDG_DATA_HOME/quickshell/clipboard`. Copies marked
++/// as secret by password managers (`x-kde-passwordManagerHint`) are not kept.
++///
++/// > [!NOTE] Requires the compositor to support [ext-data-control-v1].
++///
++/// [ext-data-control-v1]: https://wayland.app/protocols/ext-data-control-v1
++class ClipboardHistory: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	QML_SINGLETON;
++	/// True if the compositor gives access to the clipboard.
++	Q_PROPERTY(bool available READ available NOTIFY availableChanged);
++	/// Entries, newest first.
++	QSDOC_TYPE_OVERRIDE(ObjectModel<qs::wayland::clipboard::ClipboardEntry>*);
++	Q_PROPERTY(UntypedObjectModel* entries READ entries CONSTANT);
++	/// Id of the entry that is on the clipboard now, or empty.
++	Q_PROPERTY(QString currentId READ currentId NOTIFY currentIdChanged);
++	/// How many entries without a star are kept. Defaults to 50.
++	Q_PROPERTY(int maxEntries READ maxEntries WRITE setMaxEntries NOTIFY maxEntriesChanged);
++
++public:
++	explicit ClipboardHistory(QObject* parent = nullptr);
++
++	[[nodiscard]] static bool available();
++	[[nodiscard]] static UntypedObjectModel* entries();
++	[[nodiscard]] static QString currentId();
++	[[nodiscard]] static int maxEntries();
++	static void setMaxEntries(int max);
++
++	/// Put the entry on the clipboard and move it to the top.
++	Q_INVOKABLE static void select(const QString& id);
++	/// Forget the entry.
++	Q_INVOKABLE static void remove(const QString& id);
++	/// Forget all entries except starred ones.
++	Q_INVOKABLE static void clear();
++
++signals:
++	void availableChanged();
++	void currentIdChanged();
++	void maxEntriesChanged();
++};
++
++} // namespace qs::wayland::clipboard
+diff --git a/src/wayland/clipboard/proto.cpp b/src/wayland/clipboard/proto.cpp
+new file mode 100644
+index 0000000..0de6589
+--- /dev/null
++++ b/src/wayland/clipboard/proto.cpp
+@@ -0,0 +1,228 @@
++#include "proto.hpp"
++
++#include <cerrno>
++#include <utility>
++
++#include <fcntl.h>
++#include <private/qwaylanddisplay_p.h>
++#include <private/qwaylandintegration_p.h>
++#include <qbytearray.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qsocketnotifier.h>
++#include <qwaylandclientextension.h>
++#include <poll.h>
++#include <thread>
++#include <unistd.h>
++#include <wayland-client-core.h>
++
++#include "../../core/logcat.hpp"
++
++namespace qs::wayland::clipboard {
++QS_LOGGING_CATEGORY(logClipboard, "quickshell.wayland.clipboard", QtWarningMsg);
++}
++
++namespace qs::wayland::clipboard::impl {
++
++namespace {
++void flushDisplay() {
++	auto* integration = QtWaylandClient::QWaylandIntegration::instance();
++	if (integration) wl_display_flush(integration->display()->wl_display());
++}
++} // namespace
++
++// ---- Manager
++
++DataControlManager::DataControlManager(): QWaylandClientExtensionTemplate(1) { this->initialize(); }
++
++DataControlManager::~DataControlManager() {
++	if (this->isInitialized()) this->destroy();
++}
++
++DataControlManager* DataControlManager::instance() {
++	static auto* instance = new DataControlManager(); // NOLINT
++	return instance->isInitialized() ? instance : nullptr;
++}
++
++// ---- Offer
++
++DataOffer::~DataOffer() {
++	if (this->isInitialized()) this->destroy();
++}
++
++void DataOffer::ext_data_control_offer_v1_offer(const QString& mimeType) {
++	if (!this->mimeTypes.contains(mimeType)) this->mimeTypes.append(mimeType);
++}
++
++// ---- Source (runs on its own thread)
++
++namespace {
++
++struct SourceState {
++	QMap<QString, QByteArray> data;
++};
++
++// Write everything, giving a reader that stopped reading a few seconds.
++void writeAll(int fd, const QByteArray& data) {
++	qsizetype written = 0;
++	while (written < data.size()) {
++		pollfd pfd {.fd = fd, .events = POLLOUT, .revents = 0};
++		if (poll(&pfd, 1, 3000) <= 0) break;
++		auto count = write(fd, data.constData() + written, data.size() - written);
++		if (count > 0) written += count;
++		else if (count < 0 && (errno == EAGAIN || errno == EINTR)) continue;
++		else break; // the reader went away
++	}
++}
++
++void sourceSend(void* userData, ::ext_data_control_source_v1* /*source*/, const char* mimeType, int32_t fd) {
++	auto* state = static_cast<SourceState*>(userData);
++	const auto it = state->data.constFind(QString::fromUtf8(mimeType));
++	if (it != state->data.cend()) {
++		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
++		writeAll(fd, it.value());
++	}
++	close(fd);
++}
++
++// Something else is on the clipboard now: this source is done for good.
++void sourceCancelled(void* userData, ::ext_data_control_source_v1* source) {
++	ext_data_control_source_v1_destroy(source);
++	delete static_cast<SourceState*>(userData);
++}
++
++const ext_data_control_source_v1_listener SOURCE_LISTENER = {
++    .send = sourceSend,
++    .cancelled = sourceCancelled,
++};
++
++} // namespace
++
++SourceThread* SourceThread::instance() {
++	static auto* instance = new SourceThread(); // NOLINT
++	return instance;
++}
++
++SourceThread::SourceThread() {
++	this->display = QtWaylandClient::QWaylandIntegration::instance()->display()->wl_display();
++	this->queue = wl_display_create_queue(this->display);
++
++	std::thread([display = this->display, queue = this->queue] {
++		while (wl_display_dispatch_queue(display, queue) != -1) {}
++	}).detach();
++}
++
++void SourceThread::offer(
++    ::ext_data_control_manager_v1* manager,
++    ::ext_data_control_device_v1* device,
++    const QMap<QString, QByteArray>& data
++) {
++	// New objects made through the wrapper land on our queue.
++	auto* wrapper = static_cast<::ext_data_control_manager_v1*>(wl_proxy_create_wrapper(manager));
++	wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(wrapper), this->queue); // NOLINT
++	auto* source = ext_data_control_manager_v1_create_data_source(wrapper);
++	wl_proxy_wrapper_destroy(wrapper);
++
++	auto* state = new SourceState {.data = data};
++	ext_data_control_source_v1_add_listener(source, &SOURCE_LISTENER, state);
++	for (const auto& mimeType: data.keys()) {
++		ext_data_control_source_v1_offer(source, mimeType.toUtf8().constData());
++	}
++
++	ext_data_control_device_v1_set_selection(device, source);
++	wl_display_flush(this->display);
++}
++
++// ---- Device
++
++DataDevice::DataDevice(::ext_data_control_device_v1* device)
++    : QtWayland::ext_data_control_device_v1(device) {}
++
++DataDevice::~DataDevice() {
++	qDeleteAll(this->offers);
++	if (this->isInitialized()) this->destroy();
++}
++
++void DataDevice::ext_data_control_device_v1_data_offer(::ext_data_control_offer_v1* id) {
++	this->offers.insert(id, new DataOffer(id));
++}
++
++void DataDevice::ext_data_control_device_v1_selection(::ext_data_control_offer_v1* id) {
++	DataOffer* offer = id ? this->offers.take(id) : nullptr;
++	emit this->selectionChanged(offer);
++}
++
++void DataDevice::ext_data_control_device_v1_primary_selection(::ext_data_control_offer_v1* id) {
++	// Primary selection (middle click paste) is not kept.
++	if (id) delete this->offers.take(id);
++}
++
++void DataDevice::ext_data_control_device_v1_finished() { emit this->finished(); }
++
++// ---- Reading
++
++PipeReader::PipeReader(DataOffer* offer, const QString& mimeType, qsizetype limit, QObject* parent)
++    : QObject(parent)
++    , mimeType(mimeType)
++    , limit(limit) {
++	int fds[2]; // NOLINT
++	if (pipe2(fds, O_CLOEXEC | O_NONBLOCK) != 0) {
++		QTimer::singleShot(0, this, [this] { this->finish(false); });
++		return;
++	}
++
++	offer->receive(mimeType, fds[1]);
++	close(fds[1]);
++	flushDisplay();
++
++	this->fd = fds[0];
++	this->notifier = new QSocketNotifier(this->fd, QSocketNotifier::Read, this);
++	QObject::connect(this->notifier, &QSocketNotifier::activated, this, &PipeReader::onReadable);
++
++	// A client that never answers must not hold the clipboard history up.
++	this->timeout.setSingleShot(true);
++	this->timeout.setInterval(5000);
++	QObject::connect(&this->timeout, &QTimer::timeout, this, [this] { this->finish(false); });
++	this->timeout.start();
++}
++
++PipeReader::~PipeReader() {
++	if (this->fd != -1) close(this->fd);
++}
++
++void PipeReader::onReadable() {
++	char buffer[65536]; // NOLINT
++	while (true) {
++		auto count = read(this->fd, buffer, sizeof(buffer));
++		if (count > 0) {
++			this->data.append(buffer, count);
++			if (this->data.size() > this->limit) {
++				this->finish(false);
++				return;
++			}
++		} else if (count == 0) {
++			this->finish(true);
++			return;
++		} else {
++			if (errno == EAGAIN || errno == EINTR) return;
++			this->finish(false);
++			return;
++		}
++	}
++}
++
++void PipeReader::finish(bool ok) {
++	if (this->finished) return;
++	this->finished = true;
++	this->timeout.stop();
++	if (this->notifier) this->notifier->setEnabled(false);
++	if (this->fd != -1) {
++		close(this->fd);
++		this->fd = -1;
++	}
++	if (!ok) this->data.clear();
++	emit this->done(ok);
++}
++
++} // namespace qs::wayland::clipboard::impl
+diff --git a/src/wayland/clipboard/proto.hpp b/src/wayland/clipboard/proto.hpp
+new file mode 100644
+index 0000000..20bc7ff
+--- /dev/null
++++ b/src/wayland/clipboard/proto.hpp
+@@ -0,0 +1,117 @@
++#pragma once
++
++#include <qbytearray.h>
++#include <qhash.h>
++#include <qmap.h>
++#include <qobject.h>
++#include <qsocketnotifier.h>
++#include <qstringlist.h>
++#include <qtclasshelpermacros.h>
++#include <qtimer.h>
++#include <qtmetamacros.h>
++#include <qwayland-ext-data-control-v1.h>
++#include <qwaylandclientextension.h>
++#include <wayland-ext-data-control-v1-client-protocol.h>
++
++#include "../../core/logcat.hpp"
++
++namespace qs::wayland::clipboard {
++QS_DECLARE_LOGGING_CATEGORY(logClipboard);
++}
++
++namespace qs::wayland::clipboard::impl {
++
++class DataControlManager
++    : public QWaylandClientExtensionTemplate<DataControlManager>
++    , public QtWayland::ext_data_control_manager_v1 {
++public:
++	explicit DataControlManager();
++	~DataControlManager() override;
++	Q_DISABLE_COPY_MOVE(DataControlManager);
++
++	static DataControlManager* instance();
++};
++
++/// Something on the clipboard, offered by another client.
++class DataOffer: public QtWayland::ext_data_control_offer_v1 {
++public:
++	explicit DataOffer(::ext_data_control_offer_v1* offer)
++	    : QtWayland::ext_data_control_offer_v1(offer) {}
++	~DataOffer() override;
++	Q_DISABLE_COPY_MOVE(DataOffer);
++
++	QStringList mimeTypes;
++
++protected:
++	void ext_data_control_offer_v1_offer(const QString& mimeType) override;
++};
++
++/// Offers data on the clipboard from a separate thread with its own wayland
++/// event queue: a paste must be answered even while the main thread waits
++/// for the clipboard itself (Qt reads it synchronously, e.g. for text fields).
++class SourceThread {
++public:
++	static SourceThread* instance();
++
++	/// Offer the data and make it the selection of the device.
++	void offer(::ext_data_control_manager_v1* manager, ::ext_data_control_device_v1* device, const QMap<QString, QByteArray>& data);
++
++private:
++	SourceThread();
++	::wl_display* display = nullptr;
++	::wl_event_queue* queue = nullptr;
++};
++
++class DataDevice
++    : public QObject
++    , public QtWayland::ext_data_control_device_v1 {
++	Q_OBJECT;
++
++public:
++	explicit DataDevice(::ext_data_control_device_v1* device);
++	~DataDevice() override;
++	Q_DISABLE_COPY_MOVE(DataDevice);
++
++signals:
++	/// The clipboard changed. The receiver owns the offer; null when the clipboard is empty.
++	void selectionChanged(DataOffer* offer);
++	void finished();
++
++protected:
++	void ext_data_control_device_v1_data_offer(::ext_data_control_offer_v1* id) override;
++	void ext_data_control_device_v1_selection(::ext_data_control_offer_v1* id) override;
++	void ext_data_control_device_v1_primary_selection(::ext_data_control_offer_v1* id) override;
++	void ext_data_control_device_v1_finished() override;
++
++private:
++	QHash<::ext_data_control_offer_v1*, DataOffer*> offers;
++};
++
++/// Reads one mime type of an offer through a pipe, without blocking.
++class PipeReader: public QObject {
++	Q_OBJECT;
++
++public:
++	PipeReader(DataOffer* offer, const QString& mimeType, qsizetype limit, QObject* parent);
++	~PipeReader() override;
++	Q_DISABLE_COPY_MOVE(PipeReader);
++
++	QString mimeType;
++	QByteArray data;
++
++signals:
++	/// ok is false on error, timeout or when the data is over the limit.
++	void done(bool ok);
++
++private:
++	void onReadable();
++	void finish(bool ok);
++
++	int fd = -1;
++	qsizetype limit;
++	QSocketNotifier* notifier = nullptr;
++	QTimer timeout;
++	bool finished = false;
++};
++
++} // namespace qs::wayland::clipboard::impl
+diff --git a/src/wayland/module.md b/src/wayland/module.md
+index 1e34988..d86694b 100644
+--- a/src/wayland/module.md
++++ b/src/wayland/module.md
+@@ -9,5 +9,6 @@ headers = [
+ 	"idle_notify/monitor.hpp",
+ 	"shortcuts_inhibit/inhibitor.hpp",
+ 	"background_effect/qml.hpp",
++	"clipboard/history.hpp",
+ ]
+ -----

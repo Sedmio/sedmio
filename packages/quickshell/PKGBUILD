@@ -13,7 +13,7 @@
 
 pkgname=quickshell
 pkgver=0.3.2
-pkgrel=6
+pkgrel=7
 pkgdesc='Flexible toolkit for making desktop shells with QtQuick (сборка Sedmio)'
 arch=('x86_64')
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
@@ -50,10 +50,12 @@ makedepends=(
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
         'kde-window-management.patch'
-        'kde-services.patch')
+        'kde-services.patch'
+        'clipboard-history.patch')
 sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             '8e147c038acd8636225c6a8cc95386f02b5ab20089aa0fc68e0e27b4909b489d'
-            'f890f7b897367efb335adb7304e8ade727c512cdf7d5a539b7073c80717603b7')
+            'f890f7b897367efb335adb7304e8ade727c512cdf7d5a539b7073c80717603b7'
+            '3a523c7b73d42515a1d77926a094adc59c3ee04a6fa6d9ca56b42ac3080cf7ff')
 
 prepare() {
   cd "$pkgname"
@@ -68,6 +70,11 @@ prepare() {
   # яркость экранов из powerdevil, агент паролей Wi‑Fi для NetworkManager
   # и агент сопряжения Bluetooth для BlueZ.
   patch -Np1 -i ../kde-services.patch
+  # История буфера обмена (Quickshell.Wayland ClipboardHistory) через
+  # ext-data-control-v1: свой движок вместо klipper — запоминает
+  # скопированное, хранит на диске и держит буфер заполненным, когда
+  # программа-источник закрылась.
+  patch -Np1 -i ../clipboard-history.patch
 }
 
 build() {

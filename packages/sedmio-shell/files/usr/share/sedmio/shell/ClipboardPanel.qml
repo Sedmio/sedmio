@@ -1,8 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Widgets
-import org.kde.kitemmodels as KItemModels
 
 // История буфера обмена: поиск, список скопированного (текст, картинки,
 // файлы); записи со звёздочкой «Очистить» не трогает. Enter или клик кладёт
@@ -29,13 +27,13 @@ Item {
     function selectCurrent() {
         const item = list.currentItem;
         if (!item) return;
-        ClipboardState.select(item.uuid);
+        ClipboardState.select(item.entry.id);
         root.closeRequested(true);
     }
 
     // file:///home/user/Фото/кот.png → «кот.png»
     function fileNames(urls) {
-        return urls.split(" ").filter(u => u !== "").map(u => {
+        return urls.map(u => {
             const path = decodeURIComponent(u.replace(/^file:\/\//, ""));
             return path.endsWith("/") ? path : path.substring(path.lastIndexOf("/") + 1);
         });
@@ -101,7 +99,7 @@ Item {
                 case Qt.Key_Delete:
                     // Пока в поиске пусто — Delete удаляет запись, иначе символ.
                     if (search.text !== "" || !list.currentItem) return;
-                    ClipboardState.remove(list.currentItem.uuid);
+                    ClipboardState.remove(list.currentItem.entry.id);
                     break;
                 default:
                     return;
@@ -132,11 +130,8 @@ Item {
         highlightFollowsCurrentItem: true
         keyNavigationWraps: true
 
-        model: KItemModels.KSortFilterProxyModel {
-            sourceModel: ClipboardState.model
-            filterRoleName: "display"
-            filterString: search.text
-            filterCaseSensitivity: Qt.CaseInsensitive
+        model: ScriptModel {
+            values: ClipboardState.search(search.text)
         }
 
         highlight: Rectangle {
@@ -146,16 +141,11 @@ Item {
 
         delegate: Item {
             id: row
-            required property var model
+            required property var modelData
             required property int index
-            required property string uuid
-            required property int type
-            required property var display
-            required property var decoration
-            required property size imageSize
-            required property bool starred
+            readonly property var entry: modelData
 
-            readonly property bool current: index === 0 && search.text === ""
+            readonly property bool current: entry.id === ClipboardState.currentId
             readonly property bool hovered: mouse.containsMouse || starArea.containsMouse || removeArea.containsMouse
 
             width: ListView.view.width
@@ -181,15 +171,15 @@ Item {
             Item {
                 id: body
                 anchors { left: parent.left; leftMargin: 12; right: buttons.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                implicitHeight: row.type === ClipboardState.typeImage ? image.height
-                    : row.type === ClipboardState.typeUrl ? files.implicitHeight : text.implicitHeight
+                implicitHeight: row.entry.kind === "image" ? image.height
+                    : row.entry.kind === "files" ? files.implicitHeight : text.implicitHeight
 
                 // Текст: первые строки
                 SText {
                     id: text
-                    visible: row.type !== ClipboardState.typeImage && row.type !== ClipboardState.typeUrl
+                    visible: row.entry.kind === "text"
                     width: parent.width
-                    text: String(row.display ?? "").replace(/\s+$/, "").substring(0, 400)
+                    text: row.entry.text.replace(/\s+$/, "").substring(0, 400)
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     maximumLineCount: 3
@@ -200,13 +190,14 @@ Item {
 
                 // Картинка: миниатюра и размер
                 Row {
-                    visible: row.type === ClipboardState.typeImage
+                    visible: row.entry.kind === "image"
                     spacing: 12
                     Image {
                         id: image
-                        height: Math.min(72, Math.max(24, row.imageSize.height))
-                        width: Math.min(200, row.imageSize.height > 0 ? height * row.imageSize.width / row.imageSize.height : height)
-                        source: row.type === ClipboardState.typeImage ? row.decoration : ""
+                        height: Math.min(72, Math.max(24, row.entry.imageSize.height))
+                        width: Math.min(200, row.entry.imageSize.height > 0
+                            ? height * row.entry.imageSize.width / row.entry.imageSize.height : height)
+                        source: row.entry.image
                         sourceSize.height: 144
                         fillMode: Image.PreserveAspectFit
                         cache: false
@@ -214,7 +205,7 @@ Item {
                     }
                     SText {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Картинка " + row.imageSize.width + "×" + row.imageSize.height
+                        text: "Картинка " + row.entry.imageSize.width + "×" + row.entry.imageSize.height
                         size: Theme.fontSmall
                         color: Theme.inkMuted
                     }
@@ -223,10 +214,10 @@ Item {
                 // Файлы: значок и имена
                 RowLayout {
                     id: files
-                    visible: row.type === ClipboardState.typeUrl
+                    visible: row.entry.kind === "files"
                     width: parent.width
                     spacing: 10
-                    readonly property var names: row.type === ClipboardState.typeUrl ? root.fileNames(String(row.display)) : []
+                    readonly property var names: row.entry.kind === "files" ? root.fileNames(row.entry.files) : []
                     SIcon {
                         implicitSize: 22
                         name: files.names.length > 1 ? "folder-documents" : "text-x-generic"
@@ -261,19 +252,19 @@ Item {
                     width: 30
                     height: 30
                     radius: 9
-                    visible: row.starred || row.hovered || list.currentIndex === row.index
+                    visible: row.entry.starred || row.hovered || list.currentIndex === row.index
                     color: starArea.containsMouse ? Theme.paper : "transparent"
                     SIcon {
                         anchors.centerIn: parent
                         implicitSize: 16
-                        name: row.starred ? "starred-symbolic" : "non-starred-symbolic"
-                        opacity: row.starred ? 1 : 0.6
+                        name: row.entry.starred ? "starred-symbolic" : "non-starred-symbolic"
+                        opacity: row.entry.starred ? 1 : 0.6
                     }
                     MouseArea {
                         id: starArea
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: row.model.starred = !row.starred
+                        onClicked: row.entry.starred = !row.entry.starred
                     }
                 }
 
@@ -293,7 +284,7 @@ Item {
                         id: removeArea
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: ClipboardState.remove(row.uuid)
+                        onClicked: ClipboardState.remove(row.entry.id)
                     }
                 }
             }

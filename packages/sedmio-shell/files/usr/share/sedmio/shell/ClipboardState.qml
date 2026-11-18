@@ -1,49 +1,32 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import org.kde.plasma.private.clipboard as Klipper
+import Quickshell.Wayland
 
-// История буфера обмена. Движок — klipper из plasma-workspace (тот же, что
-// в Плазме: история в ~/.local/share/klipper, настройки в klipperrc):
-// он следит за буфером и держит скопированное, когда программа, из которой
-// копировали, закрылась. Показывает историю оболочка (Meta+V).
+// История буфера обмена. Движок свой — ClipboardHistory в нашем Quickshell
+// (протокол ext-data-control): он запоминает скопированное (текст, картинки,
+// файлы) в ~/.local/share/quickshell/clipboard и держит буфер заполненным,
+// когда программа, из которой копировали, закрылась. Показывает историю
+// оболочка (Meta+V).
 Singleton {
     id: root
 
-    // Тип записи (HistoryItemType в klipper)
-    readonly property int typeText: 2
-    readonly property int typeImage: 4
-    readonly property int typeUrl: 8
+    // Новые сверху
+    readonly property var entries: ClipboardHistory.entries.values
+    readonly property string currentId: ClipboardHistory.currentId
+    readonly property int count: entries.length
+    readonly property int starredCount: entries.filter(e => e.starred).length
 
-    readonly property alias model: history
-    readonly property int count: history.count
+    // Поиск по тексту (у файлов — по путям), без учёта регистра.
+    function search(query) {
+        const q = query.trim().toLowerCase();
+        if (q === "") return entries;
+        return entries.filter(e => e.text.toLowerCase().includes(q));
+    }
 
     // Сделать запись текущим содержимым буфера (и поднять наверх).
-    function select(uuid) { history.moveToTop(uuid); }
-    function remove(uuid) { history.remove(uuid); }
-    // Очистить всё, кроме записей со звёздочкой. Не clearHistory(): тот
-    // спрашивает подтверждение окном на QtWidgets, а их в оболочке нет —
-    // она падает.
-    function clear() {
-        const uuids = [];
-        for (let i = 0; i < rows.count; i++) {
-            const row = rows.objectAt(i);
-            if (row && !row.starred) uuids.push(row.uuid);
-        }
-        for (const uuid of uuids) history.remove(uuid);
-    }
-
-    readonly property int starredCount: history.starredCount
-
-    Klipper.HistoryModel { id: history }
-
-    // uuid и звёздочка каждой записи — для очистки.
-    Instantiator {
-        id: rows
-        model: history
-        delegate: QtObject {
-            required property string uuid
-            required property bool starred
-        }
-    }
+    function select(id) { ClipboardHistory.select(id); }
+    function remove(id) { ClipboardHistory.remove(id); }
+    // Всё, кроме записей со звёздочкой.
+    function clear() { ClipboardHistory.clear(); }
 }
