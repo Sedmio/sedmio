@@ -1,0 +1,11 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Id": "org.sedmio.desktop",
+        "Name": "Sedmio",
+        "Description": "Заставка при входе Sedmio (остальное — от Breeze)",
+        "License": "MIT",
+        "Version": "1.0"
+    },
+    "X-Plasma-APIVersion": "2"
+}

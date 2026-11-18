@@ -7,24 +7,63 @@
 # KWin, а не что-то полегче: на ПК две видеокарты, мониторы подключены
 # к RTX 4060, а BIOS может считать главной встроенную Radeon. KWin
 # выводит изображение на все подключённые мониторы любой видеокарты.
+#
+# Защита от поломки: экран входа закрылся в первые полминуты, а никто
+# не вошёл, — это падение (выключение с экрана входа — не падение).
+# greetd тут же запускает нас снова; после трёх падений подряд
+# вместо картинки — текстовый вход agreety (из пакета greetd), чтобы
+# сломанное обновление не оставило без входа. Следующий запуск (после
+# выхода из сеанса) снова пробует обычный экран.
+
+session="/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"
+
+text_login() {
+  echo "Экран входа Sedmio не запустился — вход в текстовом режиме."
+  exec agreety --cmd "$session"
+}
 
 # У greeter нет домашнего каталога — настройки и кэш KWin и Quickshell
 # храним здесь (каталог создаёт usr/lib/tmpfiles.d/sedmio-greeter.conf).
+# Его нет или он чужой — берём временный, лишь бы войти.
 state=/var/lib/sedmio-greeter
+if [ ! -w "$state" ]; then
+  state="${XDG_RUNTIME_DIR:-/tmp}/sedmio-greeter"
+  mkdir -p "$state" || text_login
+fi
 export SEDMIO_GREETER_STATE=$state
 export XDG_CONFIG_HOME=$state/config
 export XDG_CACHE_HOME=$state/cache
 export XDG_DATA_HOME=$state/data
 export XDG_STATE_HOME=$state/state
 
+command -v kwin_wayland >/dev/null && command -v quickshell >/dev/null || text_login
+
+failures=$(cat "$state/failures" 2>/dev/null)
+case $failures in ''|*[!0-9]*) failures=0 ;; esac
+if [ "$failures" -ge 3 ]; then
+  echo 0 > "$state/failures"
+  text_login
+fi
+
 [ -r /etc/locale.conf ] && . /etc/locale.conf && export LANG
 export XCURSOR_THEME=breeze_cursors
 export XCURSOR_SIZE=24
 export QT_QPA_PLATFORM=wayland
 
+# Метка запуска: экран входа перед входом записывает last-user
+# (shell.qml) — файл новее метки значит, что вошли.
+touch "$state/started"
+started=$(date +%s)
+
 # Раскладки — из /etc/xdg/kxkbrc (как в сеансе), поэтому без --locale1.
 # Шина D-Bus — пользовательская шина greeter от systemd (pam_systemd):
 # на ней KWin отдаёт раскладки экрану входа. dbus-run-session не нужен —
 # его dbus-daemon переживал экран входа и держал сеанс greeter открытым.
-exec kwin_wayland --drm --no-lockscreen --no-global-shortcuts \
+kwin_wayland --drm --no-lockscreen --no-global-shortcuts \
   --exit-with-session "quickshell --path /usr/share/sedmio/greeter"
+
+if [ "$state/last-user" -nt "$state/started" ]; then
+  echo 0 > "$state/failures"
+elif [ $(($(date +%s) - started)) -lt 30 ]; then
+  echo $((failures + 1)) > "$state/failures"
+fi

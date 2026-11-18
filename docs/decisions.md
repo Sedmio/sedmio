@@ -144,5 +144,13 @@ Server = https://github.com/Sedmio/sedmio/releases/download/$arch
   на Quickshell требует протокола ext-session-lock, которого в KWin 6.8
   нет. kscreenlocker встроен в KWin и держит сеанс заблокированным, даже
   если экран блокировки упадёт; вид он берёт из пакета Plasma/Shell —
-  у нас это `org.sedmio.shell` (только экран блокировки), выбран
+  у нас это `org.sedmio.shell` (только экраны блокировки и выхода), выбран
   переменной `PLASMA_DEFAULT_SHELL`.
+- **Выход и заставка — тоже свои.** Окно «Выключить / Перезагрузить /
+  Выйти» (ksmserver-logout-greeter) берёт `logout/Logout.qml` из того же
+  `org.sedmio.shell`; заставку при входе (ksplashqml) — из пакета
+  Plasma/LookAndFeel `org.sedmio.desktop`, выбран в `/etc/xdg/ksplashrc`.
+- **Защита от поломок.** Экраны блокировки и выхода — обёртки: наш QML
+  не загрузился — показываем стандартный от Plasma. Экран входа упал
+  трижды подряд (закрылся в первые полминуты, а никто не вошёл) — вместо
+  него текстовый вход agreety из greetd; следующий раз снова пробует наш.

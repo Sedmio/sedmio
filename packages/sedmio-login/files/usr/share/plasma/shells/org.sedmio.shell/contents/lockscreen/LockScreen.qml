@@ -1,69 +1,37 @@
 import QtQuick
-import org.kde.plasma.private.sessions as Sessions
-import "file:///usr/share/sedmio/login-ui"
 
 // Экран блокировки Sedmio. Его показывает kscreenlocker_greet (KWin
 // запускает его при блокировке), пакет выбран переменной
 // PLASMA_DEFAULT_SHELL (usr/lib/environment.d/60-sedmio-lockscreen.conf).
-// Не загрузится — kscreenlocker покажет свой запасной экран, так что
-// заблокированным навсегда не останешься.
+//
+// Защита от поломки: наш экран (SedmioLock.qml) не загрузился — нет
+// модуля после обновления, ошибка в QML — показываем стандартный экран
+// блокировки Plasma. А если и этот файл не загрузится, kscreenlocker
+// подставит свой встроенный. Сеанс при этом заблокирован всегда: его
+// держит KWin, а не этот экран.
 Item {
     id: root
 
-    // Пишет kscreenlocker_greet.
+    // Пишет kscreenlocker_greet; передаём загруженному экрану.
     property bool locked: false
     property bool viewVisible: false
 
     implicitWidth: 800
     implicitHeight: 600
 
-    Backdrop { anchors.fill: parent }
-
-    Sessions.SessionManagement { id: session }
-
-    ClockBlock {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: card.top
-        anchors.bottomMargin: Math.max(40, root.height * 0.07)
-    }
-
-    LoginCard {
-        id: card
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: root.height * 0.08
-
-        displayName: kscreenlocker_userName
-        avatar: kscreenlocker_userImage !== ""
-            ? "file://" + kscreenlocker_userImage.split("/").map(encodeURIComponent).join("/") : ""
-        busy: LockState.busy
-        message: LockState.message
-        messageIsError: LockState.messageIsError
-
-        onSubmitted: text => LockState.submit(text)
-        onEdited: LockState.edited()
-        onPasswordChanged: LockState.password = password
-
-        Binding on password { value: LockState.password }
-    }
-
-    Connections {
-        target: LockState
-        function onRejectionsChanged() { card.rejected(); }
-    }
-
-    Row {
-        anchors { right: parent.right; bottom: parent.bottom; margins: 28 }
-        spacing: 12
-        LayoutChip {}
-        RoundButton {
-            visible: session.canSuspend
-            icon: "system-suspend"
-            label: "Сон"
-            onClicked: session.suspend()
+    Loader {
+        id: screen
+        anchors.fill: parent
+        focus: true
+        source: "SedmioLock.qml"
+        onStatusChanged: {
+            if (status === Loader.Error && source.toString().indexOf("SedmioLock") >= 0) {
+                console.warn("Sedmio: экран блокировки не загрузился, показываю стандартный Plasma");
+                source = "file:///usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreen.qml";
+            }
         }
     }
 
-    onViewVisibleChanged: if (viewVisible) card.focusInput()
-    Component.onCompleted: card.focusInput()
+    Binding { target: screen.item; property: "locked"; value: root.locked; when: screen.item !== null }
+    Binding { target: screen.item; property: "viewVisible"; value: root.viewVisible; when: screen.item !== null }
 }

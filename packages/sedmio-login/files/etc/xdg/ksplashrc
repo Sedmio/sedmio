@@ -1,0 +1,5 @@
+# Заставка при входе — своя (пакет sedmio-login,
+# usr/share/plasma/look-and-feel/org.sedmio.desktop).
+[KSplash]
+Engine=KSplashQML
+Theme=org.sedmio.desktop
