@@ -59,7 +59,10 @@ args=(
 )
 if [[ $mode == iso ]]; then
   echo "Загрузка с $ISO"
-  args+=(-cdrom "$ISO" -boot order=d)
+  # bootindex, а не -boot order=d: OVMF берёт порядок из своей NVRAM,
+  # и после установки первым там стоит диск.
+  args+=(-drive file="$ISO",media=cdrom,if=none,id=cd0,readonly=on
+         -device ide-cd,drive=cd0,bootindex=0)
 fi
 
 exec qemu-system-x86_64 "${args[@]}"
