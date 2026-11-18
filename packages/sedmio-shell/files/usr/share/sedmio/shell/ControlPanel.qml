@@ -250,15 +250,19 @@ Item {
             }
 
             Repeater {
-                model: ScreenBrightness.displays
+                // Модель — число экранов, а не сам список: список приходит
+                // заново на каждое изменение яркости, и строки пересоздавались
+                // бы прямо под пальцем — ползунок нельзя было бы тащить.
+                model: ScreenBrightness.displays.length
                 SliderRow {
-                    required property var modelData
+                    required property int index
+                    readonly property var modelData: ScreenBrightness.displays[index] ?? ({})
                     Layout.fillWidth: true
                     icon: "brightness-high"
                     iconClickable: false
                     label: ScreenBrightness.displays.length > 1 ? modelData.label : ""
-                    value: modelData.brightness
-                    maximum: modelData.maxBrightness
+                    value: modelData.brightness ?? 0
+                    maximum: modelData.maxBrightness ?? 1
                     onMoved: v => ScreenBrightness.setBrightness(modelData.name, Math.round(v))
                 }
             }
