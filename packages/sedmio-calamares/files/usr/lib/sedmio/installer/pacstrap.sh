@@ -16,6 +16,14 @@ else
 fi
 echo "Профиль машины: $host"
 
+# Ключи pacman в live-системе заполняет pacman-init.service при загрузке.
+# Если pacman полезет в связку раньше, чем он закончит, ломаются оба
+# (ключи CachyOS остаются недоверенными). start ждёт его окончания, а если
+# он уже отработал — ничего не делает.
+if systemctl cat pacman-init.service >/dev/null 2>&1; then
+  systemctl start pacman-init.service
+fi
+
 # -K: своё хранилище ключей в целевой системе; ключи Arch, CachyOS
 #     и Sedmio добавляют в него пакеты *-keyring при установке.
 # Без -c: пакеты скачиваются в кэш на целевом диске. Live-система живёт
@@ -40,10 +48,15 @@ awk -v server='https://github.com/Sedmio/sedmio/releases/download/$arch' '
   !skip
 ' /etc/pacman.conf > "$ROOT/etc/pacman.conf"
 
+# Зеркала Arch — из live-системы (их выбрал reflector при загрузке).
+cp /etc/pacman.d/mirrorlist "$ROOT/etc/pacman.d/mirrorlist"
+
 # База [sedmio], которую pacstrap взял с образа, — без подписи и новее
 # сетевой по дате. pacman не стал бы скачивать сетевую базу, а подпись
 # к ней взял бы, и первый pacman -Sy упал бы с «signature is invalid».
+# Сразу качаем сетевую, иначе до первого pacman -Sy любая команда pacman
+# предупреждает, что базы [sedmio] нет. Не вышло — не страшно, скачает
+# первое обновление.
 rm -f "$ROOT"/var/lib/pacman/sync/sedmio.*
-
-# Зеркала Arch — из live-системы (их выбрал reflector при загрузке).
-cp /etc/pacman.d/mirrorlist "$ROOT/etc/pacman.d/mirrorlist"
+arch-chroot "$ROOT" pacman -Sy >/dev/null \
+  || echo "Базу [sedmio] скачать не удалось: её скачает первый pacman -Sy." >&2

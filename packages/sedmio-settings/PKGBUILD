@@ -9,7 +9,7 @@
 
 pkgname=sedmio-settings
 pkgver=0.1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Sedmio: название системы, экран входа, настройки Plasma, раскладок и приложений по умолчанию"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
