@@ -347,6 +347,20 @@ int FolderModel::selectUrls(const QList<QUrl> &urls)
     return first;
 }
 
+void FolderModel::selectRows(const QList<int> &rows, const QList<QUrl> &base)
+{
+    QSet<QUrl> selected(base.cbegin(), base.cend());
+    for (int row : rows) {
+        const QUrl url = urlAt(row);
+        if (!url.isEmpty())
+            selected.insert(url);
+    }
+    if (selected == m_selected)
+        return;
+    m_selected = selected;
+    selectionUpdated();
+}
+
 void FolderModel::selectAll()
 {
     m_selected.clear();

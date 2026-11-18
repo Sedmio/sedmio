@@ -8,6 +8,8 @@ Rectangle {
     id: root
     property url currentUrl
     signal openRequested(url url)
+    // Средняя кнопка — открыть во вкладке.
+    signal openInNewTabRequested(url url)
     // Бросили файлы на место: скопировать или перенести туда.
     signal dropped(var urls, url destination, var drop)
 
@@ -90,8 +92,10 @@ Rectangle {
                 id: mouse
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: {
+                acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                onClicked: mouse => {
                     if (row.setupNeeded) places.setup(row.index);
+                    else if (mouse.button === Qt.MiddleButton) root.openInNewTabRequested(row.url);
                     else root.openRequested(row.url);
                 }
             }

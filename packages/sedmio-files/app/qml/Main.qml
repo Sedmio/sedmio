@@ -18,10 +18,7 @@ ApplicationWindow {
     minimumHeight: 360
     visible: true
     color: Theme.paper
-    title: {
-        const crumbs = FileOps.crumbs(folder.url);
-        return (crumbs.length > 0 ? crumbs[crumbs.length - 1].name : "") + " — Файлы";
-    }
+    title: (tab ? tab.title : "") + " — Файлы"
 
     Settings {
         id: settings
@@ -32,54 +29,53 @@ ApplicationWindow {
         property bool descending: false
     }
 
-    FolderModel {
-        id: folder
-        showHidden: settings.showHidden
-        sortBy: settings.sortBy
-        descending: settings.descending
-        onShowHiddenChanged: settings.showHidden = showHidden
-        onSortChanged: {
-            settings.sortBy = sortBy;
-            settings.descending = descending;
+    // ---- Вкладки
+
+    // start — с какой папки вкладка начиналась; где она сейчас — у самой вкладки.
+    ListModel { id: tabsModel }
+    property int currentTab: 0
+    // Закрытые вкладки — вернуть по Ctrl+Shift+T.
+    property var closedTabs: []
+
+    readonly property FolderTab tab: tabsRepeater.count > 0 && currentTab < tabsRepeater.count
+        ? tabsRepeater.itemAt(currentTab) : null
+    // Пока вкладка создаётся, привязкам нужна хоть какая-то модель.
+    FolderModel { id: noFolder }
+    readonly property FolderModel folder: tab ? tab.folder : noFolder
+    readonly property FolderView view: tab ? tab.view : null
+
+    function newTab(url, background) {
+        tabsModel.insert(currentTab + 1, { start: url.toString() });
+        if (!background) currentTab = currentTab + 1;
+    }
+    function closeTab(index) {
+        if (tabsModel.count <= 1) {
+            win.close();
+            return;
         }
+        closedTabs = closedTabs.concat([tabsRepeater.itemAt(index).folder.url.toString()]).slice(-20);
+        if (index < currentTab || (index === currentTab && index === tabsModel.count - 1))
+            currentTab = currentTab - 1;
+        tabsModel.remove(index);
     }
+    function reopenTab() {
+        if (closedTabs.length === 0) return;
+        const url = closedTabs[closedTabs.length - 1];
+        closedTabs = closedTabs.slice(0, -1);
+        newTab(url, false);
+    }
+    function switchTab(delta) {
+        const n = tabsModel.count;
+        currentTab = (currentTab + delta + n) % n;
+    }
+    onCurrentTabChanged: Qt.callLater(() => { if (view) view.forceActiveFocus(); })
 
-    // ---- Навигация
+    // ---- Навигация (в текущей вкладке)
 
-    property var backStack: []
-    property var forwardStack: []
-
-    function navigate(url) {
-        if (url.toString() === folder.url.toString()) return;
-        if (folder.url.toString() !== "") backStack = backStack.concat([folder.url]);
-        forwardStack = [];
-        folder.url = url;
-        view.forceActiveFocus();
-    }
-    function back() {
-        if (backStack.length === 0) return;
-        forwardStack = forwardStack.concat([folder.url]);
-        folder.url = backStack[backStack.length - 1];
-        backStack = backStack.slice(0, -1);
-    }
-    function forward() {
-        if (forwardStack.length === 0) return;
-        backStack = backStack.concat([folder.url]);
-        folder.url = forwardStack[forwardStack.length - 1];
-        forwardStack = forwardStack.slice(0, -1);
-    }
-    readonly property string parentUrl: {
-        const u = folder.url.toString().replace(/\/+$/, "");
-        const scheme = u.indexOf(":/");
-        const slash = u.lastIndexOf("/");
-        if (scheme < 0 || slash <= scheme + 2) return "";
-        if (u.startsWith("file://") && u.length <= 8) return "";
-        const parent = u.substring(0, slash);
-        return parent.endsWith(":/") || parent.endsWith("://") ? parent + "/" : parent;
-    }
-    function up() {
-        if (parentUrl !== "") navigate(parentUrl);
-    }
+    function navigate(url) { if (tab) tab.navigate(url); }
+    function back() { if (tab) tab.back(); }
+    function forward() { if (tab) tab.forward(); }
+    function up() { if (tab) tab.up(); }
 
     // Открыть строку: папку — перейти, файл — открыть. Выбрано несколько
     // файлов — открыть все.
@@ -93,8 +89,8 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        folder.url = startUrl;
-        view.forceActiveFocus();
+        tabsModel.append({ start: startUrl.toString() });
+        tabsRepeater.itemAt(0).selectUrls = win.selectUrls;
     }
 
     // ---- Действия
@@ -124,6 +120,7 @@ ApplicationWindow {
                     () => FileOps.emptyTrash());
     }
     function renameSelection() {
+        if (!view) return;
         const row = folder.selectedCount > 0 ? folder.firstSelected() : view.currentRow;
         if (row >= 0 && canChange) {
             folder.select(row, 0);
@@ -131,36 +128,11 @@ ApplicationWindow {
         }
     }
 
-    // Новую папку — сразу выделить и дать переименовать; переименованный
-    // файл — выделить, где бы он ни оказался после сортировки.
-    property string pendingName: ""
-    property bool pendingRename: false
+    // Новую папку — сразу выделить и дать переименовать (см. FolderTab).
     function newFolder() {
-        if (!canChange) return;
-        pendingName = FileOps.createFolder(folder.url, "Новая папка");
-        pendingRename = true;
-    }
-    function tryPending() {
-        if (pendingName === "") return;
-        const row = folder.rowOf(pendingName);
-        if (row < 0) return;
-        folder.select(row, 0);
-        view.focusRow(row);
-        if (pendingRename) view.startRename(row);
-        pendingName = "";
-        pendingRename = false;
-    }
-    Connections {
-        target: folder
-        function onRowsInserted() { Qt.callLater(win.tryPending); }
-        function onLayoutChanged() { Qt.callLater(win.tryPending); }
-        function onDataChanged() { Qt.callLater(win.tryPending); }
-        function onLoadingChanged() {
-            if (folder.loading || win.selectUrls.length === 0) return;
-            const row = folder.selectUrls(win.selectUrls);
-            win.selectUrls = [];
-            if (row >= 0) view.focusRow(row);
-        }
+        if (!canChange || !tab) return;
+        tab.pendingName = FileOps.createFolder(folder.url, "Новая папка");
+        tab.pendingRename = true;
     }
 
     // Ошибки операций — полосой над папкой того окна, где работали последним.
@@ -188,7 +160,7 @@ ApplicationWindow {
     Shortcut { sequence: "F2"; onActivated: win.renameSelection() }
     Shortcut { sequences: [StandardKey.Undo]; enabled: FileOps.canUndo; onActivated: FileOps.undo() }
     Shortcut { sequence: "Ctrl+Shift+N"; onActivated: win.newFolder() }
-    Shortcut { sequence: "Ctrl+H"; onActivated: folder.showHidden = !folder.showHidden }
+    Shortcut { sequence: "Ctrl+H"; onActivated: settings.showHidden = !settings.showHidden }
     Shortcut { sequence: "Ctrl+L"; onActivated: pathBar.edit() }
     Shortcut { sequences: ["Ctrl+F", "F3"]; onActivated: search.forceActiveFocus() }
     Shortcut { sequences: ["Alt+Left", "Back"]; onActivated: win.back() }
@@ -198,7 +170,24 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+1"; onActivated: settings.mode = "grid" }
     Shortcut { sequence: "Ctrl+2"; onActivated: settings.mode = "list" }
     Shortcut { sequence: "Ctrl+N"; onActivated: App.openWindow(folder.url) }
-    Shortcut { sequences: ["Ctrl+W", "Ctrl+Q"]; onActivated: win.close() }
+    Shortcut { sequence: "Ctrl+T"; onActivated: win.newTab(folder.url, false) }
+    Shortcut { sequence: "Ctrl+W"; onActivated: win.closeTab(win.currentTab) }
+    Shortcut { sequence: "Ctrl+Shift+T"; onActivated: win.reopenTab() }
+    Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; onActivated: win.switchTab(1) }
+    Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+PgUp"]; onActivated: win.switchTab(-1) }
+    Shortcut { sequence: "Ctrl+Q"; onActivated: win.close() }
+    // Alt+1…9 — вкладка по номеру
+    Repeater {
+        model: 9
+        Item {
+            required property int index
+            Shortcut {
+                sequence: "Alt+" + (index + 1)
+                enabled: index < tabsModel.count
+                onActivated: win.currentTab = index
+            }
+        }
+    }
 
     // Кнопки «назад» и «вперёд» на мыши
     MouseArea {
@@ -240,12 +229,17 @@ ApplicationWindow {
             const isDir = folder.isDirAt(row);
             const url = folder.urlAt(row);
             items = [
-                { text: "Открыть", icon: isDir ? "folder-open" : "document-open", action: () => win.openRow(row) },
+                { text: "Открыть", icon: isDir ? "folder-open" : "document-open", action: () => win.openRow(row) }
+            ];
+            if (isDir)
+                items.push({ text: "Открыть в новой вкладке", icon: "tab-new", shortcut: "Средняя кнопка",
+                             action: () => win.newTab(url, false) });
+            items = items.concat([
                 { text: "Открыть с помощью", icon: "system-run", items: win.appsMenu(row) },
                 { separator: true },
                 { text: "Вырезать", icon: "edit-cut", shortcut: "Ctrl+X", enabled: win.canChange, action: win.cutSelection },
                 { text: "Копировать", icon: "edit-copy", shortcut: "Ctrl+C", action: win.copySelection },
-            ];
+            ]);
             if (single && isDir && FileOps.canPaste)
                 items.push({ text: "Вставить в папку", icon: "edit-paste", action: () => FileOps.paste(url) });
             items.push({ separator: true });
@@ -267,10 +261,11 @@ ApplicationWindow {
             items.push({ separator: true });
             items.push({ text: "Вид", icon: "view-list-icons", items: win.viewItems() });
             items.push({ text: "Сортировка", icon: "view-sort", items: win.sortItems() });
-            items.push({ text: "Скрытые файлы", icon: "view-hidden", shortcut: "Ctrl+H", checked: folder.showHidden,
-                         action: () => folder.showHidden = !folder.showHidden });
+            items.push({ text: "Скрытые файлы", icon: "view-hidden", shortcut: "Ctrl+H", checked: settings.showHidden,
+                         action: () => settings.showHidden = !settings.showHidden });
             items.push({ separator: true });
             items.push({ text: "Обновить", icon: "view-refresh", shortcut: "F5", action: () => folder.reload() });
+            items.push({ text: "Новая вкладка", icon: "tab-new", shortcut: "Ctrl+T", action: () => win.newTab(folder.url, false) });
         }
         menu.items = items;
         menu.openAt(item, x, y);
@@ -284,8 +279,8 @@ ApplicationWindow {
     }
     function sortItems() {
         const by = key => () => {
-            folder.sortBy = key;
-            folder.descending = key === "date" || key === "size";
+            settings.sortBy = key;
+            settings.descending = key === "date" || key === "size";
         };
         return [
             { text: "По имени", checked: folder.sortBy === "name", action: by("name") },
@@ -293,8 +288,18 @@ ApplicationWindow {
             { text: "По размеру", checked: folder.sortBy === "size", action: by("size") },
             { text: "По типу", checked: folder.sortBy === "type", action: by("type") },
             { separator: true },
-            { text: "По убыванию", checked: folder.descending, action: () => folder.descending = !folder.descending }
+            { text: "По убыванию", checked: settings.descending, action: () => settings.descending = !settings.descending }
         ];
+    }
+
+    // Заголовок столбца: тот же — сменить направление, другой — сортировать по нему.
+    function sortBy(key) {
+        if (settings.sortBy === key) {
+            settings.descending = !settings.descending;
+        } else {
+            settings.sortBy = key;
+            settings.descending = key === "date" || key === "size";
+        }
     }
 
     // Бросили файлы: на том же диске — перенести (с Ctrl — скопировать),
@@ -315,6 +320,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             currentUrl: folder.url
             onOpenRequested: url => win.navigate(url)
+            onOpenInNewTabRequested: url => win.newTab(url, true)
             onDropped: (urls, destination, drop) => {
                 drop.accept(Qt.CopyAction);
                 win.handleDrop(urls, destination, { fromUs: drop.source !== null, copy: drop.proposedAction === Qt.CopyAction });
@@ -337,14 +343,31 @@ ApplicationWindow {
                 anchors.margins: 8
                 spacing: 6
 
+                // Вкладки — когда их больше одной
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: tabsModel.count > 1
+                    spacing: 4
+
+                    Repeater {
+                        model: tabsModel
+                        delegate: TabChip {}
+                    }
+                    ToolButton {
+                        icon: "list-add"
+                        onClicked: win.newTab(win.folder.url, false)
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
                 // Навигация, адрес, поиск, вид
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 4
 
-                    ToolButton { icon: "go-previous"; enabled_: win.backStack.length > 0; onClicked: win.back() }
-                    ToolButton { icon: "go-next"; enabled_: win.forwardStack.length > 0; onClicked: win.forward() }
-                    ToolButton { icon: "go-up"; enabled_: win.parentUrl !== ""; onClicked: win.up() }
+                    ToolButton { icon: "go-previous"; enabled_: !!win.tab && win.tab.backStack.length > 0; onClicked: win.back() }
+                    ToolButton { icon: "go-next"; enabled_: !!win.tab && win.tab.forwardStack.length > 0; onClicked: win.forward() }
+                    ToolButton { icon: "go-up"; enabled_: !!win.tab && win.tab.parentUrl !== ""; onClicked: win.up() }
 
                     PathBar {
                         id: pathBar
@@ -352,6 +375,7 @@ ApplicationWindow {
                         Layout.leftMargin: 4
                         url: folder.url
                         onOpenRequested: url => win.navigate(url)
+                        onOpenInNewTabRequested: url => win.newTab(url, true)
                     }
 
                     // Поиск по этой папке
@@ -388,10 +412,11 @@ ApplicationWindow {
                             onTextEdited: folder.filter = text
                             Keys.onEscapePressed: {
                                 folder.filter = "";
-                                view.forceActiveFocus();
+                                if (view) view.forceActiveFocus();
                             }
                             // Enter или стрелка вниз — к найденному
                             function toResults() {
+                                if (!view) return;
                                 view.forceActiveFocus();
                                 if (folder.count > 0) {
                                     folder.select(0, 0);
@@ -443,19 +468,33 @@ ApplicationWindow {
                     Timer { id: bannerTimer; interval: 8000; onTriggered: banner.visible = false }
                 }
 
-                FolderView {
-                    id: view
+                // Папки вкладок; видна текущая.
+                Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    folder: folder
-                    mode: settings.mode
-                    onOpenRequested: row => win.openRow(row)
-                    onContextMenuRequested: (row, item, x, y) => win.showMenu(row, item, x, y)
-                    onDropRequested: (urls, destination, info) => win.handleDrop(urls, destination, info)
-                    onRenameFailed: message => win.showError(message)
-                    onRenamed: newName => {
-                        win.pendingName = newName;
-                        win.pendingRename = false;
+
+                    Repeater {
+                        id: tabsRepeater
+                        model: tabsModel
+                        delegate: FolderTab {
+                            id: folderTab
+                            required property int index
+                            required property string start
+                            anchors.fill: parent
+                            startUrl: start
+                            visible: index === win.currentTab
+                            focus: visible
+                            mode: settings.mode
+                            showHidden: settings.showHidden
+                            sortBy: settings.sortBy
+                            descending: settings.descending
+                            onOpenRequested: row => win.openRow(row)
+                            onContextMenuRequested: (row, item, x, y) => win.showMenu(row, item, x, y)
+                            onDropRequested: (urls, destination, info) => win.handleDrop(urls, destination, info)
+                            onRenameFailed: message => win.showError(message)
+                            onSortRequested: key => win.sortBy(key)
+                            onOpenInNewTabRequested: url => win.newTab(url, true)
+                        }
                     }
                 }
 
@@ -484,6 +523,92 @@ ApplicationWindow {
                     }
                 }
             }
+        }
+    }
+
+    // Ярлык вкладки: щелчок — перейти, средняя кнопка или ✕ — закрыть.
+    // Тащат файлы и держат над ярлыком — вкладка открывается; бросили —
+    // файлы ложатся в её папку.
+    component TabChip: Rectangle {
+        id: chip
+        required property int index
+        readonly property bool current: index === win.currentTab
+        // Сама вкладка (count — чтобы пересчитать, когда её создадут).
+        readonly property FolderTab tab: tabsRepeater.count, tabsRepeater.itemAt(index)
+        readonly property url url: tab ? tab.folder.url : ""
+
+        Layout.fillWidth: true
+        Layout.maximumWidth: 220
+        Layout.minimumWidth: 60
+        implicitHeight: 32
+        radius: 9
+        color: current ? Theme.paperDeep
+             : tabDrop.containsDrag ? Theme.greenWash
+             : chipArea.containsMouse ? Theme.paper : "transparent"
+        Behavior on color { ColorAnimation { duration: Theme.animFast } }
+
+        SIcon {
+            id: chipIcon
+            anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+            size: 16
+            name: "folder"
+            opacity: chip.current ? 1 : 0.7
+        }
+        SText {
+            anchors { left: chipIcon.right; leftMargin: 6; right: close.left; rightMargin: 4; verticalCenter: parent.verticalCenter }
+            text: chip.tab ? chip.tab.title : ""
+            elide: Text.ElideRight
+            size: 13
+            weight: chip.current ? 600 : 450
+            color: chip.current ? Theme.ink : Theme.inkSoft
+        }
+
+        MouseArea {
+            id: chipArea
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+            onClicked: mouse => mouse.button === Qt.MiddleButton ? win.closeTab(chip.index) : win.currentTab = chip.index
+        }
+
+        Rectangle {
+            id: close
+            anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
+            width: 20
+            height: 20
+            radius: 6
+            visible: chip.current || chipArea.containsMouse || closeArea.containsMouse
+            color: closeArea.containsMouse ? Theme.line : "transparent"
+            SText {
+                anchors.centerIn: parent
+                text: "✕"
+                size: 11
+                color: Theme.inkSoft
+            }
+            MouseArea {
+                id: closeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: win.closeTab(chip.index)
+            }
+        }
+
+        DropArea {
+            id: tabDrop
+            anchors.fill: parent
+            keys: ["text/uri-list"]
+            onEntered: if (!chip.current) openTimer.restart()
+            onExited: openTimer.stop()
+            onDropped: drop => {
+                openTimer.stop();
+                drop.accept(Qt.CopyAction);
+                win.handleDrop(drop.urls, chip.url, { fromUs: drop.source !== null, copy: drop.proposedAction === Qt.CopyAction });
+            }
+        }
+        Timer {
+            id: openTimer
+            interval: 700
+            onTriggered: win.currentTab = chip.index
         }
     }
 }

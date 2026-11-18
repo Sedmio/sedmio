@@ -37,6 +37,7 @@ qt_add_qml_module(sedmio-files
         qml/Sidebar.qml
         qml/PathBar.qml
         qml/FolderView.qml
+        qml/FolderTab.qml
         qml/FileIcon.qml
         qml/Menu.qml
         qml/ConfirmDialog.qml

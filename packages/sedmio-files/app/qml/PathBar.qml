@@ -9,6 +9,7 @@ Rectangle {
     id: root
     property url url
     signal openRequested(url url)
+    signal openInNewTabRequested(url url)
 
     readonly property bool editing: field.visible
 
@@ -82,7 +83,10 @@ Rectangle {
                             id: crumbArea
                             anchors.fill: parent
                             hoverEnabled: true
-                            onClicked: root.openRequested(parent.parent.modelData.url)
+                            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                            onClicked: mouse => mouse.button === Qt.MiddleButton
+                                ? root.openInNewTabRequested(parent.parent.modelData.url)
+                                : root.openRequested(parent.parent.modelData.url)
                         }
                     }
                 }

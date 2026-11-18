@@ -89,6 +89,8 @@ public:
     Q_INVOKABLE void select(int row, int mode = 0);
     // Выделить эти адреса (что есть в папке); вернёт первую строку или -1.
     Q_INVOKABLE int selectUrls(const QList<QUrl> &urls);
+    // Выделение рамкой: эти строки плюс base (что было выделено до неё, с Ctrl).
+    Q_INVOKABLE void selectRows(const QList<int> &rows, const QList<QUrl> &base);
     Q_INVOKABLE void selectAll();
     Q_INVOKABLE void clearSelection();
     Q_INVOKABLE bool isSelected(int row) const;

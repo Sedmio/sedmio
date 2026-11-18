@@ -6,7 +6,9 @@ import Sedmio.Files
 // как в проводнике Windows: клик, Ctrl — добавить или убрать, Shift —
 // диапазон; стрелки, Home/End, PageUp/PageDown; набор букв — перейти к
 // файлу с таким началом имени. Перетаскивание — наружу (в другие
-// программы) и внутрь (на папку или на пустое место).
+// программы) и внутрь (на папку или на пустое место). С пустого места —
+// рамка выделения (с Ctrl добавляет к выделенному); у края списка он сам
+// прокручивается. Пустое место — всё, кроме значка и имени файла.
 FocusScope {
     id: root
     required property FolderModel folder
@@ -20,12 +22,17 @@ FocusScope {
     signal dropRequested(var urls, url destination, var drop)
     signal renameFailed(string message)
     signal renamed(string newName)
+    // Щёлкнули по заголовку столбца таблицы.
+    signal sortRequested(string key)
+    // Средняя кнопка на папке.
+    signal openInNewTabRequested(url url)
 
     readonly property Item view: loader.item
     readonly property int currentRow: view ? view.currentIndex : -1
 
     function focusRow(row) {
         if (!view || row < 0) return;
+        stickToTop = false;
         view.currentIndex = row;
         view.positionViewAtIndex(row, ItemView.Contain);
     }
@@ -48,6 +55,23 @@ FocusScope {
     }
 
     onModeChanged: Qt.callLater(() => focusRow(Math.max(0, folder.firstSelected())))
+
+    // KIO отдаёт большую папку порциями, и вид держит на месте то, что
+    // показывал, — без этого он «уезжает» от начала, пока папка грузится.
+    // Пользователь прокрутил сам или выделили файл — больше не держим.
+    property bool stickToTop: true
+    function toTop() {
+        if (stickToTop && view) view.positionViewAtBeginning();
+    }
+    Connections {
+        target: root.folder
+        function onUrlChanged() { root.stickToTop = true; }
+        // После того, как вид сам разберётся со вставкой.
+        function onRowsInserted() { if (root.stickToTop) Qt.callLater(root.toTop); }
+        function onLoadingChanged() {
+            if (!root.folder.loading) root.stickToTop = false;
+        }
+    }
 
     // Сколько плиток в ряду — для стрелок вверх и вниз.
     readonly property int columns: mode === "grid" && view ? Math.max(1, Math.floor(view.width / view.cellWidth)) : 1
@@ -135,6 +159,7 @@ FocusScope {
     // Общая логика нажатия на файл (плитку или строку).
     function pressed(row, mouse) {
         root.forceActiveFocus();
+        if (mouse.button === Qt.MiddleButton) return;
         if (renamingRow >= 0 && renamingRow !== row) renamingRow = -1;
         if (mouse.button === Qt.RightButton) {
             if (!folder.isSelected(row)) folder.select(row, 0);
@@ -198,18 +223,120 @@ FocusScope {
         }
     }
 
+    // ---- Рамка выделения (координаты — в содержимом списка)
+
+    property bool bandPressed: false
+    property bool banding: false
+    property point bandStart
+    property point bandEnd
+    property point bandPointer // где мышь, в координатах самого списка
+    property var bandBase: []
+
+    function updateBand() {
+        const p = view.mapToItem(view.contentItem,
+                                 Math.max(0, Math.min(view.width - 1, bandPointer.x)), bandPointer.y);
+        bandEnd = Qt.point(p.x, Math.max(0, p.y));
+        if (!banding && Math.abs(bandEnd.x - bandStart.x) < 4 && Math.abs(bandEnd.y - bandStart.y) < 4) return;
+        banding = true;
+        folder.selectRows(bandRows(), bandBase);
+    }
+
+    function endBand() {
+        bandPressed = false;
+        banding = false;
+    }
+
+    // Какие строки задевает рамка — по сетке, без обхода делегатов
+    // (их может и не быть: в папке 20 000 файлов, видно сорок).
+    function bandRows() {
+        const x1 = Math.min(bandStart.x, bandEnd.x), x2 = Math.max(bandStart.x, bandEnd.x);
+        const y1 = Math.min(bandStart.y, bandEnd.y), y2 = Math.max(bandStart.y, bandEnd.y);
+        const count = folder.count;
+        const rows = [];
+        if (mode === "grid") {
+            const cw = view.cellWidth, ch = view.cellHeight, inset = 8;
+            const r1 = Math.max(0, Math.floor(y1 / ch)), r2 = Math.floor(y2 / ch);
+            const c1 = Math.max(0, Math.floor(x1 / cw)), c2 = Math.min(columns - 1, Math.floor(x2 / cw));
+            for (let r = r1; r <= r2 && r * columns < count; ++r) {
+                for (let c = c1; c <= c2; ++c) {
+                    const i = r * columns + c;
+                    if (i >= count) break;
+                    if (x2 > c * cw + inset && x1 < (c + 1) * cw - inset
+                        && y2 > r * ch + inset && y1 < (r + 1) * ch - inset)
+                        rows.push(i);
+                }
+            }
+        } else {
+            const h = view.cellHeight;
+            const r2 = Math.min(count - 1, Math.floor(y2 / h));
+            for (let r = Math.max(0, Math.floor(y1 / h)); r <= r2; ++r) rows.push(r);
+        }
+        return rows;
+    }
+
+    // Тянем рамку за край списка — прокручиваем, быстрее, чем дальше мышь.
+    Timer {
+        interval: 16
+        repeat: true
+        running: root.banding
+        onTriggered: {
+            const edge = 24;
+            const y = root.bandPointer.y;
+            let dy = 0;
+            if (y < edge) dy = -Math.min(40, (edge - y) / 3);
+            else if (y > root.view.height - edge) dy = Math.min(40, (y - root.view.height + edge) / 3);
+            if (dy === 0) return;
+            const v = root.view;
+            const minY = v.originY - v.topMargin;
+            const maxY = Math.max(minY, v.originY + v.contentHeight + v.bottomMargin - v.height);
+            const next = Math.max(minY, Math.min(maxY, v.contentY + dy));
+            if (next === v.contentY) return;
+            v.contentY = next;
+            root.updateBand();
+        }
+    }
+
+    component BandRect: Rectangle {
+        z: 10
+        visible: root.banding
+        x: Math.min(root.bandStart.x, root.bandEnd.x)
+        y: Math.min(root.bandStart.y, root.bandEnd.y)
+        width: Math.abs(root.bandEnd.x - root.bandStart.x)
+        height: Math.abs(root.bandEnd.y - root.bandStart.y)
+        radius: 3
+        color: Qt.rgba(Theme.green.r, Theme.green.g, Theme.green.b, 0.12)
+        border.width: 1
+        border.color: Theme.leaf
+    }
+
     // ---- Фон: клик по пустому месту, бросок файлов в эту папку
 
     component Background: MouseArea {
         id: bg
         z: -1
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        // Не отдавать протяжку прокрутке списка — это рамка.
+        preventStealing: true
         onPressed: mouse => {
             root.forceActiveFocus();
             root.renamingRow = -1;
             if (!(mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))) folder.clearSelection();
-            if (mouse.button === Qt.RightButton) root.contextMenuRequested(-1, bg, mouse.x, mouse.y);
+            if (mouse.button === Qt.RightButton) {
+                root.contextMenuRequested(-1, bg, mouse.x, mouse.y);
+                return;
+            }
+            root.bandBase = mouse.modifiers & Qt.ControlModifier ? folder.selectedUrls() : [];
+            root.bandStart = mapToItem(root.view.contentItem, mouse.x, mouse.y);
+            root.bandPointer = mapToItem(root.view, mouse.x, mouse.y);
+            root.bandPressed = true;
         }
+        onPositionChanged: mouse => {
+            if (!root.bandPressed) return;
+            root.bandPointer = mapToItem(root.view, mouse.x, mouse.y);
+            root.updateBand();
+        }
+        onReleased: root.endBand()
+        onCanceled: root.endBand()
         DropArea {
             anchors.fill: parent
             keys: ["text/uri-list"]
@@ -227,6 +354,8 @@ FocusScope {
             clip: true
             focus: true
             boundsBehavior: Flickable.StopAtBounds
+            // Мышью не листаем протяжкой: протяжка — это рамка выделения.
+            acceptedButtons: Qt.NoButton
             readonly property int minCell: 112
             cellWidth: Math.floor(width / Math.max(1, Math.floor(width / minCell)))
             cellHeight: 122
@@ -235,13 +364,20 @@ FocusScope {
             model: root.folder
             currentIndex: -1
             keyNavigationEnabled: false
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-
-            Background {
-                width: grid.width
-                height: Math.max(grid.height, grid.contentHeight + 16)
-                y: -grid.topMargin
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+                onPressedChanged: if (pressed) root.stickToTop = false
             }
+            onMovementStarted: root.stickToTop = false
+
+            // Фон и рамка — в содержимом, чтобы прокручивались вместе с файлами.
+            Background {
+                parent: grid.contentItem
+                width: grid.width
+                height: Math.max(grid.height, grid.contentHeight + grid.topMargin + grid.bottomMargin)
+                y: grid.originY - grid.topMargin
+            }
+            BandRect { parent: grid.contentItem }
 
             delegate: Item {
                 id: cell
@@ -280,6 +416,7 @@ FocusScope {
                 }
 
                 SText {
+                    id: label
                     anchors { top: icon.bottom; topMargin: 6; left: parent.left; right: parent.right; leftMargin: 8; rightMargin: 8 }
                     visible: root.renamingRow !== cell.index
                     text: cell.name
@@ -291,17 +428,22 @@ FocusScope {
                     lineHeight: 1.05
                 }
 
+                // Файл — это значок с подписью; поля плитки — пустое место для рамки.
                 MouseArea {
                     id: area
-                    anchors.fill: parent
+                    x: (cell.width - width) / 2
+                    y: 4
+                    width: Math.min(cell.width - 6, Math.max(icon.width + 16, label.paintedWidth + 16))
+                    height: label.y + label.paintedHeight + 6 - y
                     hoverEnabled: true
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                     drag.target: dragGhost
                     drag.threshold: 8
                     onPressed: mouse => root.pressed(cell.index, mouse)
                     onReleased: mouse => { if (!drag.active) root.released(cell.index, mouse); }
                     onClicked: mouse => {
                         if (mouse.button === Qt.RightButton) root.contextMenuRequested(cell.index, cell, mouse.x, mouse.y);
+                        else if (mouse.button === Qt.MiddleButton && cell.isDir) root.openInNewTabRequested(cell.url);
                     }
                     onDoubleClicked: mouse => { if (mouse.button === Qt.LeftButton) root.openRequested(cell.index); }
                     drag.onActiveChanged: if (drag.active) root.startDrag()
@@ -337,11 +479,16 @@ FocusScope {
             clip: true
             focus: true
             boundsBehavior: Flickable.StopAtBounds
+            acceptedButtons: Qt.NoButton
             model: root.folder
             currentIndex: -1
             keyNavigationEnabled: false
             headerPositioning: ListView.OverlayHeader
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+                onPressedChanged: if (pressed) root.stickToTop = false
+            }
+            onMovementStarted: root.stickToTop = false
 
             readonly property real dateWidth: 150
             readonly property real typeWidth: Math.min(180, width * 0.2)
@@ -349,10 +496,12 @@ FocusScope {
             readonly property real cellHeight: 34
 
             Background {
+                parent: list.contentItem
                 width: list.width
                 height: Math.max(list.height, list.contentHeight)
-                y: -list.headerItem?.height ?? 0
+                y: list.originY
             }
+            BandRect { parent: list.contentItem }
 
             header: Rectangle {
                 z: 2
@@ -376,13 +525,7 @@ FocusScope {
                     }
                     MouseArea {
                         anchors.fill: parent
-                        onClicked: {
-                            if (root.folder.sortBy === col.key) root.folder.descending = !root.folder.descending;
-                            else {
-                                root.folder.sortBy = col.key;
-                                root.folder.descending = col.key === "date" || col.key === "size";
-                            }
-                        }
+                        onClicked: root.sortRequested(col.key)
                     }
                 }
 
@@ -442,6 +585,7 @@ FocusScope {
                     anchors { left: icon.right; leftMargin: 6; right: parent.right; verticalCenter: parent.verticalCenter }
 
                     SText {
+                        id: nameText
                         width: list.width - 34 - list.dateWidth - list.typeWidth - list.sizeWidth
                         leftPadding: 8
                         rightPadding: 8
@@ -476,17 +620,20 @@ FocusScope {
                     }
                 }
 
+                // Файл — значок и имя; остальные столбцы — пустое место для рамки.
                 MouseArea {
                     id: area
-                    anchors.fill: parent
+                    width: Math.min(parent.width, icon.x + icon.width + 6 + nameText.paintedWidth + 32)
+                    height: parent.height
                     hoverEnabled: true
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                     drag.target: dragGhost
                     drag.threshold: 8
                     onPressed: mouse => root.pressed(line.index, mouse)
                     onReleased: mouse => { if (!drag.active) root.released(line.index, mouse); }
                     onClicked: mouse => {
                         if (mouse.button === Qt.RightButton) root.contextMenuRequested(line.index, line, mouse.x, mouse.y);
+                        else if (mouse.button === Qt.MiddleButton && line.isDir) root.openInNewTabRequested(line.url);
                     }
                     onDoubleClicked: mouse => { if (mouse.button === Qt.LeftButton) root.openRequested(line.index); }
                     drag.onActiveChanged: if (drag.active) root.startDrag()
