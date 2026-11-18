@@ -8,7 +8,7 @@
 - `airootfs/` — файлы, которые кладутся в корень live-системы;
 - название образа `sedmio`;
 - репозитории машины сборки (`/etc/pacman.conf`: CachyOS + multilib)
-  плюс локальный репозиторий `[sedmio]` из `out/repo`;
+  плюс локальный репозиторий `[sedmio]` из `out/repo` (первым, выше всех);
 - правила `NoExtract` из `sedmio-settings`.
 
 Так обновления archiso подтягиваются сами, и не надо держать копию профиля.
@@ -21,7 +21,8 @@
   при сборке образа (pacman-хук `zzzz90-sedmio-live.hook`).
 - Сеть — NetworkManager вместо `iwd` и `systemd-networkd` из releng.
 - Репозиторий `[sedmio]` лежит на образе в `/opt/sedmio/repo`: из него
-  установщик ставит пакеты Sedmio на диск.
+  установщик ставит пакеты Sedmio на диск. В установленную систему
+  прописывается уже сетевой `[sedmio]` (см. docs/decisions.md, п. 11).
 - Live-система грузится со стандартным ядром `linux`. Установленная система
   получает `linux-cachyos` и `linux-lts` через пакеты `sedmio-host-*`.
 

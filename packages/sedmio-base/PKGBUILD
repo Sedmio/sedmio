@@ -8,13 +8,14 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
 license=('MIT')
 depends=(
   'sedmio-settings'
+  'sedmio-keyring'          # ключ подписи пакетов [sedmio]
 
   # Plasma: минимальный набор вместо группы plasma целиком
   'plasma-desktop'

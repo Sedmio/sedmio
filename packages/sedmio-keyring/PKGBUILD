@@ -1,0 +1,25 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Открытый ключ, которым подписаны пакеты и база репозитория [sedmio].
+# После установки pacman доверяет этому ключу так же, как ключам Arch
+# и CachyOS (pacman-key --populate sedmio в sedmio-keyring.install).
+#
+# Закрытый ключ хранится у автора, не в репозитории. Новый ключ =
+# новые sedmio.gpg и sedmio-trusted, старый — в sedmio-revoked
+# (отпечаток на строку) и новый pkgrel.
+
+pkgname=sedmio-keyring
+pkgver=1
+pkgrel=1
+pkgdesc="Sedmio: ключ подписи пакетов репозитория [sedmio]"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+install=sedmio-keyring.install
+
+package() {
+  local f
+  for f in sedmio.gpg sedmio-trusted sedmio-revoked; do
+    install -Dm644 "$startdir/$f" "$pkgdir/usr/share/pacman/keyrings/$f"
+  done
+}

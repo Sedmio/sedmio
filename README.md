@@ -34,6 +34,7 @@ packages/
   sedmio-base/           метапакет: что входит в систему + systemd-пресеты
   sedmio-host-desktop/   ПК: Ryzen 7 7700 + RTX 4060
   sedmio-host-laptop/    ноутбук: Ryzen 7 8xxx + RTX 4060 Laptop (гибридная графика)
+  sedmio-keyring/        ключ подписи пакетов [sedmio]
   sedmio-branding/       загрузчик, Plymouth, экран входа, обои (пока пусто)
 iso/                     наши дополнения к стандартному профилю archiso (releng)
 scripts/                 сборка пакетов и ISO
@@ -65,6 +66,20 @@ sudo pacman -S --needed base-devel archiso git grub ttf-jetbrains-mono
 ```bash
 sudo ./scripts/build-iso.sh
 ```
+
+## Выпуск обновлений
+
+Установленные системы получают пакеты Sedmio из сетевого репозитория `[sedmio]`
+(файлы выпуска [x86_64](https://github.com/Sedmio/sedmio/releases/tag/x86_64)).
+Чтобы изменение дошло до систем:
+
+1. поправить файлы пакета и поднять `pkgrel` в его `PKGBUILD`;
+2. `./scripts/build-packages.sh` — пакеты подписываются ключом Sedmio;
+3. `./scripts/release-repo.sh` — выкладывает пакеты и базу на GitHub
+   (нужны `github-cli` и закрытый ключ подписи);
+4. на машинах — обычное `sudo pacman -Syu`.
+
+Новый ISO собирать после выпуска: тогда на образе те же файлы, что в сети.
 
 ## Дорожная карта
 

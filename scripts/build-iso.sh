@@ -46,16 +46,28 @@ sed -i '/^file_permissions=(/a \
   ["/usr/local/lib/sedmio-live/setup.sh"]="0:0:755"' "$PROFILE/profiledef.sh"
 
 # Репозитории для сборки: как на машине сборки (CachyOS + multilib)
-# плюс локальный [sedmio]. Правила NoExtract уменьшают образ:
-# не кладём переводы на другие языки.
-cp /etc/pacman.conf "$PROFILE/pacman.conf"
+# плюс локальный [sedmio] — первым: если у нас появится своя сборка
+# пакета Arch (патч), pacman возьмёт её, а не оригинал. Подпись здесь
+# не проверяем: пакеты собраны на этой же машине. Правила NoExtract
+# уменьшают образ: не кладём переводы на другие языки.
+# Перед первым репозиторием и комментарием над ним: строки до пустой
+# копятся в held и печатаются уже после [sedmio].
+awk -v repo="$REPO" '
+  added { print; next }
+  /^$/  { printf "%s", held; held = ""; print; next }
+  /^\[/ && !/^\[options\]/ {
+    print "# Sedmio: пакеты дистрибутива, выше всех остальных"
+    print "[sedmio]"
+    print "SigLevel = Optional TrustAll"
+    print "Server = file://" repo
+    print ""
+    printf "%s", held; print
+    held = ""; added = 1; next
+  }
+  { held = held $0 "\n" }
+  END { printf "%s", held }
+' /etc/pacman.conf > "$PROFILE/pacman.conf"
 sed -i "/^\[options\]/a Include = $NOEXTRACT" "$PROFILE/pacman.conf"
-cat >> "$PROFILE/pacman.conf" <<EOF
-
-[sedmio]
-SigLevel = Optional TrustAll
-Server = file://$REPO
-EOF
 
 # Пакеты и файлы live-системы
 grep -v '^\s*\(#\|$\)' "$ROOT/iso/packages.x86_64" >> "$PROFILE/packages.x86_64"

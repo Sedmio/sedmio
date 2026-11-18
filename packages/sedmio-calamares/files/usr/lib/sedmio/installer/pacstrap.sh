@@ -16,8 +16,8 @@ else
 fi
 echo "Профиль машины: $host"
 
-# -K: своё хранилище ключей в целевой системе (ключи Arch и CachyOS
-#     берутся из live-системы).
+# -K: своё хранилище ключей в целевой системе; ключи Arch, CachyOS
+#     и Sedmio добавляют в него пакеты *-keyring при установке.
 # Без -c: пакеты скачиваются в кэш на целевом диске. Live-система живёт
 # в оперативной памяти, и пара гигабайт пакетов туда не влезет.
 # Языки распознавания текста (Spectacle → tesseract → tessdata) указаны
@@ -29,12 +29,14 @@ pacstrap -K "$ROOT" \
   tesseract-data-rus tesseract-data-eng \
   "$host"
 
-# pacman.conf — как в live-системе, но без локального [sedmio]:
-# на установленной системе его нет.
-# TODO: подключить [sedmio], когда репозиторий появится в сети.
-awk '
-  /^\[sedmio\]/ { skip = 1; next }
-  /^\[/         { skip = 0 }
+# pacman.conf — как в live-системе, только [sedmio] берётся не с образа,
+# а из сети: оттуда приходят обновления пакетов Sedmio (pacman -Syu).
+# Подписи проверяются ключом из sedmio-keyring — его ставит sedmio-base.
+# $arch подставляет сам pacman (x86_64), поэтому кавычки одинарные.
+awk -v server='https://github.com/Sedmio/sedmio/releases/download/$arch' '
+  /^\[sedmio\]/  { print; print "Server = " server; skip = 1; next }
+  skip && /^$/   { skip = 0 }
+  /^\[/          { skip = 0 }
   !skip
 ' /etc/pacman.conf > "$ROOT/etc/pacman.conf"
 

@@ -1,0 +1,17 @@
+# Как у archlinux-keyring и cachyos-keyring: добавить ключ в связку pacman
+# и подписать его локально, чтобы подписи [sedmio] считались доверенными.
+
+post_upgrade() {
+  if usr/bin/pacman-key -l >/dev/null 2>&1; then
+    usr/bin/pacman-key --populate sedmio
+  else
+    echo " >>> Связка ключей pacman ещё не создана. Выполните:"
+    echo " >>>   pacman-key --init && pacman-key --populate sedmio"
+  fi
+}
+
+post_install() {
+  if [ -x usr/bin/pacman-key ]; then
+    post_upgrade
+  fi
+}

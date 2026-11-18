@@ -6,15 +6,30 @@
 # если эта версия уже есть в репозитории. Пакеты из одних конфигов
 # собираются за секунды и пересобираются всегда.
 # Пересобрать всё: FORCE=1 scripts/build-packages.sh
+#
+# Пакеты и база подписываются ключом Sedmio, если его закрытая часть есть
+# в gpg этого пользователя (отпечаток — в packages/sedmio-keyring/sedmio-trusted).
+# Без ключа сборка тоже работает — для ISO подпись не нужна, но выложить
+# такие пакеты в [sedmio] нельзя (scripts/release-repo.sh откажется).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO="$ROOT/out/repo"
+KEY="$(cut -d: -f1 "$ROOT/packages/sedmio-keyring/sedmio-trusted" | head -1)"
 
 if [[ $EUID -eq 0 ]]; then
   echo "Запусти без sudo: makepkg нельзя запускать от root." >&2
   exit 1
 fi
+
+sign=()
+if gpg --list-secret-keys "$KEY" >/dev/null 2>&1; then
+  sign=(--sign)
+  export GPGKEY="$KEY"
+else
+  echo "==> Нет закрытого ключа $KEY: собираю без подписи." >&2
+fi
+export PACKAGER="${PACKAGER:-Sedmio Linux <fsedis@yandex.ru>}"
 
 mkdir -p "$REPO"
 
@@ -28,11 +43,19 @@ for dir in "$ROOT"/packages/*/; do
   # Компилируемый пакет этой версии уже есть — не пересобираем
   if [[ $compiled == 1 && ${FORCE:-0} != 1 ]]; then
     built=1
+    files=()
     while read -r file; do
       [[ -f $file ]] || built=0
+      files+=("$file")
     done < <(cd "$dir" && PKGDEST="$REPO" makepkg --packagelist)
     if [[ $built == 1 ]]; then
       echo "==> $name: уже собран"
+      # Собран до появления ключа — подписываем готовый файл
+      if [[ ${#sign[@]} -gt 0 ]]; then
+        for file in "${files[@]}"; do
+          [[ -f $file.sig ]] || gpg --batch --yes -u "$KEY" --detach-sign --no-armor "$file"
+        done
+      fi
       continue
     fi
   fi
@@ -46,10 +69,18 @@ for dir in "$ROOT"/packages/*/; do
     # ставить его зависимости на машину сборки не нужно.
     flags=(--nodeps)
   fi
-  (cd "$dir" && PKGDEST="$REPO" makepkg --force --cleanbuild "${flags[@]}")
+  # Старая подпись от прошлой сборки той же версии стала бы неверной
+  (cd "$dir" && PKGDEST="$REPO" makepkg --packagelist) | sed 's/$/.sig/' | xargs rm -f
+  (cd "$dir" && PKGDEST="$REPO" makepkg --force --cleanbuild "${flags[@]}" "${sign[@]}")
 done
 
-repo-add --remove "$REPO/sedmio.db.tar.gz" "$REPO"/*.pkg.tar.zst
+if [[ ${#sign[@]} -gt 0 ]]; then
+  repo-add --remove --sign --key "$KEY" "$REPO/sedmio.db.tar.gz" "$REPO"/*.pkg.tar.zst
+else
+  # База без подписи; старая подпись базы стала бы неверной
+  rm -f "$REPO"/sedmio.{db,files}{,.tar.gz}.sig
+  repo-add --remove "$REPO/sedmio.db.tar.gz" "$REPO"/*.pkg.tar.zst
+fi
 
 echo
 echo "Готово: $REPO"
