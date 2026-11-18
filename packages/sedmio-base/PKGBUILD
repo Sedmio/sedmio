@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -17,11 +17,10 @@ depends=(
   'sedmio-settings'
   'sedmio-keyring'          # ключ подписи пакетов [sedmio]
   'sedmio-shell'            # своя оболочка вместо plasmashell (тянет форк quickshell)
+  'sedmio-login'            # экраны входа (greetd вместо SDDM) и блокировки
 
   # Plasma: минимальный набор вместо группы plasma целиком
   'plasma-desktop'
-  'sddm'
-  'sddm-kcm'
   'kscreen'
   'plasma-nm'
   'plasma-pa'
@@ -67,6 +66,9 @@ depends=(
   'tesseract-data-rus'      # tessdata для распознавания текста
   'tesseract-data-eng'      # в Spectacle (иначе — африкаанс)
 )
+
+# Переход с SDDM на greetd на уже установленной системе: см. sedmio-base.install
+install=sedmio-base.install
 
 package() {
   install -Dm644 "$startdir/80-sedmio.preset" \

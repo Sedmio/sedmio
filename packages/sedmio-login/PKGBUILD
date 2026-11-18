@@ -1,0 +1,41 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Экраны входа и блокировки Sedmio — один вид (usr/share/sedmio/login-ui).
+#
+# Вход: greetd вместо SDDM. greetd запускает от пользователя greeter
+# KWin на весь экран, внутри — наш Quickshell (usr/share/sedmio/greeter),
+# пароль проверяет PAM через greetd, он же запускает сеанс Plasma.
+# Настройки greetd — /etc/greetd/sedmio.toml (config.toml из пакета
+# greetd не используется). Служба включается пресетом из sedmio-base.
+#
+# Блокировка: экран рисует kscreenlocker_greet (его запускает KWin, он же
+# держит сеанс заблокированным), вид — наш пакет Plasma/Shell
+# org.sedmio.shell (только экран блокировки). Выбран переменной
+# PLASMA_DEFAULT_SHELL из usr/lib/environment.d.
+
+pkgname=sedmio-login
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: экраны входа (greetd) и блокировки"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'greetd'
+  'quickshell>=0.3.2-8' # наша сборка; модуль Greetd в ней есть
+  'kwin'                # экран входа идёт в своём KWin
+  'kscreenlocker'
+  'plasma-workspace'    # модули раскладки, Caps Lock и сна для QML
+  'breeze'              # курсор
+  'breeze-icons'
+  'sedmio-branding'     # шрифт Onest
+  'sedmio-settings'     # знак Sedmio, раскладки (/etc/xdg/kxkbrc)
+)
+backup=('etc/greetd/sedmio.toml')
+
+package() {
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir/usr/lib/sedmio/greeter/start"
+}

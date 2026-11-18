@@ -1,0 +1,12 @@
+# Live-сессия: сразу входим в Plasma как live (без пароля). Выйдешь —
+# обычный экран входа Sedmio (там live входит с пустым паролем).
+[terminal]
+vt = 1
+
+[initial_session]
+command = "/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"
+user = "live"
+
+[default_session]
+command = "/usr/lib/sedmio/greeter/start"
+user = "greeter"

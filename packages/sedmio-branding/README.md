@@ -5,7 +5,6 @@
 
 - тема загрузчика;
 - тема Plymouth (заставка при загрузке);
-- тема SDDM (экран входа);
 - обои, логотип, иконка меню «Пуск»;
 - look-and-feel пакет Plasma (тема, цвета, раскладка панелей).
 
@@ -18,8 +17,7 @@
   «Sedmio Linux» и «Sedmio Linux (LTS kernel)»
   (`packages/sedmio-calamares/files/usr/lib/sedmio/installer/bootentries.sh`).
   Оформить его нельзя: текст рисует прошивка.
-- Экран входа — тема Breeze из Plasma, как на рабочем столе
-  (`packages/sedmio-settings/files/etc/sddm.conf.d/10-sedmio.conf`).
-  Своя тема SDDM заменит её здесь.
+- Экраны входа и блокировки — `packages/sedmio-login` (greetd + Quickshell,
+  kscreenlocker со своим видом).
 - Ярлыки панели задач без отсутствующих программ —
   скрипт обновления Plasma в `packages/sedmio-settings`.

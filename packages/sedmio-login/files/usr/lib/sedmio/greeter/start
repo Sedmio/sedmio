@@ -1,0 +1,30 @@
+#!/bin/sh
+# Экран входа: greetd запускает это от пользователя greeter
+# (/etc/greetd/sedmio.toml). Свой KWin прямо на видеокарте, внутри —
+# наш Quickshell (/usr/share/sedmio/greeter). Quickshell закрылся
+# (пользователь вошёл) — KWin выходит следом, greetd запускает сеанс.
+#
+# KWin, а не что-то полегче: на ПК две видеокарты, мониторы подключены
+# к RTX 4060, а BIOS может считать главной встроенную Radeon. KWin
+# выводит изображение на все подключённые мониторы любой видеокарты.
+
+# У greeter нет домашнего каталога — настройки и кэш KWin и Quickshell
+# храним здесь (каталог создаёт usr/lib/tmpfiles.d/sedmio-greeter.conf).
+state=/var/lib/sedmio-greeter
+export SEDMIO_GREETER_STATE=$state
+export XDG_CONFIG_HOME=$state/config
+export XDG_CACHE_HOME=$state/cache
+export XDG_DATA_HOME=$state/data
+export XDG_STATE_HOME=$state/state
+
+[ -r /etc/locale.conf ] && . /etc/locale.conf && export LANG
+export XCURSOR_THEME=breeze_cursors
+export XCURSOR_SIZE=24
+export QT_QPA_PLATFORM=wayland
+
+# Раскладки — из /etc/xdg/kxkbrc (как в сеансе), поэтому без --locale1.
+# Шина D-Bus — пользовательская шина greeter от systemd (pam_systemd):
+# на ней KWin отдаёт раскладки экрану входа. dbus-run-session не нужен —
+# его dbus-daemon переживал экран входа и держал сеанс greeter открытым.
+exec kwin_wayland --drm --no-lockscreen --no-global-shortcuts \
+  --exit-with-session "quickshell --path /usr/share/sedmio/greeter"

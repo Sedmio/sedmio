@@ -1,0 +1,9 @@
+# Экран входа Sedmio (greetd.service запускается с этим файлом —
+# см. usr/lib/systemd/system/greetd.service.d/sedmio.conf).
+# /etc/greetd/config.toml — стандартный из пакета greetd, не используется.
+[terminal]
+vt = 1
+
+[default_session]
+command = "/usr/lib/sedmio/greeter/start"
+user = "greeter"

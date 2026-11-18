@@ -1,0 +1,11 @@
+{
+    "KPackageStructure": "Plasma/Shell",
+    "KPlugin": {
+        "Id": "org.sedmio.shell",
+        "Name": "Sedmio",
+        "Description": "Экран блокировки Sedmio (рабочий стол рисует sedmio-shell)",
+        "License": "MIT",
+        "Version": "1.0"
+    },
+    "X-Plasma-APIVersion": "2"
+}

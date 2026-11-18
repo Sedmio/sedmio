@@ -1,0 +1,11 @@
+# Пресет (80-sedmio.preset) применяет только установщик. На системе,
+# поставленной до перехода на greetd, включён SDDM — меняем его на
+# greetd один раз. Сам SDDM остаётся установленным, пока его не удалят:
+#   pacman -Rns sddm sddm-kcm
+post_upgrade() {
+  if systemctl is-enabled --quiet sddm.service 2>/dev/null; then
+    systemctl disable sddm.service 2>/dev/null
+    systemctl enable greetd.service 2>/dev/null
+    echo "==> Экран входа теперь greetd (Sedmio); SDDM отключён. Начнёт работать после перезагрузки."
+  fi
+}

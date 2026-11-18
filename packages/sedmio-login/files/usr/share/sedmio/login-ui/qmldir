@@ -1,0 +1,12 @@
+# Общий вид экранов входа (greetd, Quickshell) и блокировки (kscreenlocker).
+# Только QtQuick и модули KDE из сеанса — без Quickshell: блокировку
+# рисует kscreenlocker_greet, у него свой движок QML.
+singleton Theme 1.0 Theme.qml
+SText 1.0 SText.qml
+Backdrop 1.0 Backdrop.qml
+ClockBlock 1.0 ClockBlock.qml
+Avatar 1.0 Avatar.qml
+PasswordBox 1.0 PasswordBox.qml
+LoginCard 1.0 LoginCard.qml
+RoundButton 1.0 RoundButton.qml
+LayoutChip 1.0 LayoutChip.qml
