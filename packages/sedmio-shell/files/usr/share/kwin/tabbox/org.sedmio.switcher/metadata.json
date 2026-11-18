@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "KWin/WindowSwitcher",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Sedmio"
+            }
+        ],
+        "Description": "Sedmio window switcher: window thumbnails on a paper card",
+        "Description[ru]": "Переключатель окон Sedmio: миниатюры окон на бумажной карточке",
+        "Icon": "preferences-system-windows-switcher-thumbnail-grid",
+        "Id": "org.sedmio.switcher",
+        "License": "MIT",
+        "Name": "Sedmio",
+        "Name[ru]": "Sedmio"
+    },
+    "X-Plasma-API": "declarativeappletscript"
+}

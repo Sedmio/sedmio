@@ -6,3 +6,11 @@ FocusStealingPreventionLevel=0
 # Выделение текста не копирует, средняя кнопка не вставляет.
 # Проверить на живой системе, совпадает ли ключ с настройкой в GUI.
 EnablePrimarySelection=false
+
+[TabBox]
+# Alt+Tab — свой переключатель (пакет sedmio-shell,
+# usr/share/kwin/tabbox/org.sedmio.switcher). Нет пакета — KWin берёт свой.
+LayoutName=org.sedmio.switcher
+# Без «подсветки окна»: она гасит всё, кроме выбранного окна, включая
+# обои и панель оболочки (у них нет типа «рабочий стол») — экран чёрный.
+HighlightWindows=false
