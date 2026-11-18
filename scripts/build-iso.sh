@@ -64,9 +64,19 @@ sed -i '/^file_permissions=(/a \
 # ключа Sedmio в связке pacman может и не быть, а на образ они кладутся
 # без подписей. Правила NoExtract уменьшают образ: не кладём переводы
 # на другие языки.
-# Перед первым репозиторием и комментарием над ним: строки до пустой
-# копятся в held и печатаются уже после [sedmio].
-awk -v repo="$REPO" '
+# Если сборка идёт на самой Sedmio, в её pacman.conf уже есть сетевой
+# [sedmio] и Include правил NoExtract — убираем их, чтобы не задвоить.
+# Вставляем перед первым репозиторием и комментарием над ним: строки до
+# пустой копятся в held и печатаются уже после [sedmio].
+awk '
+  /^\[sedmio\]/                     { skip = 1; next }
+  skip && /^$/                      { skip = 0; next }
+  skip && !/^\[/                    { next }
+  /^\[/                             { skip = 0 }
+  /^# Sedmio: пакеты дистрибутива/  { next }
+  /^Include = .*sedmio-options\.conf$/ { next }
+  { print }
+' /etc/pacman.conf | awk -v repo="$REPO" '
   added { print; next }
   /^$/  { printf "%s", held; held = ""; print; next }
   /^\[/ && !/^\[options\]/ {
@@ -80,7 +90,7 @@ awk -v repo="$REPO" '
   }
   { held = held $0 "\n" }
   END { printf "%s", held }
-' /etc/pacman.conf > "$PROFILE/pacman.conf"
+' > "$PROFILE/pacman.conf"
 sed -i "/^\[options\]/a Include = $NOEXTRACT" "$PROFILE/pacman.conf"
 
 # Пакеты и файлы live-системы

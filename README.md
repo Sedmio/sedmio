@@ -45,7 +45,8 @@ docs/                    спецификация и решения
 
 Собирать нужно на Arch (или уже на Sedmio), например в виртуалке.
 
-Один раз на машине сборки:
+На Sedmio всё ставит один скрипт: `scripts/dev-setup.sh`, подробности —
+в [docs/dev-setup.md](docs/dev-setup.md). На другом Arch один раз:
 
 ```bash
 sudo pacman -S --needed base-devel archiso git grub ttf-jetbrains-mono
