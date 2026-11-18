@@ -1,0 +1,37 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Оболочка Sedmio вместо plasmashell: обои, рамка вокруг экрана, панель
+# слева. Написана на Quickshell (наша сборка, packages/quickshell), лежит
+# в /usr/share/sedmio/shell. KWin, kded и остальной сеанс Plasma остаются.
+#
+# Запуск — служба sedmio-shell.service в сеансе Plasma. plasmashell
+# отключён drop-in файлом с условием; вернуть его (и убрать нашу
+# оболочку) можно без root:
+#   mkdir -p ~/.config/sedmio && touch ~/.config/sedmio/use-plasmashell
+# и перезайти. Удалить файл — снова Sedmio.
+
+pkgname=sedmio-shell
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'quickshell'          # наша сборка: список окон под KWin
+  'sedmio-branding'     # шрифт Onest
+  'sedmio-settings'     # знак Sedmio в hicolor
+  'plasma-workspace'    # сеанс, в котором работает оболочка
+  'breeze-icons'
+  'qt6-svg'
+)
+
+package() {
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+
+  # Включена для всех пользователей, как службы самого Plasma.
+  install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
+  ln -s ../sedmio-shell.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-shell.service"
+}

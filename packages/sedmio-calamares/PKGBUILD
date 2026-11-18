@@ -4,22 +4,21 @@
 # Файлы из files/ копируются в корень как есть.
 #
 # Calamares — наша сборка с QML-модулями (packages/calamares).
-# Шрифт Onest ставится и в систему: им пользуются виджетные страницы (QSS).
+# Шрифт Onest в систему ставит sedmio-branding: им пользуются виджетные
+# страницы (QSS).
 
 pkgname=sedmio-calamares
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Sedmio: установщик (настройки и QML-страницы Calamares)"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
 license=('MIT')
-depends=('calamares' 'qt6-svg' 'arch-install-scripts')
+depends=('calamares' 'qt6-svg' 'arch-install-scripts' 'sedmio-branding')
 
 package() {
   cp -a "$startdir/files/." "$pkgdir/"
   find "$pkgdir" -type d -exec chmod 755 {} +
   find "$pkgdir" -type f -exec chmod 644 {} +
   chmod 755 "$pkgdir"/usr/lib/sedmio/installer/*.sh
-
-  install -Dm644 "$startdir/files/etc/calamares/branding/sedmio/fonts/Onest-Variable.ttf"     "$pkgdir/usr/share/fonts/sedmio/Onest-Variable.ttf"
 }

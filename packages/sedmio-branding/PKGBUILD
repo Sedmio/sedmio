@@ -1,0 +1,22 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Оформление Sedmio, общее для системы: пока шрифт Onest (оболочка,
+# установщик). Остальное — по мере появления, см. README.md.
+#
+# Файл шрифта в репозитории один — в оформлении установщика, которое
+# должно оставаться самодостаточным (его же читают build-iso.sh и
+# tools/installer-preview). Отсюда он ставится в систему.
+
+pkgname=sedmio-branding
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: оформление (шрифт Onest)"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT' 'OFL-1.1')
+
+package() {
+  local fonts="$startdir/../sedmio-calamares/files/etc/calamares/branding/sedmio/fonts"
+  install -Dm644 "$fonts/Onest-Variable.ttf" "$pkgdir/usr/share/fonts/sedmio/Onest-Variable.ttf"
+  install -Dm644 "$fonts/OFL.txt" "$pkgdir/usr/share/licenses/$pkgname/OFL-Onest.txt"
+}
