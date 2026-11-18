@@ -33,14 +33,15 @@ index f3912a9..bb2485e 100644
 +endif()
 diff --git a/src/services/kde/CMakeLists.txt b/src/services/kde/CMakeLists.txt
 new file mode 100644
-index 0000000..184bd77
+index 0000000..1600140
 --- /dev/null
 +++ b/src/services/kde/CMakeLists.txt
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,21 @@
 +qt_add_library(quickshell-service-kde STATIC
 +	osd.cpp
 +	keyboard.cpp
 +	brightness.cpp
++	secretagent.cpp
 +)
 +
 +qt_add_qml_module(quickshell-service-kde
@@ -553,18 +554,19 @@ index 0000000..d3f0dba
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/module.md b/src/services/kde/module.md
 new file mode 100644
-index 0000000..c5b3712
+index 0000000..0d7f29f
 --- /dev/null
 +++ b/src/services/kde/module.md
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,9 @@
 +name = "Quickshell.Services.Kde"
 +description = "Plasma session services for a shell that replaces plasmashell"
-+headers = [ "osd.hpp", "keyboard.hpp", "brightness.hpp" ]
++headers = [ "osd.hpp", "keyboard.hpp", "brightness.hpp", "secretagent.hpp" ]
 +-----
 +Pieces of plasmashell other parts of a Plasma session rely on:
 +the on-screen display service (volume and brightness keys, keyboard
-+layout switches), KWin's keyboard layouts and powerdevil's screen
-+brightness.
++layout switches), KWin's keyboard layouts, powerdevil's screen
++brightness and NetworkManager password prompts (instead of plasma-nm's
++secret agent).
 diff --git a/src/services/kde/osd.cpp b/src/services/kde/osd.cpp
 new file mode 100644
 index 0000000..25fb3bc
@@ -802,6 +804,453 @@ index 0000000..3f307e6
 +private:
 +	OsdAdaptor adaptor {this};
 +	bool mActive = false;
++};
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/secretagent.cpp b/src/services/kde/secretagent.cpp
+new file mode 100644
+index 0000000..d97aaff
+--- /dev/null
++++ b/src/services/kde/secretagent.cpp
+@@ -0,0 +1,321 @@
++#include "secretagent.hpp"
++
++#include <qbytearray.h>
++#include <qdbusargument.h>
++#include <qdbusconnection.h>
++#include <qdbusconnectioninterface.h>
++#include <qdbusextratypes.h>
++#include <qdbusmessage.h>
++#include <qdbuspendingcall.h>
++#include <qdbuspendingreply.h>
++#include <qdbusservicewatcher.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qmetatype.h>
++#include <qobject.h>
++#include <qstring.h>
++#include <qstringlist.h>
++#include <qvariant.h>
++
++#include "../../core/logcat.hpp"
++
++namespace qs::service::kde {
++
++namespace {
++QS_LOGGING_CATEGORY(logSecretAgent, "quickshell.service.kde.secretagent", QtWarningMsg);
++
++constexpr auto NM_SERVICE = "org.freedesktop.NetworkManager";
++constexpr auto NM_AGENT_MANAGER_PATH = "/org/freedesktop/NetworkManager/AgentManager";
++constexpr auto NM_AGENT_MANAGER = "org.freedesktop.NetworkManager.AgentManager";
++constexpr auto AGENT_PATH = "/org/freedesktop/NetworkManager/SecretAgent";
++constexpr auto AGENT_INTERFACE = "org.freedesktop.NetworkManager.SecretAgent";
++constexpr auto AGENT_ID = "org.sedmio.shell";
++
++constexpr auto ERROR_NO_SECRETS = "org.freedesktop.NetworkManager.SecretAgent.NoSecrets";
++constexpr auto ERROR_USER_CANCELED = "org.freedesktop.NetworkManager.SecretAgent.UserCanceled";
++constexpr auto ERROR_AGENT_CANCELED = "org.freedesktop.NetworkManager.SecretAgent.AgentCanceled";
++constexpr auto ERROR_NOT_AUTHORIZED = "org.freedesktop.NetworkManager.SecretAgent.PermissionDenied";
++
++// NMSecretAgentGetSecretsFlags
++constexpr uint FLAG_ALLOW_INTERACTION = 0x1;
++constexpr uint FLAG_REQUEST_NEW = 0x2;
++
++using ConnectionMap = QMap<QString, QVariantMap>;
++
++ConnectionMap readConnection(const QVariant& value) {
++	ConnectionMap map;
++	const auto arg = value.value<QDBusArgument>();
++	arg.beginMap();
++	while (!arg.atEnd()) {
++		QString key;
++		QVariantMap settings;
++		arg.beginMapEntry();
++		arg >> key >> settings;
++		arg.endMapEntry();
++		map.insert(key, settings);
++	}
++	arg.endMap();
++	return map;
++}
++
++QVariant writeSecrets(const QString& settingName, const QVariantMap& secrets) {
++	QDBusArgument arg;
++	arg.beginMap(QMetaType::fromType<QString>(), QMetaType::fromType<QVariantMap>());
++	arg.beginMapEntry();
++	arg << settingName << secrets;
++	arg.endMapEntry();
++	arg.endMap();
++	return QVariant::fromValue(arg);
++}
++
++QDBusConnection bus() { return QDBusConnection::systemBus(); }
++} // namespace
++
++// ---- D-Bus object
++
++SecretAgentObject::SecretAgentObject(NetworkSecretAgent* agent): QDBusVirtualObject(agent), agent(agent) {}
++
++QString SecretAgentObject::introspect(const QString& /*path*/) const {
++	return R"(<interface name="org.freedesktop.NetworkManager.SecretAgent">
++  <method name="GetSecrets">
++    <arg name="connection" type="a{sa{sv}}" direction="in"/>
++    <arg name="connection_path" type="o" direction="in"/>
++    <arg name="setting_name" type="s" direction="in"/>
++    <arg name="hints" type="as" direction="in"/>
++    <arg name="flags" type="u" direction="in"/>
++    <arg name="secrets" type="a{sa{sv}}" direction="out"/>
++  </method>
++  <method name="CancelGetSecrets">
++    <arg name="connection_path" type="o" direction="in"/>
++    <arg name="setting_name" type="s" direction="in"/>
++  </method>
++  <method name="SaveSecrets">
++    <arg name="connection" type="a{sa{sv}}" direction="in"/>
++    <arg name="connection_path" type="o" direction="in"/>
++  </method>
++  <method name="DeleteSecrets">
++    <arg name="connection" type="a{sa{sv}}" direction="in"/>
++    <arg name="connection_path" type="o" direction="in"/>
++  </method>
++</interface>
++)";
++}
++
++bool SecretAgentObject::handleMessage(const QDBusMessage& message, const QDBusConnection& connection) {
++	if (message.interface() != AGENT_INTERFACE) return false;
++
++	// Only NetworkManager may ask: anyone else on the system bus could
++	// otherwise make the shell show a fake password prompt.
++	const auto owner = connection.interface()->serviceOwner(NM_SERVICE).value();
++	if (owner.isEmpty() || message.service() != owner) {
++		connection.send(message.createErrorReply(ERROR_NOT_AUTHORIZED, "Not NetworkManager"));
++		return true;
++	}
++
++	const auto& member = message.member();
++	const auto args = message.arguments();
++
++	if (member == "GetSecrets" && args.size() == 5) {
++		this->agent->getSecrets(message);
++	} else if (member == "CancelGetSecrets" && args.size() == 2) {
++		this->agent->cancelGetSecrets(args.at(0).value<QDBusObjectPath>().path(), args.at(1).toString());
++		connection.send(message.createReply());
++	} else if (member == "SaveSecrets" || member == "DeleteSecrets") {
++		// Agent-owned secrets are not kept (see the class docs).
++		connection.send(message.createReply());
++	} else {
++		return false;
++	}
++
++	return true;
++}
++
++// ---- Agent
++
++NetworkSecretAgent::NetworkSecretAgent(QObject* parent)
++    : QObject(parent)
++    , object(new SecretAgentObject(this)) {
++	auto* watcher = new QDBusServiceWatcher(
++	    NM_SERVICE,
++	    bus(),
++	    QDBusServiceWatcher::WatchForRegistration | QDBusServiceWatcher::WatchForUnregistration,
++	    this
++	);
++
++	QObject::connect(
++	    watcher,
++	    &QDBusServiceWatcher::serviceRegistered,
++	    this,
++	    &NetworkSecretAgent::registerAgent
++	);
++
++	QObject::connect(
++	    watcher,
++	    &QDBusServiceWatcher::serviceUnregistered,
++	    this,
++	    &NetworkSecretAgent::onNetworkManagerGone
++	);
++
++	this->registerAgent();
++}
++
++NetworkSecretAgent::~NetworkSecretAgent() {
++	for (const auto& request: this->mQueue) {
++		bus().send(request.message.createErrorReply(ERROR_AGENT_CANCELED, "Agent exited"));
++	}
++	this->mQueue.clear();
++
++	if (this->mRegistered) {
++		auto message = QDBusMessage::createMethodCall(
++		    NM_SERVICE,
++		    NM_AGENT_MANAGER_PATH,
++		    NM_AGENT_MANAGER,
++		    "Unregister"
++		);
++		bus().call(message, QDBus::NoBlock);
++	}
++
++	if (this->mExported) bus().unregisterObject(AGENT_PATH);
++}
++
++void NetworkSecretAgent::registerAgent() {
++	if (!this->mExported) {
++		this->mExported =
++		    bus().registerVirtualObject(AGENT_PATH, this->object, QDBusConnection::SingleNode);
++		if (!this->mExported) {
++			qCWarning(logSecretAgent) << "Could not export the secret agent object";
++			return;
++		}
++	}
++
++	auto message = QDBusMessage::createMethodCall(
++	    NM_SERVICE,
++	    NM_AGENT_MANAGER_PATH,
++	    NM_AGENT_MANAGER,
++	    "RegisterWithCapabilities"
++	);
++	message.setArguments({QString(AGENT_ID), 0u});
++
++	auto* watcher = new QDBusPendingCallWatcher(bus().asyncCall(message), this);
++	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher* call) {
++		call->deleteLater();
++		const QDBusPendingReply<> reply = *call;
++		if (reply.isError()) {
++			// No NetworkManager running is normal; it is picked up when it starts.
++			qCDebug(logSecretAgent) << "Could not register with NetworkManager:" << reply.error().message();
++			this->setRegistered(false);
++			return;
++		}
++		this->setRegistered(true);
++	});
++}
++
++void NetworkSecretAgent::onNetworkManagerGone() {
++	this->setRegistered(false);
++	if (this->mQueue.isEmpty()) return;
++	this->mQueue.clear();
++	emit this->requestChanged();
++}
++
++void NetworkSecretAgent::setRegistered(bool registered) {
++	if (registered == this->mRegistered) return;
++	this->mRegistered = registered;
++	emit this->registeredChanged();
++}
++
++QString NetworkSecretAgent::networkName() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().networkName;
++}
++
++QString NetworkSecretAgent::kind() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().kind;
++}
++
++QString NetworkSecretAgent::identity() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().identity;
++}
++
++bool NetworkSecretAgent::retry() const {
++	return !this->mQueue.isEmpty() && this->mQueue.constFirst().retry;
++}
++
++void NetworkSecretAgent::getSecrets(const QDBusMessage& message) {
++	const auto args = message.arguments();
++	const auto connection = readConnection(args.at(0));
++	const auto path = args.at(1).value<QDBusObjectPath>().path();
++	const auto settingName = args.at(2).toString();
++	const auto flags = args.at(4).toUInt();
++
++	Request request;
++	request.message = message;
++	request.connectionPath = path;
++	request.settingName = settingName;
++	request.retry = (flags & FLAG_REQUEST_NEW) != 0;
++
++	const auto ssid = connection.value("802-11-wireless").value("ssid").toByteArray();
++	request.networkName = ssid.isEmpty() ? connection.value("connection").value("id").toString()
++	                                     : QString::fromUtf8(ssid);
++
++	if (settingName == "802-11-wireless-security") {
++		const auto security = connection.value(settingName);
++		const auto keyMgmt = security.value("key-mgmt").toString();
++		if (keyMgmt == "wpa-psk" || keyMgmt == "sae") {
++			request.kind = "psk";
++		} else if (keyMgmt == "none" || keyMgmt == "ieee8021x") {
++			request.kind = "wep";
++			request.wepKeyName = "wep-key" + QString::number(security.value("wep-tx-keyidx").toUInt());
++		}
++	} else if (settingName == "802-1x") {
++		request.kind = "enterprise";
++		request.identity = connection.value("802-1x").value("identity").toString();
++	}
++
++	// Nothing is stored here, so without asking there is nothing to give;
++	// and only Wi‑Fi passwords are asked for.
++	if (request.kind.isEmpty() || (flags & FLAG_ALLOW_INTERACTION) == 0) {
++		bus().send(message.createErrorReply(ERROR_NO_SECRETS, "No secrets available"));
++		return;
++	}
++
++	message.setDelayedReply(true);
++	this->mQueue.push_back(request);
++	if (this->mQueue.size() == 1) emit this->requestChanged();
++}
++
++void NetworkSecretAgent::cancelGetSecrets(const QString& path, const QString& settingName) {
++	for (qsizetype i = 0; i < this->mQueue.size(); i++) {
++		const auto& request = this->mQueue.at(i);
++		if (request.connectionPath != path || request.settingName != settingName) continue;
++		this->finish(i, request.message.createErrorReply(ERROR_AGENT_CANCELED, "Canceled by NetworkManager"));
++		return;
++	}
++}
++
++void NetworkSecretAgent::respond(const QString& secret) {
++	if (this->mQueue.isEmpty()) return;
++	const auto& request = this->mQueue.constFirst();
++
++	const QString key = request.kind == "psk" ? "psk"
++	                  : request.kind == "wep" ? request.wepKeyName
++	                                          : "password";
++
++	auto reply = request.message.createReply();
++	reply << writeSecrets(request.settingName, {{key, secret}});
++	this->finish(0, reply);
++}
++
++void NetworkSecretAgent::cancel() {
++	if (this->mQueue.isEmpty()) return;
++	this->finish(
++	    0,
++	    this->mQueue.constFirst().message.createErrorReply(ERROR_USER_CANCELED, "Canceled by the user")
++	);
++}
++
++void NetworkSecretAgent::finish(qsizetype index, const QDBusMessage& reply) {
++	bus().send(reply);
++	this->mQueue.removeAt(index);
++	if (index == 0) emit this->requestChanged();
++}
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/secretagent.hpp b/src/services/kde/secretagent.hpp
+new file mode 100644
+index 0000000..ba1808a
+--- /dev/null
++++ b/src/services/kde/secretagent.hpp
+@@ -0,0 +1,114 @@
++#pragma once
++
++#include <qdbusconnection.h>
++#include <qdbusmessage.h>
++#include <qdbusvirtualobject.h>
++#include <qlist.h>
++#include <qmap.h>
++#include <qobject.h>
++#include <qqmlintegration.h>
++#include <qstring.h>
++#include <qtmetamacros.h>
++#include <qvariant.h>
++
++namespace qs::service::kde {
++
++class NetworkSecretAgent;
++
++/// D-Bus side of the agent: org.freedesktop.NetworkManager.SecretAgent at
++/// /org/freedesktop/NetworkManager/SecretAgent on the system bus. Messages
++/// are taken apart by hand: the a{sa{sv}} map type is already registered by
++/// Quickshell's network module with its own marshalling.
++class SecretAgentObject: public QDBusVirtualObject {
++	Q_OBJECT;
++
++public:
++	explicit SecretAgentObject(NetworkSecretAgent* agent);
++
++	QString introspect(const QString& path) const override;
++	bool handleMessage(const QDBusMessage& message, const QDBusConnection& connection) override;
++
++private:
++	NetworkSecretAgent* agent;
++};
++
++///! Network password prompts (NetworkManager secret agent).
++/// When NetworkManager needs a Wi‑Fi password it does not have — a new
++/// network, a changed or wrong password — it asks the session's secret agent.
++/// In Plasma that is plasma-nm in kded; this replaces it so the shell can
++/// show its own prompt. Requests are handled one at a time.
++///
++/// Supported: WPA/WPA2/WPA3 personal (`psk`), WEP keys (`wep`) and the
++/// password of WPA enterprise (802.1x) networks (`enterprise`). Other
++/// requests (VPN, SIM PIN) are declined.
++///
++/// Secrets NetworkManager wants the agent itself to keep (agent-owned) are
++/// not stored: connections made by the shell keep their password in
++/// NetworkManager.
++class NetworkSecretAgent: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	/// True while the agent is registered with NetworkManager.
++	Q_PROPERTY(bool registered READ registered NOTIFY registeredChanged);
++	/// True while a password is being asked for.
++	Q_PROPERTY(bool active READ active NOTIFY requestChanged);
++	/// Network name (SSID) or connection name.
++	Q_PROPERTY(QString networkName READ networkName NOTIFY requestChanged);
++	/// `psk`, `wep` or `enterprise`.
++	Q_PROPERTY(QString kind READ kind NOTIFY requestChanged);
++	/// User name for enterprise networks, if the connection has one.
++	Q_PROPERTY(QString identity READ identity NOTIFY requestChanged);
++	/// The previous password was rejected and a new one is needed.
++	Q_PROPERTY(bool retry READ retry NOTIFY requestChanged);
++
++public:
++	explicit NetworkSecretAgent(QObject* parent = nullptr);
++	~NetworkSecretAgent() override;
++	Q_DISABLE_COPY_MOVE(NetworkSecretAgent);
++
++	[[nodiscard]] bool registered() const { return this->mRegistered; }
++	[[nodiscard]] bool active() const { return !this->mQueue.isEmpty(); }
++	[[nodiscard]] QString networkName() const;
++	[[nodiscard]] QString kind() const;
++	[[nodiscard]] QString identity() const;
++	[[nodiscard]] bool retry() const;
++
++	/// Answer the current request with the typed password.
++	Q_INVOKABLE void respond(const QString& secret);
++	/// Decline the current request (the connection attempt fails).
++	Q_INVOKABLE void cancel();
++
++	struct Request {
++		QDBusMessage message;
++		QString connectionPath;
++		QString settingName;
++		QString networkName;
++		QString kind;
++		QString identity;
++		QString wepKeyName;
++		bool retry = false;
++	};
++
++	// From SecretAgentObject.
++	void getSecrets(const QDBusMessage& message);
++	void cancelGetSecrets(const QString& path, const QString& settingName);
++
++signals:
++	void registeredChanged();
++	void requestChanged();
++
++private slots:
++	void registerAgent();
++	void onNetworkManagerGone();
++
++private:
++	void finish(qsizetype index, const QDBusMessage& reply);
++	void setRegistered(bool registered);
++
++	SecretAgentObject* object = nullptr;
++	QList<Request> mQueue;
++	bool mRegistered = false;
++	bool mExported = false;
 +};
 +
 +} // namespace qs::service::kde

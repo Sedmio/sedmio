@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Kde
+import Quickshell.Services.Polkit
 
 ShellRoot {
     Variants {
@@ -54,6 +55,25 @@ ShellRoot {
         }
         onToggled: (kind, enabled) => OsdState.toggled(kind, enabled)
         onHideRequested: OsdState.hide()
+    }
+
+    // Пароль администратора (polkit) — вместо polkit-kde-agent, его служба
+    // отключена (usr/lib/systemd/user/plasma-polkit-agent.service.d).
+    PolkitAgent {
+        id: polkit
+        onAuthenticationRequestStarted: ShellState.closeAll(false)
+    }
+    PolkitDialog { agent: polkit }
+
+    // Пароль от Wi‑Fi, когда его просит NetworkManager, — вместо plasma-nm.
+    NetworkSecretAgent { id: networkAgent }
+    NetworkPasswordDialog { agent: networkAgent }
+
+    // Модули kded, чью работу теперь делает оболочка (агент паролей Wi‑Fi,
+    // просьба о пожертвованиях), — выгрузить на этот сеанс. Подробности в скрипте.
+    Process {
+        running: true
+        command: ["sh", Qt.resolvedUrl("scripts/unload-kded-modules.sh").toString().replace("file://", "")]
     }
 
     // Сервер уведомлений живёт в NotificationState; обращение запускает его

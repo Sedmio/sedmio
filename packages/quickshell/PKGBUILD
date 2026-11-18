@@ -13,7 +13,7 @@
 
 pkgname=quickshell
 pkgver=0.3.2
-pkgrel=4
+pkgrel=5
 pkgdesc='Flexible toolkit for making desktop shells with QtQuick (сборка Sedmio)'
 arch=('x86_64')
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
@@ -53,7 +53,7 @@ source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
         'kde-services.patch')
 sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             '8e147c038acd8636225c6a8cc95386f02b5ab20089aa0fc68e0e27b4909b489d'
-            '12e30d7a19b72e0898dc3e3653e1e30cab3ef208f6b3d2a8dae1132932932262')
+            '972c8168f8fbad2a8d23e87a110f31c9f33a56b909675ded58777c1d2bf2459f')
 
 prepare() {
   cd "$pkgname"
@@ -64,8 +64,8 @@ prepare() {
   patch -Np1 -i ../kde-window-management.patch
   # Модуль Quickshell.Services.Kde: то, что в сеансе Plasma ждут от
   # plasmashell, — служба всплывающих индикаторов org.kde.osdService
-  # (громкость, яркость, раскладка), раскладки клавиатуры из KWin и
-  # яркость экранов из powerdevil.
+  # (громкость, яркость, раскладка), раскладки клавиатуры из KWin,
+  # яркость экранов из powerdevil и агент паролей Wi‑Fi для NetworkManager.
   patch -Np1 -i ../kde-services.patch
 }
 
