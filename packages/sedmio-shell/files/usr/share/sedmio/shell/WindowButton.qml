@@ -3,7 +3,8 @@ import Quickshell
 import Quickshell.Widgets
 
 // Одно окно на панели. Клик — показать, по активному — свернуть,
-// средняя кнопка — закрыть.
+// средняя кнопка — закрыть. Закрытое окно исчезает раньше кнопки
+// (toplevel уже null, пока она уходит), отсюда ?. везде.
 Item {
     id: root
     required property var toplevel
@@ -12,8 +13,8 @@ Item {
 
     // .desktop-файлы Quickshell читает в фоне: пересчитать, когда дочитал.
     readonly property var entry: DesktopEntries.applications.values.length >= 0
-        ? DesktopEntries.heuristicLookup(toplevel.appId) : null
-    readonly property string iconName: entry ? entry.icon : toplevel.appId
+        ? DesktopEntries.heuristicLookup(toplevel?.appId ?? "") : null
+    readonly property string iconName: entry ? entry.icon : (toplevel?.appId ?? "")
 
     height: Theme.buttonSize + 4
 
@@ -22,7 +23,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         x: 2
         width: 4
-        height: root.toplevel.activated ? 20 : 0
+        height: root.toplevel?.activated ? 20 : 0
         radius: 2
         color: Theme.green
         Behavior on height { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutBack } }
@@ -31,11 +32,12 @@ Item {
     BarButton {
         id: button
         anchors.centerIn: parent
-        active: root.toplevel.activated
+        active: root.toplevel?.activated ?? false
         tooltip: root.tooltip
-        hint: root.toplevel.title
+        hint: root.toplevel?.title ?? ""
 
         onClicked: event => {
+            if (!root.toplevel) return;
             if (event.button === Qt.MiddleButton) {
                 root.toplevel.close();
             } else if (root.toplevel.activated) {
@@ -50,13 +52,14 @@ Item {
             anchors.centerIn: parent
             implicitSize: 24
             source: Quickshell.iconPath(root.iconName, true) || Quickshell.iconPath("application-x-executable")
-            opacity: root.toplevel.minimized ? 0.45 : 1
+            opacity: root.toplevel?.minimized ? 0.45 : 1
             Behavior on opacity { NumberAnimation { duration: Theme.animNormal } }
         }
     }
 
     // Куда KWin сворачивает окно (анимация «в кнопку»).
     function updateRectangle() {
+        if (!toplevel) return;
         const p = button.mapToItem(null, 0, 0);
         toplevel.setRectangle(window, Qt.rect(p.x, p.y, button.width, button.height));
     }

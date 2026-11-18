@@ -33,16 +33,17 @@ index f3912a9..bb2485e 100644
 +endif()
 diff --git a/src/services/kde/CMakeLists.txt b/src/services/kde/CMakeLists.txt
 new file mode 100644
-index 0000000..0e551de
+index 0000000..42dcdac
 --- /dev/null
 +++ b/src/services/kde/CMakeLists.txt
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,23 @@
 +qt_add_library(quickshell-service-kde STATIC
 +	osd.cpp
 +	keyboard.cpp
 +	brightness.cpp
 +	secretagent.cpp
 +	bluetoothagent.cpp
++	jobs.cpp
 +)
 +
 +qt_add_qml_module(quickshell-service-kde
@@ -861,6 +862,854 @@ index 0000000..7e99244
 +};
 +
 +} // namespace qs::service::kde
+diff --git a/src/services/kde/jobs.cpp b/src/services/kde/jobs.cpp
+new file mode 100644
+index 0000000..8d0d437
+--- /dev/null
++++ b/src/services/kde/jobs.cpp
+@@ -0,0 +1,578 @@
++#include "jobs.hpp"
++
++#include <utility>
++
++#include <qdbusargument.h>
++#include <qdbusconnection.h>
++#include <qdbusconnectioninterface.h>
++#include <qdbusextratypes.h>
++#include <qdbusmessage.h>
++#include <qdbusservicewatcher.h>
++#include <qfile.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qstring.h>
++#include <qstringlist.h>
++#include <qtimer.h>
++#include <qurl.h>
++#include <qvariant.h>
++
++#include "../../core/logcat.hpp"
++
++namespace qs::service::kde {
++
++namespace {
++QS_LOGGING_CATEGORY(logJobs, "quickshell.service.kde.jobs", QtWarningMsg);
++
++constexpr auto SERVER_PATH = "/JobViewServer";
++constexpr auto VIEWS_PATH = "/org/quickshell/JobView";
++constexpr auto JOBVIEWSERVER_SERVICE = "org.kde.JobViewServer";
++constexpr auto KUISERVER_SERVICE = "org.kde.kuiserver";
++
++constexpr auto KUISERVER = "org.kde.kuiserver";
++constexpr auto SERVER_V1 = "org.kde.JobViewServer";
++constexpr auto SERVER_V2 = "org.kde.JobViewServerV2";
++constexpr auto VIEW_V2 = "org.kde.JobViewV2";
++constexpr auto VIEW_V3 = "org.kde.JobViewV3";
++
++// KIO error codes (kio/global.h).
++constexpr uint ERR_USER_CANCELED = 1;
++constexpr uint ERR_OWNER_DIED = 175;
++
++// KJob::Capability
++constexpr int KILLABLE = 0x1;
++constexpr int SUSPENDABLE = 0x2;
++
++QDBusConnection bus() { return QDBusConnection::sessionBus(); }
++
++QVariantMap toMap(const QVariant& value) {
++	if (value.canConvert<QDBusArgument>()) return qdbus_cast<QVariantMap>(value.value<QDBusArgument>());
++	return value.toMap();
++}
++
++QString processName(const QString& service) {
++	auto pid = bus().interface()->servicePid(service);
++	if (!pid.isValid()) return QString();
++	QFile comm(QStringLiteral("/proc/%1/comm").arg(pid.value()));
++	if (!comm.open(QIODevice::ReadOnly)) return QString();
++	return QString::fromUtf8(comm.readAll()).trimmed();
++}
++
++QString normalizeUrl(const QString& value) {
++	if (value.isEmpty()) return QString();
++	QUrl url(value);
++	if (url.scheme().isEmpty()) {
++		if (!value.startsWith('/')) return QString();
++		url = QUrl::fromLocalFile(value);
++	}
++	return url.adjusted(QUrl::StripTrailingSlash).toString();
++}
++
++template <typename T>
++bool set(T& field, const T& value) {
++	if (field == value) return false;
++	field = value;
++	return true;
++}
++} // namespace
++
++// ---- D-Bus object
++
++JobViewServerObject::JobViewServerObject(JobViewServer* server)
++    : QDBusVirtualObject(server)
++    , server(server) {}
++
++QString JobViewServerObject::introspect(const QString& path) const {
++	if (path == SERVER_PATH) {
++		return R"(<interface name="org.kde.kuiserver">
++  <method name="registerService">
++    <arg name="service" type="s" direction="in"/>
++    <arg name="objectPath" type="s" direction="in"/>
++  </method>
++  <method name="emitJobUrlsChanged"/>
++  <method name="requiresJobTracker">
++    <arg type="b" direction="out"/>
++  </method>
++  <signal name="jobUrlsChanged">
++    <arg type="as" direction="out"/>
++  </signal>
++  <signal name="requiresJobTrackerChanged">
++    <arg type="b" direction="out"/>
++  </signal>
++</interface>
++<interface name="org.kde.JobViewServer">
++  <method name="requestView">
++    <arg name="appName" type="s" direction="in"/>
++    <arg name="appIconName" type="s" direction="in"/>
++    <arg name="capabilities" type="i" direction="in"/>
++    <arg name="trackerPath" type="o" direction="out"/>
++  </method>
++</interface>
++<interface name="org.kde.JobViewServerV2">
++  <method name="requestView">
++    <arg name="desktopEntry" type="s" direction="in"/>
++    <arg name="capabilities" type="i" direction="in"/>
++    <arg name="hints" type="a{sv}" direction="in"/>
++    <arg name="trackerPath" type="o" direction="out"/>
++  </method>
++</interface>
++)";
++	}
++
++	if (!this->server->view(path)) return QString();
++
++	return R"(<interface name="org.kde.JobViewV3">
++  <method name="terminate">
++    <arg name="errorCode" type="u" direction="in"/>
++    <arg name="errorMessage" type="s" direction="in"/>
++    <arg name="hints" type="a{sv}" direction="in"/>
++  </method>
++  <method name="update">
++    <arg name="properties" type="a{sv}" direction="in"/>
++  </method>
++  <signal name="suspendRequested"/>
++  <signal name="resumeRequested"/>
++  <signal name="cancelRequested"/>
++</interface>
++<interface name="org.kde.JobViewV2">
++  <method name="terminate"><arg name="errorMessage" type="s" direction="in"/></method>
++  <method name="setSuspended"><arg name="suspended" type="b" direction="in"/></method>
++  <method name="setTotalAmount">
++    <arg name="amount" type="t" direction="in"/>
++    <arg name="unit" type="s" direction="in"/>
++  </method>
++  <method name="setProcessedAmount">
++    <arg name="amount" type="t" direction="in"/>
++    <arg name="unit" type="s" direction="in"/>
++  </method>
++  <method name="setPercent"><arg name="percent" type="u" direction="in"/></method>
++  <method name="setSpeed"><arg name="bytesPerSecond" type="t" direction="in"/></method>
++  <method name="setElapsedTime"><arg name="elapsedTime" type="t" direction="in"/></method>
++  <method name="setInfoMessage"><arg name="message" type="s" direction="in"/></method>
++  <method name="setDescriptionField">
++    <arg name="number" type="u" direction="in"/>
++    <arg name="name" type="s" direction="in"/>
++    <arg name="value" type="s" direction="in"/>
++    <arg name="res" type="b" direction="out"/>
++  </method>
++  <method name="clearDescriptionField"><arg name="number" type="u" direction="in"/></method>
++  <method name="setDestUrl"><arg name="destUrl" type="v" direction="in"/></method>
++  <method name="setError"><arg name="errorCode" type="u" direction="in"/></method>
++  <signal name="suspendRequested"/>
++  <signal name="resumeRequested"/>
++  <signal name="cancelRequested"/>
++</interface>
++)";
++}
++
++bool JobViewServerObject::handleMessage(const QDBusMessage& message, const QDBusConnection& connection) {
++	if (message.path() == SERVER_PATH) return this->handleServer(message, connection);
++	return this->handleView(message, connection);
++}
++
++bool JobViewServerObject::handleServer(const QDBusMessage& message, const QDBusConnection& connection) {
++	const auto& interface = message.interface();
++	const auto& member = message.member();
++	const auto& args = message.arguments();
++	const auto signature = message.signature();
++
++	if (member == "requestView" && signature == "sia{sv}"
++	    && (interface.isEmpty() || interface == SERVER_V2))
++	{
++		const auto path =
++		    this->server->requestView(args[0].toString(), args[1].toInt(), toMap(args[2]), message.service());
++		connection.send(message.createReply(QVariant::fromValue(QDBusObjectPath(path))));
++	} else if (member == "requestView" && signature == "ssi"
++	           && (interface.isEmpty() || interface == SERVER_V1))
++	{
++		// The old API only has the program name, which usually is its desktop entry.
++		QVariantMap hints;
++		if (!args[0].toString().isEmpty()) hints.insert("application-display-name", args[0]);
++		if (!args[1].toString().isEmpty()) hints.insert("application-icon-name", args[1]);
++		const auto path =
++		    this->server->requestView(args[0].toString(), args[2].toInt(), hints, message.service());
++		connection.send(message.createReply(QVariant::fromValue(QDBusObjectPath(path))));
++	} else if (!interface.isEmpty() && interface != KUISERVER) {
++		return false;
++	} else if (member == "requiresJobTracker") {
++		// No: the shell shows the jobs, programs need no windows of their own.
++		connection.send(message.createReply(false));
++	} else if (member == "emitJobUrlsChanged") {
++		this->server->emitJobUrlsChanged();
++		if (message.isReplyRequired()) connection.send(message.createReply());
++	} else if (member == "registerService") {
++		connection.send(message.createErrorReply(QDBusError::NotSupported, "kuiserver proxying is not supported"));
++	} else {
++		return false;
++	}
++
++	return true;
++}
++
++bool JobViewServerObject::handleView(const QDBusMessage& message, const QDBusConnection& connection) {
++	auto* job = this->server->view(message.path());
++	if (!job) return false;
++
++	const auto& interface = message.interface();
++	if (!interface.isEmpty() && interface != VIEW_V2 && interface != VIEW_V3) return false;
++
++	// Only the program that asked for the view may update it.
++	if (message.service() != job->mOwner) {
++		connection.send(message.createErrorReply(QDBusError::AccessDenied, "Not the owner of this job"));
++		return true;
++	}
++
++	const auto& member = message.member();
++	const auto& args = message.arguments();
++	const auto signature = message.signature();
++	QVariantList reply;
++
++	if (member == "update" && signature == "a{sv}") {
++		job->update(toMap(args[0]));
++	} else if (member == "terminate" && signature.startsWith("us")) {
++		job->terminate(args[0].toUInt(), args[1].toString());
++	} else if (member == "terminate" && signature == "s") {
++		job->terminate(job->mV2Error, args[0].toString());
++	} else if (member == "setSuspended" && signature == "b") {
++		job->update({{"suspended", args[0]}});
++	} else if ((member == "setTotalAmount" || member == "setProcessedAmount") && signature == "ts") {
++		job->setV2Amount(member == "setTotalAmount", args[0].toULongLong(), args[1].toString());
++	} else if (member == "setPercent" && signature == "u") {
++		job->update({{"percent", args[0]}});
++	} else if (member == "setSpeed" && signature == "t") {
++		job->update({{"speed", args[0]}});
++	} else if (member == "setElapsedTime" && signature == "t") {
++		// Not shown.
++	} else if (member == "setInfoMessage" && signature == "s") {
++		// In the old API the info message is the title ("Copying").
++		job->update({{"title", args[0]}});
++	} else if (member == "setDescriptionField" && signature == "uss") {
++		job->setDescriptionField(args[0].toUInt(), args[1].toString(), args[2].toString());
++		reply.append(false);
++	} else if (member == "clearDescriptionField" && signature == "u") {
++		job->setDescriptionField(args[0].toUInt(), QString(), QString());
++	} else if (member == "setDestUrl" && signature == "v") {
++		job->update({{"destUrl", args[0].value<QDBusVariant>().variant().toString()}});
++	} else if (member == "setError" && signature == "u") {
++		job->mV2Error = args[0].toUInt();
++	} else {
++		return false;
++	}
++
++	if (message.isReplyRequired()) connection.send(message.createReply(reply));
++	return true;
++}
++
++// ---- Job
++
++JobView::JobView(int id, JobViewServer* server)
++    : QObject(server)
++    , server(server)
++    , mId(id) {
++	this->mPath = QStringLiteral("%1/%2").arg(VIEWS_PATH).arg(id);
++
++	this->showTimer.setSingleShot(true);
++	QObject::connect(&this->showTimer, &QTimer::timeout, this, [this] { this->server->show(this); });
++
++	this->killTimer.setSingleShot(true);
++	this->killTimer.setInterval(2000);
++	QObject::connect(&this->killTimer, &QTimer::timeout, this, [this] {
++		qCInfo(logJobs) << "Job" << this->mId << "of" << this->mAppName << "did not answer a cancel request";
++		this->terminate(ERR_USER_CANCELED, QString());
++	});
++}
++
++QString JobView::state() const {
++	switch (this->mState) {
++	case State::Running: return QStringLiteral("running");
++	case State::Suspended: return QStringLiteral("suspended");
++	case State::Finished: return QStringLiteral("finished");
++	}
++	return QString();
++}
++
++void JobView::update(const QVariantMap& properties) {
++	if (this->mState == State::Finished) return;
++
++	bool dirty = false;
++	bool destChanged = false;
++	const auto end = properties.cend();
++
++	auto it = properties.constFind("title");
++	if (it != end) dirty |= set(this->mTitle, it->toString());
++	it = properties.constFind("infoMessage");
++	if (it != end) dirty |= set(this->mInfoMessage, it->toString());
++	it = properties.constFind("percent");
++	if (it != end) dirty |= set(this->mPercent, static_cast<int>(qMin(it->toUInt(), 100u)));
++	it = properties.constFind("speed");
++	if (it != end) dirty |= set(this->mSpeed, it->toULongLong());
++
++	it = properties.constFind("destUrl");
++	if (it != end) {
++		destChanged = set(this->mDestUrl, normalizeUrl(it->toString()));
++		dirty |= destChanged;
++	}
++
++	auto amount = [&](const char* key, quint64& field) {
++		auto found = properties.constFind(QLatin1String(key));
++		if (found != end) dirty |= set(field, found->toULongLong());
++	};
++	amount("processedBytes", this->mProcessedBytes);
++	amount("totalBytes", this->mTotalBytes);
++	amount("processedFiles", this->mProcessedFiles);
++	amount("totalFiles", this->mTotalFiles);
++	amount("processedDirectories", this->mProcessedDirs);
++	amount("totalDirectories", this->mTotalDirs);
++	amount("processedItems", this->mProcessedItems);
++	amount("totalItems", this->mTotalItems);
++
++	auto text = [&](const char* key, QString& field) {
++		auto found = properties.constFind(QLatin1String(key));
++		if (found != end) dirty |= set(field, found->toString());
++	};
++	text("descriptionLabel1", this->mLabel1);
++	text("descriptionValue1", this->mValue1);
++	text("descriptionLabel2", this->mLabel2);
++	text("descriptionValue2", this->mValue2);
++
++	it = properties.constFind("suspended");
++	if (it != end) {
++		dirty |= set(this->mState, it->toBool() ? State::Suspended : State::Running);
++	}
++
++	if (dirty) emit this->changed();
++	if (destChanged) this->server->emitJobUrlsChanged();
++
++	if (!this->mShown && this->mShowOnTitle && !this->mTitle.isEmpty()) this->server->show(this);
++}
++
++void JobView::setV2Amount(bool total, quint64 amount, const QString& unit) {
++	QString key;
++	if (unit == "bytes") key = "Bytes";
++	else if (unit == "files") key = "Files";
++	else if (unit == "dirs") key = "Directories";
++	else if (unit == "items") key = "Items";
++	else return;
++
++	this->update({{(total ? "total" : "processed") + key, QVariant::fromValue(amount)}});
++}
++
++void JobView::setDescriptionField(uint number, const QString& name, const QString& value) {
++	if (number > 1) return;
++	const auto n = QString::number(number + 1);
++	this->update({{"descriptionLabel" + n, name}, {"descriptionValue" + n, value}});
++}
++
++void JobView::terminate(uint errorCode, const QString& errorMessage) {
++	if (this->mState == State::Finished) return;
++
++	this->showTimer.stop();
++	this->killTimer.stop();
++
++	this->mError = static_cast<int>(errorCode);
++	this->mErrorText = errorMessage;
++	// A job that finished before it was shown is shown if the program asked
++	// for it right away (it handles the short-job delay itself).
++	if (!this->mShown && this->mShowOnTermination) this->server->show(this);
++
++	this->mState = State::Finished;
++	this->mEnded = QDateTime::currentDateTime();
++	emit this->changed();
++	this->server->onTerminated(this);
++}
++
++void JobView::emitDBusSignal(const QString& name) {
++	for (const auto* interface: {VIEW_V3, VIEW_V2}) {
++		bus().send(QDBusMessage::createTargetedSignal(this->mOwner, this->mPath, interface, name));
++	}
++}
++
++void JobView::cancel() {
++	if (this->mState == State::Finished) return;
++	this->emitDBusSignal("cancelRequested");
++	if (!this->killTimer.isActive()) this->killTimer.start();
++}
++
++void JobView::suspend() {
++	if (this->mState == State::Running) this->emitDBusSignal("suspendRequested");
++}
++
++void JobView::resume() {
++	if (this->mState == State::Suspended) this->emitDBusSignal("resumeRequested");
++}
++
++void JobView::dismiss() {
++	if (this->mState == State::Finished) this->server->remove(this);
++}
++
++// ---- Server
++
++JobViewServer::JobViewServer(QObject* parent): QObject(parent) {
++	auto bus = qs::service::kde::bus();
++
++	if (!bus.isConnected()) {
++		qCWarning(logJobs) << "Could not connect to the session bus, job view server unavailable.";
++		return;
++	}
++
++	this->watcher = new QDBusServiceWatcher(this);
++	this->watcher->setConnection(bus);
++	this->watcher->setWatchMode(QDBusServiceWatcher::WatchForUnregistration);
++	QObject::connect(
++	    this->watcher,
++	    &QDBusServiceWatcher::serviceUnregistered,
++	    this,
++	    &JobViewServer::onServiceUnregistered
++	);
++
++	this->object = new JobViewServerObject(this);
++	auto* viewsObject = new JobViewServerObject(this);
++
++	if (!bus.registerVirtualObject(SERVER_PATH, this->object)
++	    || !bus.registerVirtualObject(VIEWS_PATH, viewsObject, QDBusConnection::SubPath))
++	{
++		qCWarning(logJobs) << "Could not register the job view server objects - another JobViewServer exists?";
++		bus.unregisterObject(SERVER_PATH);
++		bus.unregisterObject(VIEWS_PATH);
++		return;
++	}
++
++	// Programs send progress to org.kde.JobViewServer; KIO decides whether to
++	// send it at all by asking org.kde.kuiserver.
++	if (!bus.registerService(JOBVIEWSERVER_SERVICE) || !bus.registerService(KUISERVER_SERVICE)) {
++		qCWarning(logJobs) << "Could not register the job view service - is plasmashell running?";
++		bus.unregisterService(JOBVIEWSERVER_SERVICE);
++		bus.unregisterObject(SERVER_PATH);
++		bus.unregisterObject(VIEWS_PATH);
++		return;
++	}
++
++	qCInfo(logJobs) << "Job view server registered.";
++	this->mActive = true;
++}
++
++JobViewServer::~JobViewServer() {
++	if (!this->mActive) return;
++
++	auto bus = qs::service::kde::bus();
++	bus.unregisterService(KUISERVER_SERVICE);
++	bus.unregisterService(JOBVIEWSERVER_SERVICE);
++	bus.unregisterObject(SERVER_PATH);
++	bus.unregisterObject(VIEWS_PATH, QDBusConnection::UnregisterTree);
++}
++
++QString JobViewServer::requestView(
++    const QString& desktopEntry,
++    int capabilities,
++    const QVariantMap& hints,
++    const QString& sender
++) {
++	auto* job = new JobView(this->nextId++, this);
++	job->mOwner = sender;
++	job->mDesktopEntry = desktopEntry;
++	job->mAppName = hints.value("application-display-name").toString();
++	job->mAppIcon = hints.value("application-icon-name").toString();
++	if (job->mAppName.isEmpty() && desktopEntry.isEmpty()) job->mAppName = processName(sender);
++	job->mKillable = capabilities & KILLABLE;
++	job->mSuspendable = capabilities & SUSPENDABLE;
++	job->mTransient = hints.value("transient").toBool();
++
++	this->views.insert(job->mPath, job);
++	this->watcher->addWatchedService(sender);
++
++	if (hints.value("immediate").toBool()) {
++		// The program already waited out short jobs: show as soon as there
++		// is a title, so the first look at it is not empty.
++		job->mShowOnTitle = true;
++		job->mShowOnTermination = true;
++		job->showTimer.start(50);
++	} else {
++		// Do not show stat calls and other jobs that end at once.
++		job->showTimer.start(500);
++	}
++
++	job->update(hints);
++
++	qCDebug(logJobs) << "Job" << job->id() << "requested by" << sender << desktopEntry;
++
++	if (!bus().interface()->isServiceRegistered(sender).value()) {
++		QMetaObject::invokeMethod(
++		    this,
++		    [this, sender] { this->onServiceUnregistered(sender); },
++		    Qt::QueuedConnection
++		);
++	}
++
++	return job->mPath;
++}
++
++void JobViewServer::show(JobView* job) {
++	if (job->mShown) return;
++	job->mShown = true;
++	job->showTimer.stop();
++
++	if (job->mState == JobView::State::Finished) {
++		// Ended before it was due to be shown.
++		this->remove(job);
++		return;
++	}
++
++	this->mJobs.insertObject(job);
++}
++
++void JobViewServer::onTerminated(JobView* job) {
++	this->views.remove(job->mPath);
++	this->unwatch(job);
++	this->emitJobUrlsChanged();
++
++	const bool quiet = job->error() == static_cast<int>(ERR_USER_CANCELED)
++	                || (job->error() == 0 && job->transient());
++
++	if (!job->mShown || quiet) {
++		this->remove(job);
++	} else {
++		emit this->finished(job);
++	}
++}
++
++void JobViewServer::remove(JobView* job) {
++	this->views.remove(job->mPath);
++	this->mJobs.removeObject(job);
++	if (job->mState != JobView::State::Finished) this->unwatch(job);
++	job->deleteLater();
++}
++
++void JobViewServer::unwatch(JobView* job) {
++	for (auto* other: std::as_const(this->views)) {
++		if (other != job && other->mOwner == job->mOwner) return;
++	}
++	this->watcher->removeWatchedService(job->mOwner);
++}
++
++void JobViewServer::onServiceUnregistered(const QString& service) {
++	QList<JobView*> jobs;
++	for (auto* job: std::as_const(this->views)) {
++		if (job->mOwner == service) jobs.append(job);
++	}
++
++	for (auto* job: jobs) {
++		// The program crashed or quit without finishing the job.
++		job->terminate(ERR_OWNER_DIED, QString());
++	}
++}
++
++void JobViewServer::emitJobUrlsChanged() {
++	if (!this->mActive) return;
++
++	QStringList urls;
++	for (auto* job: std::as_const(this->views)) {
++		if (job->mState != JobView::State::Finished && !job->destUrl().isEmpty()) urls.append(job->destUrl());
++	}
++
++	auto signal = QDBusMessage::createSignal(SERVER_PATH, KUISERVER, "jobUrlsChanged");
++	signal.setArguments({urls});
++	bus().send(signal);
++}
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/jobs.hpp b/src/services/kde/jobs.hpp
+new file mode 100644
+index 0000000..a4df21c
+--- /dev/null
++++ b/src/services/kde/jobs.hpp
+@@ -0,0 +1,258 @@
++#pragma once
++
++#include <qdatetime.h>
++#include <qdbusconnection.h>
++#include <qdbusmessage.h>
++#include <qdbusvirtualobject.h>
++#include <qhash.h>
++#include <qlist.h>
++#include <qobject.h>
++#include <qqmlintegration.h>
++#include <qstring.h>
++#include <qtclasshelpermacros.h>
++#include <qtimer.h>
++#include <qtmetamacros.h>
++#include <qtypes.h>
++#include <qvariant.h>
++
++#include "../../core/doc.hpp"
++#include "../../core/model.hpp"
++
++class QDBusServiceWatcher;
++
++namespace qs::service::kde {
++
++class JobViewServer;
++
++/// D-Bus side of the server: /JobViewServer (org.kde.kuiserver,
++/// org.kde.JobViewServer, org.kde.JobViewServerV2) and the job views under
++/// /org/quickshell/JobView (org.kde.JobViewV2, org.kde.JobViewV3).
++class JobViewServerObject: public QDBusVirtualObject {
++	Q_OBJECT;
++
++public:
++	explicit JobViewServerObject(JobViewServer* server);
++
++	QString introspect(const QString& path) const override;
++	bool handleMessage(const QDBusMessage& message, const QDBusConnection& connection) override;
++
++private:
++	bool handleServer(const QDBusMessage& message, const QDBusConnection& connection);
++	bool handleView(const QDBusMessage& message, const QDBusConnection& connection);
++
++	JobViewServer* server;
++};
++
++///! A file operation or other long job of a program.
++/// Copying files in Dolphin, extracting an archive in Ark, a download...
++/// The program reports its progress; the shell shows it.
++class JobView: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	QML_UNCREATABLE("JobView can only be obtained from JobViewServer");
++	// clang-format off
++	Q_PROPERTY(int id READ id CONSTANT);
++	/// Desktop entry of the program (`org.kde.dolphin`), may be empty.
++	Q_PROPERTY(QString desktopEntry READ desktopEntry CONSTANT);
++	/// Name of the program when it gave one (or its process name).
++	Q_PROPERTY(QString appName READ appName CONSTANT);
++	/// Icon of the program when it gave one.
++	Q_PROPERTY(QString appIcon READ appIcon CONSTANT);
++	/// `running`, `suspended` or `finished`.
++	Q_PROPERTY(QString state READ state NOTIFY changed);
++	/// If the job can be canceled with @@cancel().
++	Q_PROPERTY(bool killable READ killable CONSTANT);
++	/// If the job can be paused with @@suspend().
++	Q_PROPERTY(bool suspendable READ suspendable CONSTANT);
++	/// What is being done, e.g. "Copying".
++	Q_PROPERTY(QString title READ title NOTIFY changed);
++	/// A status message, e.g. "Connecting to server".
++	Q_PROPERTY(QString infoMessage READ infoMessage NOTIFY changed);
++	/// 0-100.
++	Q_PROPERTY(int percent READ percent NOTIFY changed);
++	Q_PROPERTY(qreal processedBytes READ processedBytes NOTIFY changed);
++	Q_PROPERTY(qreal totalBytes READ totalBytes NOTIFY changed);
++	Q_PROPERTY(qreal processedFiles READ processedFiles NOTIFY changed);
++	Q_PROPERTY(qreal totalFiles READ totalFiles NOTIFY changed);
++	Q_PROPERTY(qreal processedDirectories READ processedDirectories NOTIFY changed);
++	Q_PROPERTY(qreal totalDirectories READ totalDirectories NOTIFY changed);
++	Q_PROPERTY(qreal processedItems READ processedItems NOTIFY changed);
++	Q_PROPERTY(qreal totalItems READ totalItems NOTIFY changed);
++	/// Bytes per second.
++	Q_PROPERTY(qreal speed READ speed NOTIFY changed);
++	/// Usually "Source" and "Destination" with a path or URL each.
++	Q_PROPERTY(QString descriptionLabel1 READ descriptionLabel1 NOTIFY changed);
++	Q_PROPERTY(QString descriptionValue1 READ descriptionValue1 NOTIFY changed);
++	Q_PROPERTY(QString descriptionLabel2 READ descriptionLabel2 NOTIFY changed);
++	Q_PROPERTY(QString descriptionValue2 READ descriptionValue2 NOTIFY changed);
++	/// Where the result goes (a folder URL), may be empty.
++	Q_PROPERTY(QString destUrl READ destUrl NOTIFY changed);
++	/// When finished: 0 on success, otherwise a KIO error code.
++	Q_PROPERTY(int error READ error NOTIFY changed);
++	/// When finished with an error: what went wrong.
++	Q_PROPERTY(QString errorText READ errorText NOTIFY changed);
++	/// The program does not want a notice when the job finishes well.
++	Q_PROPERTY(bool transient READ transient CONSTANT);
++	/// When the job started.
++	Q_PROPERTY(QDateTime started READ started CONSTANT);
++	/// When the job finished.
++	Q_PROPERTY(QDateTime ended READ ended NOTIFY changed);
++	// clang-format on
++
++public:
++	explicit JobView(int id, JobViewServer* server);
++
++	[[nodiscard]] int id() const { return this->mId; }
++	[[nodiscard]] QString desktopEntry() const { return this->mDesktopEntry; }
++	[[nodiscard]] QString appName() const { return this->mAppName; }
++	[[nodiscard]] QString appIcon() const { return this->mAppIcon; }
++	[[nodiscard]] QString state() const;
++	[[nodiscard]] bool killable() const { return this->mKillable; }
++	[[nodiscard]] bool suspendable() const { return this->mSuspendable; }
++	[[nodiscard]] QString title() const { return this->mTitle; }
++	[[nodiscard]] QString infoMessage() const { return this->mInfoMessage; }
++	[[nodiscard]] int percent() const { return this->mPercent; }
++	[[nodiscard]] qreal processedBytes() const { return static_cast<qreal>(this->mProcessedBytes); }
++	[[nodiscard]] qreal totalBytes() const { return static_cast<qreal>(this->mTotalBytes); }
++	[[nodiscard]] qreal processedFiles() const { return static_cast<qreal>(this->mProcessedFiles); }
++	[[nodiscard]] qreal totalFiles() const { return static_cast<qreal>(this->mTotalFiles); }
++	[[nodiscard]] qreal processedDirectories() const { return static_cast<qreal>(this->mProcessedDirs); }
++	[[nodiscard]] qreal totalDirectories() const { return static_cast<qreal>(this->mTotalDirs); }
++	[[nodiscard]] qreal processedItems() const { return static_cast<qreal>(this->mProcessedItems); }
++	[[nodiscard]] qreal totalItems() const { return static_cast<qreal>(this->mTotalItems); }
++	[[nodiscard]] qreal speed() const { return static_cast<qreal>(this->mSpeed); }
++	[[nodiscard]] QString descriptionLabel1() const { return this->mLabel1; }
++	[[nodiscard]] QString descriptionValue1() const { return this->mValue1; }
++	[[nodiscard]] QString descriptionLabel2() const { return this->mLabel2; }
++	[[nodiscard]] QString descriptionValue2() const { return this->mValue2; }
++	[[nodiscard]] QString destUrl() const { return this->mDestUrl; }
++	[[nodiscard]] int error() const { return this->mError; }
++	[[nodiscard]] QString errorText() const { return this->mErrorText; }
++	[[nodiscard]] bool transient() const { return this->mTransient; }
++	[[nodiscard]] QDateTime started() const { return this->mStarted; }
++	[[nodiscard]] QDateTime ended() const { return this->mEnded; }
++
++	/// Ask the program to cancel the job. If it does not answer within two
++	/// seconds, the job is dropped anyway.
++	Q_INVOKABLE void cancel();
++	/// Ask the program to pause the job.
++	Q_INVOKABLE void suspend();
++	/// Ask the program to continue the job.
++	Q_INVOKABLE void resume();
++	/// Forget a finished job. Does nothing while it runs.
++	Q_INVOKABLE void dismiss();
++
++	enum class State : quint8 { Running, Suspended, Finished };
++
++	// From the server.
++	void update(const QVariantMap& properties);
++	void terminate(uint errorCode, const QString& errorMessage);
++	void setV2Amount(bool total, quint64 amount, const QString& unit);
++	void setDescriptionField(uint number, const QString& name, const QString& value);
++	void emitDBusSignal(const QString& name);
++
++	QString mPath;
++	QString mOwner; // unique bus name of the program
++	QString mDesktopEntry;
++	QString mAppName;
++	QString mAppIcon;
++	State mState = State::Running;
++	bool mKillable = false;
++	bool mSuspendable = false;
++	bool mTransient = false;
++	bool mShown = false;
++	bool mShowOnTitle = false;
++	bool mShowOnTermination = false;
++	uint mV2Error = 0;
++	QTimer showTimer;
++	QTimer killTimer;
++
++signals:
++	void changed();
++
++private:
++	JobViewServer* server;
++	int mId;
++	QString mTitle;
++	QString mInfoMessage;
++	int mPercent = 0;
++	quint64 mProcessedBytes = 0;
++	quint64 mTotalBytes = 0;
++	quint64 mProcessedFiles = 0;
++	quint64 mTotalFiles = 0;
++	quint64 mProcessedDirs = 0;
++	quint64 mTotalDirs = 0;
++	quint64 mProcessedItems = 0;
++	quint64 mTotalItems = 0;
++	quint64 mSpeed = 0;
++	QString mLabel1;
++	QString mValue1;
++	QString mLabel2;
++	QString mValue2;
++	QString mDestUrl;
++	int mError = 0;
++	QString mErrorText;
++	QDateTime mStarted = QDateTime::currentDateTime();
++	QDateTime mEnded;
++};
++
++///! Progress of file operations and other jobs of programs.
++/// Takes over the job view server of plasmashell (org.kde.kuiserver and
++/// org.kde.JobViewServer): Dolphin, Ark and every other program using KIO
++/// report copying, moving, deleting and the like here instead of showing
++/// their own progress windows.
++///
++/// Jobs appear in @@jobs half a second after they start, so quick ones are
++/// never shown. Finished jobs stay until @@JobView.dismiss(), except
++/// canceled ones and transient ones that went well.
++class JobViewServer: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	/// If the service is registered. False when another program (plasmashell)
++	/// already owns it.
++	Q_PROPERTY(bool active READ active NOTIFY activeChanged);
++	/// Shown jobs, oldest first.
++	QSDOC_TYPE_OVERRIDE(ObjectModel<qs::service::kde::JobView>*);
++	Q_PROPERTY(UntypedObjectModel* jobs READ jobs CONSTANT);
++
++public:
++	explicit JobViewServer(QObject* parent = nullptr);
++	~JobViewServer() override;
++	Q_DISABLE_COPY_MOVE(JobViewServer);
++
++	[[nodiscard]] bool active() const { return this->mActive; }
++	[[nodiscard]] ObjectModel<JobView>* jobs() { return &this->mJobs; }
++
++	// From the D-Bus object and the views.
++	QString requestView(
++	    const QString& desktopEntry,
++	    int capabilities,
++	    const QVariantMap& hints,
++	    const QString& sender
++	);
++	JobView* view(const QString& path) const { return this->views.value(path); }
++	void show(JobView* job);
++	void onTerminated(JobView* job);
++	void remove(JobView* job);
++	void emitJobUrlsChanged();
++
++signals:
++	void activeChanged();
++	/// A shown job finished (successfully or not) and stays in @@jobs.
++	void finished(JobView* job);
++
++private slots:
++	void onServiceUnregistered(const QString& service);
++
++private:
++	void unwatch(JobView* job);
++
++	JobViewServerObject* object = nullptr;
++	QDBusServiceWatcher* watcher = nullptr;
++	QHash<QString, JobView*> views;
++	ObjectModel<JobView> mJobs {this};
++	int nextId = 1;
++	bool mActive = false;
++};
++
++} // namespace qs::service::kde
 diff --git a/src/services/kde/keyboard.cpp b/src/services/kde/keyboard.cpp
 new file mode 100644
 index 0000000..060f233
@@ -1075,19 +1924,21 @@ index 0000000..d3f0dba
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/module.md b/src/services/kde/module.md
 new file mode 100644
-index 0000000..cea2c83
+index 0000000..1ee3a88
 --- /dev/null
 +++ b/src/services/kde/module.md
-@@ -0,0 +1,9 @@
+@@ -0,0 +1,11 @@
 +name = "Quickshell.Services.Kde"
 +description = "Plasma session services for a shell that replaces plasmashell"
-+headers = [ "osd.hpp", "keyboard.hpp", "brightness.hpp", "secretagent.hpp", "bluetoothagent.hpp" ]
++headers = [ "osd.hpp", "keyboard.hpp", "brightness.hpp", "secretagent.hpp", "bluetoothagent.hpp", "jobs.hpp" ]
 +-----
 +Pieces of plasmashell other parts of a Plasma session rely on:
 +the on-screen display service (volume and brightness keys, keyboard
 +layout switches), KWin's keyboard layouts, powerdevil's screen
 +brightness, NetworkManager password prompts (instead of plasma-nm's
-+secret agent) and Bluetooth pairing prompts (instead of bluedevil's agent).
++secret agent), Bluetooth pairing prompts (instead of bluedevil's agent)
++and the progress of file operations (instead of the job view server of
++plasmashell).
 diff --git a/src/services/kde/osd.cpp b/src/services/kde/osd.cpp
 new file mode 100644
 index 0000000..25fb3bc

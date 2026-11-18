@@ -6,9 +6,9 @@ import Quickshell.Wayland
 
 // Рамка вокруг экрана со скруглёнными внутренними углами, слева в неё
 // встроена панель. Из рамки выезжают: запуск программ (сверху слева),
-// буфер обмена (сверху посередине), уведомления (сверху справа), панель
-// управления (снизу слева, у часов), индикатор громкости и яркости (снизу
-// посередине).
+// буфер обмена (сверху посередине), уведомления и ход копирования файлов
+// (сверху справа), панель управления (снизу слева, у часов), индикатор
+// громкости и яркости (снизу посередине).
 // Одно окно на весь экран поверх программ: рисовать можно где угодно,
 // а мышь окно ловит только на рамке и уведомлениях (mask), остальное
 // уходит окнам под ним. Пока открыт запуск, панель управления или центр
@@ -78,7 +78,9 @@ PanelWindow {
     // Уведомления и индикатор — на экране, с которым сейчас работают.
     // Пока открыт центр уведомлений (на любом экране), карточки не всплывают.
     readonly property bool isFocusedScreen: ShellState.focusedScreen() === screen.name
-    readonly property bool notificationsShown: isFocusedScreen && NotificationState.popups.length > 0
+    // Карточки операций (копирование файлов) — там же, над уведомлениями.
+    readonly property bool notificationsShown: isFocusedScreen
+        && (NotificationState.popups.length > 0 || JobsState.popups.length > 0)
         && ShellState.notificationsScreen === ""
     readonly property bool osdShown: OsdState.shown && OsdState.screenName === screen.name
 
@@ -298,7 +300,7 @@ PanelWindow {
             onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
         }
 
-        // Карточки уведомлений, новые сверху
+        // Карточки операций (старые сверху), под ними уведомления (новые сверху)
         Column {
             id: notifications
             x: frame.width - Theme.border - width - 10
@@ -314,6 +316,15 @@ PanelWindow {
             }
             move: Transition {
                 NumberAnimation { property: "y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+            }
+
+            Repeater {
+                model: ScriptModel { values: JobsState.popups }
+                JobCard {
+                    required property var modelData
+                    job: modelData
+                    width: notifications.width
+                }
             }
 
             Repeater {

@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 
-// Центр уведомлений: все пришедшие и не закрытые, новые сверху, и
-// «Очистить всё». Выезжает справа сверху, там же, где всплывают карточки.
+// Центр уведомлений: операции программ (копирование файлов) и все
+// пришедшие и не закрытые уведомления, новые сверху, и «Очистить всё». Выезжает справа сверху, там же, где всплывают карточки.
 // Подложку рисует DrawerShape в слое рамки, здесь только то, что на ней.
 Item {
     id: root
@@ -12,6 +12,8 @@ Item {
     signal closeRequested(bool restoreFocus)
 
     readonly property var history: NotificationState.history
+    readonly property var jobs: JobsState.jobs
+    readonly property bool hasFinishedJobs: jobs.some(j => j.state === "finished")
 
     readonly property real wantedHeight: Math.min(maxHeight, column.implicitHeight)
 
@@ -46,9 +48,31 @@ Item {
             }
 
             SButton {
-                visible: root.history.length > 0
+                visible: root.history.length > 0 || root.hasFinishedJobs
                 text: "Очистить всё"
-                onClicked: NotificationState.clearAll()
+                onClicked: {
+                    NotificationState.clearAll();
+                    JobsState.clearFinished();
+                }
+            }
+        }
+
+        // Операции: идущие и неудачные
+        ColumnLayout {
+            id: jobList
+            Layout.fillWidth: true
+            visible: root.jobs.length > 0
+            spacing: 8
+
+            Repeater {
+                model: ScriptModel { values: root.jobs }
+                JobCard {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    job: modelData
+                    inHistory: true
+                    onActivated: root.closeRequested(false)
+                }
             }
         }
 
@@ -57,7 +81,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 18
             Layout.bottomMargin: 22
-            visible: root.history.length === 0
+            visible: root.history.length === 0 && root.jobs.length === 0
             spacing: 8
 
             SIcon {
@@ -76,7 +100,8 @@ Item {
         ListView {
             id: list
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(contentHeight, root.maxHeight - 130)
+            Layout.preferredHeight: Math.min(contentHeight,
+                root.maxHeight - 130 - (jobList.visible ? jobList.implicitHeight + 12 : 0))
             visible: root.history.length > 0
             clip: true
             spacing: 8

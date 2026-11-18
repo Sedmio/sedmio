@@ -104,10 +104,12 @@ ShellRoot {
     }
 
     // Сервер уведомлений живёт в NotificationState, движок буфера обмена —
-    // в ClipboardState; обращение запускает их сразу, а не при первом показе.
+    // в ClipboardState, сервер заданий (ход копирования файлов) — в JobsState;
+    // обращение запускает их сразу, а не при первом показе.
     Component.onCompleted: {
         NotificationState.popups;
         ClipboardState.count;
+        JobsState.active;
     }
 
     // Заставка входа (KSplash) ждёт сигнала «рабочий стол готов»,

@@ -74,12 +74,16 @@ for dir in "$ROOT"/packages/*/; do
   (cd "$dir" && PKGDEST="$REPO" makepkg --force --cleanbuild "${flags[@]}" "${sign[@]}")
 done
 
+# По версии, а не по алфавиту: иначе -10 идёт раньше -9, repo-add --remove
+# удаляет старый файл, добавив новый, а потом не находит старый.
+mapfile -t pkgs < <(printf '%s\n' "$REPO"/*.pkg.tar.zst | sort -V)
+
 if [[ ${#sign[@]} -gt 0 ]]; then
-  repo-add --remove --sign --key "$KEY" "$REPO/sedmio.db.tar.gz" "$REPO"/*.pkg.tar.zst
+  repo-add --remove --sign --key "$KEY" "$REPO/sedmio.db.tar.gz" "${pkgs[@]}"
 else
   # База без подписи; старая подпись базы стала бы неверной
   rm -f "$REPO"/sedmio.{db,files}{,.tar.gz}.sig
-  repo-add --remove "$REPO/sedmio.db.tar.gz" "$REPO"/*.pkg.tar.zst
+  repo-add --remove "$REPO/sedmio.db.tar.gz" "${pkgs[@]}"
 fi
 
 echo
