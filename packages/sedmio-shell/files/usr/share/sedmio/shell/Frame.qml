@@ -5,10 +5,12 @@ import Quickshell
 import Quickshell.Wayland
 
 // Рамка вокруг экрана со скруглёнными внутренними углами, слева в неё
-// встроена панель, из рамки выезжает запуск программ. Одно окно на весь
-// экран поверх программ: рисовать можно где угодно, а мышь окно ловит
-// только на рамке (mask), остальное уходит окнам под ним. Пока открыт
-// запуск — весь экран: клик мимо него закрывает.
+// встроена панель. Из рамки выезжают: запуск программ (сверху слева),
+// уведомления (сверху справа), индикатор громкости и яркости (снизу).
+// Одно окно на весь экран поверх программ: рисовать можно где угодно,
+// а мышь окно ловит только на рамке и уведомлениях (mask), остальное
+// уходит окнам под ним. Пока открыт запуск — весь экран: клик мимо него
+// закрывает.
 PanelWindow {
     id: frame
     anchors { left: true; right: true; top: true; bottom: true }
@@ -37,9 +39,23 @@ PanelWindow {
         NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic }
     }
 
+    // Уведомления и индикатор — на экране, с которым сейчас работают.
+    readonly property bool isFocusedScreen: ShellState.focusedScreen() === screen.name
+    readonly property bool notificationsShown: isFocusedScreen && NotificationState.popups.length > 0
+    readonly property bool osdShown: OsdState.shown && OsdState.screenName === screen.name
+
+    property real notificationsHeight: notificationsShown ? notifications.implicitHeight + 20 : 0
+    Behavior on notificationsHeight { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
+
+    property real osdProgress: osdShown ? 1 : 0
+    Behavior on osdProgress { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
+    property real osdWidth: osd.wantedWidth
+    Behavior on osdWidth { NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutCubic } }
+
     mask: Region {
         item: content
         Region { item: frame.launcherOpen ? null : hole; intersection: Intersection.Subtract }
+        Region { item: frame.notificationsShown ? notifications : null; intersection: Intersection.Combine }
     }
 
     Item {
@@ -100,6 +116,26 @@ PanelWindow {
                 drawerWidth: 480
                 drawerHeight: frame.launcherHeight * frame.launcherProgress
             }
+
+            // Уведомления: та же форма, отражённая к правому краю.
+            Item {
+                anchors.fill: parent
+                transform: Scale { xScale: -1; origin.x: frame.width / 2 }
+
+                DrawerShape {
+                    x0: Theme.border
+                    y0: Theme.border
+                    drawerWidth: notifications.width + 20
+                    drawerHeight: frame.notificationsHeight
+                }
+            }
+
+            EdgeDrawerShape {
+                centerX: hole.x + hole.width / 2
+                edgeY: frame.height - Theme.border
+                drawerWidth: frame.osdWidth
+                drawerHeight: 54 * frame.osdProgress
+            }
         }
 
         Launcher {
@@ -115,6 +151,46 @@ PanelWindow {
             visible: frame.launcherProgress > 0
             transform: Translate { y: (1 - frame.launcherProgress) * -24 }
             onCloseRequested: restoreFocus => ShellState.closeLauncher(restoreFocus)
+        }
+
+        // Карточки уведомлений, новые сверху
+        Column {
+            id: notifications
+            x: frame.width - Theme.border - width - 10
+            y: Theme.border + 10
+            width: 380
+            spacing: 8
+            opacity: frame.notificationsShown ? 1 : 0
+            visible: frame.notificationsHeight > 1
+            Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
+
+            add: Transition {
+                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animNormal }
+            }
+            move: Transition {
+                NumberAnimation { property: "y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+            }
+
+            Repeater {
+                // ScriptModel меняет список точечно: карточки не
+                // пересоздаются и их таймеры не сбрасываются.
+                model: ScriptModel { values: NotificationState.popups }
+                NotificationCard {
+                    required property var modelData
+                    notification: modelData
+                    width: notifications.width
+                }
+            }
+        }
+
+        Osd {
+            id: osd
+            width: frame.osdWidth
+            height: 54
+            x: hole.x + hole.width / 2 - width / 2
+            y: frame.height - Theme.border - 54 * frame.osdProgress
+            opacity: Math.max(0, frame.osdProgress * 2 - 1)
+            visible: frame.osdProgress > 0
         }
 
         Bar {

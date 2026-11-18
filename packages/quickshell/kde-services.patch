@@ -1,0 +1,523 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ac82237..bebfa39 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -79,6 +79,7 @@ boption(SERVICE_POLKIT "Polkit" ON)
+ boption(SERVICE_GREETD "Greetd" ON)
+ boption(SERVICE_UPOWER "UPower" ON)
+ boption(SERVICE_NOTIFICATIONS "Notifications" ON)
++boption(SERVICE_KDE "Plasma session services (OSD, keyboard layouts)" ON)
+ boption(BLUETOOTH "Bluetooth" ON)
+ boption(NETWORK "Network" ON)
+ 
+@@ -130,7 +131,7 @@ if (WAYLAND)
+ 	list(APPEND QT_PRIVDEPS WaylandClientPrivate)
+ endif()
+ 
+-if (SERVICE_STATUS_NOTIFIER OR SERVICE_MPRIS OR SERVICE_UPOWER OR SERVICE_NOTIFICATIONS OR BLUETOOTH OR NETWORK)
++if (SERVICE_STATUS_NOTIFIER OR SERVICE_MPRIS OR SERVICE_UPOWER OR SERVICE_NOTIFICATIONS OR SERVICE_KDE OR BLUETOOTH OR NETWORK)
+ 	set(DBUS ON)
+ endif()
+ 
+diff --git a/src/services/CMakeLists.txt b/src/services/CMakeLists.txt
+index f3912a9..bb2485e 100644
+--- a/src/services/CMakeLists.txt
++++ b/src/services/CMakeLists.txt
+@@ -29,3 +29,7 @@ endif()
+ if (SERVICE_NOTIFICATIONS)
+ 	add_subdirectory(notifications)
+ endif()
++
++if (SERVICE_KDE)
++	add_subdirectory(kde)
++endif()
+diff --git a/src/services/kde/CMakeLists.txt b/src/services/kde/CMakeLists.txt
+new file mode 100644
+index 0000000..522cdf3
+--- /dev/null
++++ b/src/services/kde/CMakeLists.txt
+@@ -0,0 +1,19 @@
++qt_add_library(quickshell-service-kde STATIC
++	osd.cpp
++	keyboard.cpp
++)
++
++qt_add_qml_module(quickshell-service-kde
++	URI Quickshell.Services.Kde
++	VERSION 0.1
++	DEPENDENCIES QtQml
++)
++
++qs_add_module_deps_light(quickshell-service-kde Quickshell)
++
++install_qml_module(quickshell-service-kde)
++
++target_link_libraries(quickshell-service-kde PRIVATE Qt::Qml Qt::DBus)
++target_link_libraries(quickshell PRIVATE quickshell-service-kdeplugin)
++
++qs_module_pch(quickshell-service-kde SET dbus)
+diff --git a/src/services/kde/keyboard.cpp b/src/services/kde/keyboard.cpp
+new file mode 100644
+index 0000000..060f233
+--- /dev/null
++++ b/src/services/kde/keyboard.cpp
+@@ -0,0 +1,142 @@
++#include "keyboard.hpp"
++
++#include <qdbusargument.h>
++#include <qdbusconnection.h>
++#include <qdbusmessage.h>
++#include <qdbuspendingcall.h>
++#include <qdbuspendingreply.h>
++#include <qdbusservicewatcher.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qstring.h>
++#include <qvariant.h>
++
++#include "../../core/logcat.hpp"
++
++namespace qs::service::kde {
++
++namespace {
++QS_LOGGING_CATEGORY(logKeyboard, "quickshell.service.kde.keyboard", QtWarningMsg);
++
++constexpr auto SERVICE = "org.kde.keyboard";
++constexpr auto PATH = "/Layouts";
++constexpr auto INTERFACE = "org.kde.KeyboardLayouts";
++} // namespace
++
++KeyboardLayouts::KeyboardLayouts(QObject* parent): QObject(parent) {
++	auto bus = QDBusConnection::sessionBus();
++
++	bus.connect(SERVICE, PATH, INTERFACE, "layoutChanged", this, SLOT(onLayoutChanged(uint)));
++	bus.connect(SERVICE, PATH, INTERFACE, "layoutListChanged", this, SLOT(onLayoutListChanged()));
++
++	// KWin owns the service and normally is there before the shell, but
++	// pick it up if it (re)appears later.
++	auto* watcher = new QDBusServiceWatcher(
++	    SERVICE,
++	    bus,
++	    QDBusServiceWatcher::WatchForRegistration,
++	    this
++	);
++
++	QObject::connect(
++	    watcher,
++	    &QDBusServiceWatcher::serviceRegistered,
++	    this,
++	    &KeyboardLayouts::onLayoutListChanged
++	);
++
++	this->fetchLayouts();
++}
++
++QVariantMap KeyboardLayouts::current() const {
++	if (this->mCurrentIndex < 0 || this->mCurrentIndex >= this->mLayouts.size()) return {};
++	return this->mLayouts.at(this->mCurrentIndex).toMap();
++}
++
++void KeyboardLayouts::switchToNext() { this->call("switchToNextLayout"); }
++void KeyboardLayouts::switchToPrevious() { this->call("switchToPreviousLayout"); }
++
++void KeyboardLayouts::setLayout(int index) {
++	if (index < 0) return;
++	this->call("setLayout", {QVariant::fromValue(static_cast<uint>(index))});
++}
++
++void KeyboardLayouts::call(const QString& method, const QVariantList& args) {
++	auto message = QDBusMessage::createMethodCall(SERVICE, PATH, INTERFACE, method);
++	message.setArguments(args);
++	QDBusConnection::sessionBus().asyncCall(message);
++}
++
++void KeyboardLayouts::onLayoutChanged(uint index) {
++	this->setCurrentIndex(static_cast<int>(index));
++}
++
++void KeyboardLayouts::onLayoutListChanged() { this->fetchLayouts(); }
++
++void KeyboardLayouts::fetchLayouts() {
++	auto message = QDBusMessage::createMethodCall(SERVICE, PATH, INTERFACE, "getLayoutsList");
++	auto* watcher =
++	    new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message), this);
++
++	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher* call) {
++		call->deleteLater();
++		const QDBusMessage reply = call->reply();
++
++		if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().isEmpty()) {
++			qCWarning(logKeyboard) << "Could not read keyboard layouts:" << reply.errorMessage();
++			return;
++		}
++
++		// a(sss): shortName, displayName, longName
++		QVariantList layouts;
++		const auto arg = reply.arguments().constFirst().value<QDBusArgument>();
++		arg.beginArray();
++		while (!arg.atEnd()) {
++			QString shortName;
++			QString displayName;
++			QString longName;
++			arg.beginStructure();
++			arg >> shortName >> displayName >> longName;
++			arg.endStructure();
++			layouts.push_back(QVariantMap {
++			    {"shortName", shortName},
++			    {"displayName", displayName},
++			    {"longName", longName},
++			});
++		}
++		arg.endArray();
++
++		this->mLayouts = layouts;
++		emit this->layoutsChanged();
++		emit this->currentChanged();
++		this->fetchCurrent();
++	});
++}
++
++void KeyboardLayouts::fetchCurrent() {
++	auto message = QDBusMessage::createMethodCall(SERVICE, PATH, INTERFACE, "getLayout");
++	auto* watcher =
++	    new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message), this);
++
++	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher* call) {
++		call->deleteLater();
++		const QDBusPendingReply<uint> reply = *call;
++
++		if (reply.isError()) {
++			qCWarning(logKeyboard) << "Could not read the current keyboard layout:" << reply.error().message();
++			return;
++		}
++
++		this->setCurrentIndex(static_cast<int>(reply.value()));
++	});
++}
++
++void KeyboardLayouts::setCurrentIndex(int index) {
++	if (index == this->mCurrentIndex) return;
++	this->mCurrentIndex = index;
++	emit this->currentIndexChanged();
++	emit this->currentChanged();
++}
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/keyboard.hpp b/src/services/kde/keyboard.hpp
+new file mode 100644
+index 0000000..d3f0dba
+--- /dev/null
++++ b/src/services/kde/keyboard.hpp
+@@ -0,0 +1,58 @@
++#pragma once
++
++#include <qobject.h>
++#include <qqmlintegration.h>
++#include <qstring.h>
++#include <qtmetamacros.h>
++#include <qvariant.h>
++
++namespace qs::service::kde {
++
++///! Keyboard layouts of KWin.
++/// Reads and switches layouts through KWin's org.kde.keyboard service
++/// (/Layouts, org.kde.KeyboardLayouts) — the same one Plasma's layout
++/// indicator uses. Layouts themselves are set up in System Settings.
++class KeyboardLayouts: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	QML_SINGLETON;
++	/// Configured layouts, in order. Each is an object with
++	/// `shortName` (`us`), `displayName` (short label set by the user,
++	/// often empty) and `longName` (`English (US)`).
++	Q_PROPERTY(QVariantList layouts READ layouts NOTIFY layoutsChanged);
++	/// Index of the active layout in @@layouts, -1 until known.
++	Q_PROPERTY(int currentIndex READ currentIndex NOTIFY currentIndexChanged);
++	/// The active layout (see @@layouts), or an empty object.
++	Q_PROPERTY(QVariantMap current READ current NOTIFY currentChanged);
++
++public:
++	explicit KeyboardLayouts(QObject* parent = nullptr);
++
++	[[nodiscard]] QVariantList layouts() const { return this->mLayouts; }
++	[[nodiscard]] int currentIndex() const { return this->mCurrentIndex; }
++	[[nodiscard]] QVariantMap current() const;
++
++	Q_INVOKABLE void switchToNext();
++	Q_INVOKABLE void switchToPrevious();
++	Q_INVOKABLE void setLayout(int index);
++
++signals:
++	void layoutsChanged();
++	void currentIndexChanged();
++	void currentChanged();
++
++private slots:
++	void onLayoutChanged(uint index);
++	void onLayoutListChanged();
++
++private:
++	void fetchLayouts();
++	void fetchCurrent();
++	void setCurrentIndex(int index);
++	void call(const QString& method, const QVariantList& args = {});
++
++	QVariantList mLayouts;
++	int mCurrentIndex = -1;
++};
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/module.md b/src/services/kde/module.md
+new file mode 100644
+index 0000000..ccd33ee
+--- /dev/null
++++ b/src/services/kde/module.md
+@@ -0,0 +1,7 @@
++name = "Quickshell.Services.Kde"
++description = "Plasma session services for a shell that replaces plasmashell"
++headers = [ "osd.hpp", "keyboard.hpp" ]
++-----
++Pieces of plasmashell other parts of a Plasma session rely on:
++the on-screen display service (volume and brightness keys, keyboard
++layout switches) and KWin's keyboard layouts.
+diff --git a/src/services/kde/osd.cpp b/src/services/kde/osd.cpp
+new file mode 100644
+index 0000000..25fb3bc
+--- /dev/null
++++ b/src/services/kde/osd.cpp
+@@ -0,0 +1,132 @@
++#include "osd.hpp"
++
++#include <qdbusconnection.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qrect.h>
++#include <qstring.h>
++
++#include "../../core/logcat.hpp"
++
++namespace qs::service::kde {
++
++namespace {
++QS_LOGGING_CATEGORY(logOsd, "quickshell.service.kde.osd", QtWarningMsg);
++
++constexpr auto SERVICE = "org.kde.plasmashell";
++constexpr auto PATH = "/org/kde/osdService";
++} // namespace
++
++OsdAdaptor::OsdAdaptor(OsdServer* server): server(server) {}
++
++void OsdAdaptor::brightnessChanged(int percent) {
++	emit this->server->progress("brightness", QString(), percent, 100, QString());
++}
++
++void OsdAdaptor::screenBrightnessChanged(
++    int percent,
++    const QString& /*displayId*/,
++    const QString& displayLabel,
++    int /*priority*/,
++    const QRect& /*screenRect*/
++) {
++	emit this->server->progress("brightness", QString(), percent, 100, displayLabel);
++}
++
++void OsdAdaptor::keyboardBrightnessChanged(int percent) {
++	emit this->server->progress("keyboardBrightness", QString(), percent, 100, QString());
++}
++
++void OsdAdaptor::volumeChanged(int percent) { this->volumeChanged(percent, 100); }
++
++void OsdAdaptor::volumeChanged(int percent, int maximumPercent) {
++	emit this->server->progress("volume", QString(), percent, maximumPercent, QString());
++}
++
++void OsdAdaptor::microphoneVolumeChanged(int percent) {
++	emit this->server->progress("microphone", QString(), percent, 100, QString());
++}
++
++void OsdAdaptor::mediaPlayerVolumeChanged(
++    int percent,
++    const QString& playerName,
++    const QString& playerIconName
++) {
++	emit this->server->progress("mediaPlayer", playerIconName, percent, 100, playerName);
++}
++
++void OsdAdaptor::kbdLayoutChanged(const QString& layoutName) {
++	emit this->server->message("layout", "keyboard-layout", layoutName);
++}
++
++void OsdAdaptor::virtualDesktopChanged(const QString& currentVirtualDesktopName) {
++	emit this->server->message("desktop", QString(), currentVirtualDesktopName);
++}
++
++void OsdAdaptor::touchpadEnabledChanged(bool touchpadEnabled) {
++	emit this->server->toggled("touchpad", touchpadEnabled);
++}
++
++void OsdAdaptor::wifiEnabledChanged(bool wifiEnabled) {
++	emit this->server->toggled("wifi", wifiEnabled);
++}
++
++void OsdAdaptor::bluetoothEnabledChanged(bool bluetoothEnabled) {
++	emit this->server->toggled("bluetooth", bluetoothEnabled);
++}
++
++void OsdAdaptor::wwanEnabledChanged(bool wwanEnabled) {
++	emit this->server->toggled("wwan", wwanEnabled);
++}
++
++void OsdAdaptor::virtualKeyboardEnabledChanged(bool virtualKeyboardEnabled) {
++	emit this->server->toggled("virtualKeyboard", virtualKeyboardEnabled);
++}
++
++void OsdAdaptor::powerManagementInhibitedChanged(bool inhibited) {
++	emit this->server->toggled("inhibited", inhibited);
++}
++
++void OsdAdaptor::powerProfileChanged(const QString& profile) {
++	emit this->server->message("powerProfile", QString(), profile);
++}
++
++void OsdAdaptor::showText(const QString& icon, const QString& text) {
++	emit this->server->message("text", icon, text);
++}
++
++void OsdAdaptor::hide() { emit this->server->hideRequested(); }
++
++OsdServer::OsdServer(QObject* parent): QObject(parent) {
++	auto bus = QDBusConnection::sessionBus();
++
++	if (!bus.isConnected()) {
++		qCWarning(logOsd) << "Could not connect to the session bus, OSD service unavailable.";
++		return;
++	}
++
++	if (!bus.registerObject(PATH, &this->adaptor, QDBusConnection::ExportAllSlots)) {
++		qCWarning(logOsd) << "Could not register" << PATH << "- another OsdServer exists?";
++		return;
++	}
++
++	if (!bus.registerService(SERVICE)) {
++		qCWarning(logOsd) << "Could not register" << SERVICE << "- is plasmashell running?";
++		bus.unregisterObject(PATH);
++		return;
++	}
++
++	qCInfo(logOsd) << "OSD service registered as" << SERVICE;
++	this->mActive = true;
++}
++
++OsdServer::~OsdServer() {
++	if (!this->mActive) return;
++
++	auto bus = QDBusConnection::sessionBus();
++	bus.unregisterObject(PATH);
++	bus.unregisterService(SERVICE);
++}
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/osd.hpp b/src/services/kde/osd.hpp
+new file mode 100644
+index 0000000..3f307e6
+--- /dev/null
++++ b/src/services/kde/osd.hpp
+@@ -0,0 +1,96 @@
++#pragma once
++
++#include <qobject.h>
++#include <qqmlintegration.h>
++#include <qrect.h>
++#include <qstring.h>
++#include <qtmetamacros.h>
++
++namespace qs::service::kde {
++
++class OsdServer;
++
++// The D-Bus side of OsdServer: org.kde.osdService at /org/kde/osdService,
++// with the same methods plasmashell exports (plasma-workspace shell/osd.h).
++// kded (volume keys, media players), powerdevil (brightness) and KWin
++// (keyboard layout) call these on the org.kde.plasmashell name.
++class OsdAdaptor: public QObject {
++	Q_OBJECT;
++	Q_CLASSINFO("D-Bus Interface", "org.kde.osdService");
++
++public:
++	explicit OsdAdaptor(OsdServer* server);
++
++public slots:
++	void brightnessChanged(int percent);
++	void screenBrightnessChanged(
++	    int percent,
++	    const QString& displayId,
++	    const QString& displayLabel,
++	    int priority,
++	    const QRect& screenRect
++	);
++	void keyboardBrightnessChanged(int percent);
++	void volumeChanged(int percent);
++	void volumeChanged(int percent, int maximumPercent);
++	void microphoneVolumeChanged(int percent);
++	void mediaPlayerVolumeChanged(int percent, const QString& playerName, const QString& playerIconName);
++	void kbdLayoutChanged(const QString& layoutName);
++	void virtualDesktopChanged(const QString& currentVirtualDesktopName);
++	void touchpadEnabledChanged(bool touchpadEnabled);
++	void wifiEnabledChanged(bool wifiEnabled);
++	void bluetoothEnabledChanged(bool bluetoothEnabled);
++	void wwanEnabledChanged(bool wwanEnabled);
++	void virtualKeyboardEnabledChanged(bool virtualKeyboardEnabled);
++	void powerManagementInhibitedChanged(bool inhibited);
++	void powerProfileChanged(const QString& profile);
++	void showText(const QString& icon, const QString& text);
++	void hide();
++
++private:
++	OsdServer* server;
++};
++
++///! On-screen display requests from the rest of a Plasma session.
++/// Takes over plasmashell's org.kde.osdService: owns the org.kde.plasmashell
++/// bus name and turns every request into a signal. How (and whether) to show
++/// it is up to the shell.
++///
++/// Values are raw: percentages, names and on/off states; @@kind says what
++/// changed. Kinds:
++/// - progress: `volume`, `microphone`, `mediaPlayer` (label is the player
++///   name, icon its icon), `brightness` (label is the display name when
++///   known), `keyboardBrightness`
++/// - message: `layout`, `desktop`, `powerProfile` (`power-saver`,
++///   `balanced`, `performance`), `text` (free text with an icon)
++/// - toggled: `touchpad`, `wifi`, `bluetooth`, `wwan`, `virtualKeyboard`,
++///   `inhibited` (sleep and screen locking blocked)
++class OsdServer: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	/// If the service is registered. False when another program (plasmashell)
++	/// already owns org.kde.plasmashell.
++	Q_PROPERTY(bool active READ active NOTIFY activeChanged);
++
++public:
++	explicit OsdServer(QObject* parent = nullptr);
++	~OsdServer() override;
++	Q_DISABLE_COPY_MOVE(OsdServer);
++
++	[[nodiscard]] bool active() const { return this->mActive; }
++
++signals:
++	void activeChanged();
++
++	void progress(QString kind, QString icon, int percent, int maximum, QString label);
++	void message(QString kind, QString icon, QString text);
++	void toggled(QString kind, bool enabled);
++	/// The OSD should go away now.
++	void hideRequested();
++
++private:
++	OsdAdaptor adaptor {this};
++	bool mActive = false;
++};
++
++} // namespace qs::service::kde

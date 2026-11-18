@@ -3,6 +3,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Kde
 
 ShellRoot {
     Variants {
@@ -29,6 +30,23 @@ ShellRoot {
         function open(): void { ShellState.openLauncher(ShellState.focusedScreen()); }
         function close(): void { ShellState.closeLauncher(); }
     }
+
+    // Всплывающие индикаторы: служба org.kde.osdService вместо plasmashell.
+    // Её вызывают kded (клавиши громкости, плееры), powerdevil (яркость),
+    // KWin (раскладка).
+    OsdServer {
+        onProgress: (kind, icon, percent, maximum, label) => OsdState.progress(kind, icon, percent, maximum, label)
+        onMessage: (kind, icon, text) => {
+            if (kind === "powerProfile") OsdState.powerProfile(text);
+            else OsdState.message(kind, icon, text);
+        }
+        onToggled: (kind, enabled) => OsdState.toggled(kind, enabled)
+        onHideRequested: OsdState.hide()
+    }
+
+    // Сервер уведомлений живёт в NotificationState; обращение запускает его
+    // сразу, не дожидаясь первой карточки.
+    Component.onCompleted: NotificationState.popups
 
     // Заставка входа (KSplash) ждёт сигнала «рабочий стол готов»,
     // который раньше посылал plasmashell. Без него она висит до таймаута.

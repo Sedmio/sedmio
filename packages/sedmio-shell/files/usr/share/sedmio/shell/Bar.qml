@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 
 // Панель слева, часть рамки. Сверху знак Sedmio и открытые окна,
-// снизу трей, звук и часы.
+// снизу трей, раскладка, батарея, звук и часы.
 Item {
     id: bar
     required property var window     // окно рамки: меню трея, сворачивание
@@ -47,6 +47,16 @@ Item {
         Tray {
             Layout.alignment: Qt.AlignHCenter
             window: bar.window
+            tooltip: bar.tooltip
+        }
+
+        KeyboardLayout {
+            Layout.alignment: Qt.AlignHCenter
+            tooltip: bar.tooltip
+        }
+
+        Battery {
+            Layout.alignment: Qt.AlignHCenter
             tooltip: bar.tooltip
         }
 

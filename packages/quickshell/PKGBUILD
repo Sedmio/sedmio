@@ -13,7 +13,7 @@
 
 pkgname=quickshell
 pkgver=0.3.2
-pkgrel=2
+pkgrel=3
 pkgdesc='Flexible toolkit for making desktop shells with QtQuick (сборка Sedmio)'
 arch=('x86_64')
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
@@ -49,9 +49,11 @@ makedepends=(
   'wayland-protocols'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
-        'kde-window-management.patch')
+        'kde-window-management.patch'
+        'kde-services.patch')
 sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
-            '8e147c038acd8636225c6a8cc95386f02b5ab20089aa0fc68e0e27b4909b489d')
+            '8e147c038acd8636225c6a8cc95386f02b5ab20089aa0fc68e0e27b4909b489d'
+            '12ce6965c1080c633d6dc5144c8ed9fb1efe8cbd79999d43d44a9e6ffe2f0d4a')
 
 prepare() {
   cd "$pkgname"
@@ -60,6 +62,10 @@ prepare() {
   # реализация для KDE. В org.quickshell.desktop — X-KDE-Wayland-Interfaces,
   # без него KWin не даёт клиенту этот протокол.
   patch -Np1 -i ../kde-window-management.patch
+  # Модуль Quickshell.Services.Kde: то, что в сеансе Plasma ждут от
+  # plasmashell, — служба всплывающих индикаторов org.kde.osdService
+  # (громкость, яркость, раскладка) и раскладки клавиатуры из KWin.
+  patch -Np1 -i ../kde-services.patch
 }
 
 build() {
