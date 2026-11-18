@@ -1,0 +1,20 @@
+# Запасная оболочка: наша (sedmio-shell.service) упала трижды за минуту
+# и systemd её больше не перезапускает — например, после сломанного
+# обновления. Тогда поднимаем plasmashell, чтобы не остаться без панели,
+# меню и уведомлений, и говорим об этом. Запускается только по OnFailure
+# из sedmio-shell.service; до следующего входа в сеанс.
+[Unit]
+Description=Sedmio shell fallback: plasmashell
+PartOf=graphical-session.target
+Wants=sedmio-shell-fallback-polkit.service
+# Нашу оболочку запустили снова (systemctl --user start) — запасная уходит.
+Conflicts=sedmio-shell.service
+
+[Service]
+# Наш пакет Plasma/Shell (org.sedmio.shell, sedmio-login) — только экраны
+# блокировки и выхода, рабочего стола в нём нет.
+Environment=PLASMA_DEFAULT_SHELL=org.kde.plasma.desktop
+ExecStart=/usr/bin/plasmashell --no-respawn
+ExecStartPost=-/bin/sh -c 'sleep 6; notify-send -u critical -a Sedmio -i dialog-warning "Оболочка Sedmio не запустилась" "Временно включена стандартная оболочка Plasma. Перезайдите в сеанс, чтобы попробовать снова."'
+Restart=on-failure
+Slice=session.slice

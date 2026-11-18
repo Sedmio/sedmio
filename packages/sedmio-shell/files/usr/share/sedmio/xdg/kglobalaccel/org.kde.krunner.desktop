@@ -1,0 +1,22 @@
+# KRunner без глобальных клавиш: Alt+Пробел и Alt+F2 — наш запуск
+# программ (/usr/share/kglobalaccel/sedmio-launcher.desktop). Этот файл
+# перекрывает одноимённый из plasma-workspace (каталог стоит первым в
+# XDG_DATA_DIRS, см. /usr/lib/environment.d/60-sedmio-data-dirs.conf).
+# KRunner остаётся: его открывает наш запуск, если оболочка не работает.
+[Desktop Entry]
+Type=Application
+Name=KRunner
+Icon=krunner
+Exec=/usr/bin/krunner
+DBusActivatable=True
+X-DBUS-StartupType=Unique
+X-DBUS-ServiceName=org.kde.krunner
+StartupNotify=false
+X-KDE-Shortcuts=
+Actions=RunClipboard
+
+[Desktop Action RunClipboard]
+Exec=krunner -c
+Name=Run command on clipboard contents
+Name[ru]=Запустить команду из буфера обмена
+X-KDE-Shortcuts=

@@ -1,0 +1,25 @@
+--- a/src/core/desktopentry.cpp	2026-11-19 06:21:06.729159843 +0700
++++ b/src/core/desktopentry.cpp	2026-11-19 06:21:06.729749785 +0700
+@@ -134,6 +134,22 @@
+ 				else if (key == "Keywords") data.keywords = value.split(u';', Qt::SkipEmptyParts);
+ 				else if (key == "Actions") actionOrder = value.split(u';', Qt::SkipEmptyParts);
+ 			}
++
++			// OnlyShowIn / NotShowIn (Desktop Entry Specification): an entry not
++			// meant for the current desktop (XDG_CURRENT_DESKTOP) is treated like
++			// NoDisplay, so launchers do not offer e.g. GNOME-only tools under KDE.
++			auto desktops =
++			    qEnvironmentVariable("XDG_CURRENT_DESKTOP").split(u':', Qt::SkipEmptyParts);
++			auto inCurrentDesktop = [&desktops](const QString& list) {
++				for (const auto& desktop: list.split(u';', Qt::SkipEmptyParts)) {
++					if (desktops.contains(desktop)) return true;
++				}
++				return false;
++			};
++			if (entries.contains("OnlyShowIn") && !inCurrentDesktop(entries.value("OnlyShowIn").second))
++				data.noDisplay = true;
++			if (entries.contains("NotShowIn") && inCurrentDesktop(entries.value("NotShowIn").second))
++				data.noDisplay = true;
+ 		} else if (groupName.startsWith("Desktop Action ")) {
+ 			auto actionName = groupName.sliced(15);
+ 			DesktopActionData action;
