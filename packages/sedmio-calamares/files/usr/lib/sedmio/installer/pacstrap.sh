@@ -40,5 +40,10 @@ awk -v server='https://github.com/Sedmio/sedmio/releases/download/$arch' '
   !skip
 ' /etc/pacman.conf > "$ROOT/etc/pacman.conf"
 
+# База [sedmio], которую pacstrap взял с образа, — без подписи и новее
+# сетевой по дате. pacman не стал бы скачивать сетевую базу, а подпись
+# к ней взял бы, и первый pacman -Sy упал бы с «signature is invalid».
+rm -f "$ROOT"/var/lib/pacman/sync/sedmio.*
+
 # Зеркала Arch — из live-системы (их выбрал reflector при загрузке).
 cp /etc/pacman.d/mirrorlist "$ROOT/etc/pacman.d/mirrorlist"

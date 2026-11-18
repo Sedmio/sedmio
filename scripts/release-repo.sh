@@ -44,6 +44,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 # Подпись проверяем ключом из пакета sedmio-keyring, а не связкой gpg
 # пользователя: так же её будет проверять pacman на установленной системе.
+mkdir -m 700 "$tmp/gnupg"
 gpg --batch --quiet --homedir "$tmp/gnupg" --import \
   "$ROOT/packages/sedmio-keyring/sedmio.gpg" 2>/dev/null
 verify() {
@@ -79,11 +80,18 @@ Server = https://github.com/$GH_REPO/releases/download/\$arch
 fi
 
 mapfile -t assets < <(gh release view "$TAG" -R "$GH_REPO" --json assets -q '.assets[].name')
+# Скачиваем через gh, а не по публичной ссылке: та после обновления
+# ещё несколько минут может отдавать прежний файл из кэша GitHub.
+fetch() { gh release download "$TAG" -R "$GH_REPO" -D "$2" --clobber -p "$1"; }
+
 declare -A online=()   # имя файла пакета → sha256 из сетевой базы
+mkdir "$tmp/net"
 if printf '%s\n' "${assets[@]}" | grep -qx sedmio.db; then
-  curl -fsSL "$BASE/sedmio.db" -o "$tmp/online.db"
+  for f in sedmio.db sedmio.db.sig sedmio.files sedmio.files.sig; do
+    fetch "$f" "$tmp/net"
+  done
   mkdir "$tmp/online"
-  bsdtar -xf "$tmp/online.db" -C "$tmp/online"
+  bsdtar -xf "$tmp/net/sedmio.db" -C "$tmp/online"
   for desc in "$tmp"/online/*/desc; do
     file="$(awk '/^%FILENAME%$/ { getline; print }' "$desc")"
     online[$file]="$(awk '/^%SHA256SUM%$/ { getline; print }' "$desc")"
@@ -92,14 +100,17 @@ fi
 
 # ---------- пакеты той же версии, что в сети
 
-failed=0 replaced=0
+failed=0 replaced=0 same=0
 for pkg in "${pkgs[@]}"; do
   file="$(basename "$pkg")"
   [[ -n ${online[$file]:-} ]] || continue
-  [[ $(sha256sum < "$pkg" | cut -d' ' -f1) == "${online[$file]}" ]] && continue
+  if [[ $(sha256sum < "$pkg" | cut -d' ' -f1) == "${online[$file]}" ]]; then
+    (( ++same ))
+    continue
+  fi
 
-  curl -fsSL "$BASE/$file" -o "$tmp/$file"
-  curl -fsSL "$BASE/$file.sig" -o "$tmp/$file.sig"
+  fetch "$file" "$tmp"
+  fetch "$file.sig" "$tmp"
   if [[ $(content "$pkg") != "$(content "$tmp/$file")" ]]; then
     name="$(bsdtar -xOf "$pkg" .PKGINFO | awk -F' = ' '$1 == "pkgbase" { print $2 }')"
     echo "$file: содержимое изменилось, а версия та же, что в сети." >&2
@@ -110,10 +121,24 @@ for pkg in "${pkgs[@]}"; do
   echo "==> $file: в сети тот же пакет, беру его файл"
   mv -f "$tmp/$file" "$tmp/$file.sig" "$REPO/"
   replaced=1
+  (( ++same ))
 done
-(( failed == 0 )) || die "ничего не выложено."
+if (( failed )); then
+  # out/repo остаётся целым: база — под файлы, взятые из сети
+  (( ! replaced )) || repo-add --quiet --sign --key "$KEY" "$REPO/sedmio.db.tar.gz" "${pkgs[@]}"
+  die "ничего не выложено."
+fi
 
-if (( replaced )); then
+# В сети ровно эти пакеты — выкладывать нечего. Берём и сетевую базу,
+# чтобы out/repo (а за ним и ISO) совпадал с сетью до байта.
+nothing_new=0
+if (( same == ${#pkgs[@]} && ${#online[@]} == ${#pkgs[@]} )); then
+  nothing_new=1
+  for db in db files; do
+    mv -f "$tmp/net/sedmio.$db" "$REPO/sedmio.$db.tar.gz"
+    mv -f "$tmp/net/sedmio.$db.sig" "$REPO/sedmio.$db.tar.gz.sig"
+  done
+elif (( replaced )); then
   repo-add --quiet --sign --key "$KEY" "$REPO/sedmio.db.tar.gz" "${pkgs[@]}"
 fi
 
@@ -123,49 +148,68 @@ verify "$REPO/sedmio.files.tar.gz"
 
 # ---------- загрузка
 
-# База — настоящими файлами под именами, которые спрашивает pacman
-# (в out/repo sedmio.db — ссылка на sedmio.db.tar.gz).
-mkdir "$tmp/up"
-for db in db files; do
-  cp "$REPO/sedmio.$db.tar.gz" "$tmp/up/sedmio.$db"
-  cp "$REPO/sedmio.$db.tar.gz.sig" "$tmp/up/sedmio.$db.sig"
-done
-
-has_asset() { printf '%s\n' "${assets[@]}" | grep -qxF "$1"; }
-
-# Сначала пакеты, потом база: база не должна ссылаться на файлы,
-# которых ещё нет.
-upload=()
-for pkg in "${pkgs[@]}"; do
-  file="$(basename "$pkg")"
-  if ! has_asset "$file" || [[ -z ${online[$file]:-} ]] || ! has_asset "$file.sig"; then
-    upload+=("$pkg" "$pkg.sig")
-  fi
-done
-if [[ ${#upload[@]} -gt 0 ]]; then
-  echo "==> Загружаю пакеты: $(( ${#upload[@]} / 2 ))"
-  gh release upload "$TAG" -R "$GH_REPO" --clobber "${upload[@]}"
+if (( nothing_new )); then
+  echo "==> В сети уже лежат эти же пакеты — загружать нечего"
 else
-  echo "==> Новых пакетов нет"
-fi
-echo "==> Загружаю базу"
-gh release upload "$TAG" -R "$GH_REPO" --clobber "$tmp"/up/*
+  # Сначала пакеты, потом база: база не должна ссылаться на файлы,
+  # которых ещё нет.
+  has_asset() { printf '%s\n' "${assets[@]}" | grep -qxF "$1"; }
+  upload=()
+  for pkg in "${pkgs[@]}"; do
+    file="$(basename "$pkg")"
+    if [[ -z ${online[$file]:-} ]] || ! has_asset "$file" || ! has_asset "$file.sig"; then
+      upload+=("$pkg" "$pkg.sig")
+    fi
+  done
+  if [[ ${#upload[@]} -gt 0 ]]; then
+    echo "==> Загружаю пакеты: $(( ${#upload[@]} / 2 ))"
+    gh release upload "$TAG" -R "$GH_REPO" --clobber "${upload[@]}"
+  fi
 
-# Старые версии — после базы, которая на них уже не ссылается
+  # База — настоящими файлами под именами, которые спрашивает pacman
+  # (в out/repo sedmio.db — ссылка на sedmio.db.tar.gz).
+  mkdir "$tmp/up"
+  for db in db files; do
+    cp "$REPO/sedmio.$db.tar.gz" "$tmp/up/sedmio.$db"
+    cp "$REPO/sedmio.$db.tar.gz.sig" "$tmp/up/sedmio.$db.sig"
+  done
+  echo "==> Загружаю базу"
+  gh release upload "$TAG" -R "$GH_REPO" --clobber "$tmp"/up/*
+fi
+
+# ---------- ждём, пока новую базу увидят системы
+
+# По адресу из pacman.conf GitHub ещё несколько минут может отдавать
+# прежнюю базу. Старые файлы пакетов удаляем только после этого: пока
+# системы видят прежнюю базу, они могут за ними прийти.
+echo "==> Проверяю базу по адресу из pacman.conf"
+visible=0
+for (( i = 0; i < 60; i++ )); do
+  if curl -fsSL "$BASE/sedmio.db" -o "$tmp/check.db" 2>/dev/null \
+     && cmp -s "$tmp/check.db" "$REPO/sedmio.db.tar.gz"; then
+    visible=1
+    break
+  fi
+  (( i > 0 )) || echo "    GitHub пока отдаёт прежнюю базу из кэша, жду (до 10 минут)…"
+  sleep 10
+done
+
 keep=(sedmio.db sedmio.db.sig sedmio.files sedmio.files.sig)
 for pkg in "${pkgs[@]}"; do keep+=("$(basename "$pkg")" "$(basename "$pkg").sig"); done
+stale=()
 for asset in "${assets[@]}"; do
-  if ! printf '%s\n' "${keep[@]}" | grep -qxF "$asset"; then
-    echo "==> Удаляю старый файл: $asset"
-    gh release delete-asset "$TAG" "$asset" -R "$GH_REPO" --yes
-  fi
+  printf '%s\n' "${keep[@]}" | grep -qxF "$asset" || stale+=("$asset")
 done
 
-# ---------- проверка: в сети то же, что здесь
-
-curl -fsSL "$BASE/sedmio.db" -o "$tmp/check.db"
-cmp -s "$tmp/check.db" "$REPO/sedmio.db.tar.gz" \
-  || die "база в сети не совпадает с out/repo (кэш GitHub?) — запусти ещё раз."
+if (( ! visible )); then
+  echo "Новая база загружена, но по публичной ссылке ещё не видна." >&2
+  [[ ${#stale[@]} -eq 0 ]] || echo "Старые файлы не удалены — их удалит следующий запуск." >&2
+  exit 1
+fi
+for asset in "${stale[@]}"; do
+  echo "==> Удаляю старый файл: $asset"
+  gh release delete-asset "$TAG" "$asset" -R "$GH_REPO" --yes
+done
 
 echo
 echo "Готово: $BASE"

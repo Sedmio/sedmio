@@ -24,6 +24,18 @@ if [[ ! -f $REPO/sedmio.db ]]; then
   exit 1
 fi
 
+# mkarchiso берёт пакеты через кэш pacman машины сборки. Пакеты Sedmio
+# той же версии пересобираются, и копия в кэше от прошлой сборки уже не
+# сходится с базой out/repo («corrupted package») — убираем такие копии.
+for cache in $(pacman-conf CacheDir); do
+  for pkg in "$REPO"/*.pkg.tar.zst; do
+    cached="$cache/$(basename "$pkg")"
+    if [[ -f $cached ]] && ! cmp -s "$cached" "$pkg"; then
+      rm -f "$cached" "$cached.sig"
+    fi
+  done
+done
+
 rm -rf "$WORK"
 mkdir -p "$WORK" "$OUT"
 cp -r "$RELENG" "$PROFILE"
@@ -48,8 +60,10 @@ sed -i '/^file_permissions=(/a \
 # Репозитории для сборки: как на машине сборки (CachyOS + multilib)
 # плюс локальный [sedmio] — первым: если у нас появится своя сборка
 # пакета Arch (патч), pacman возьмёт её, а не оригинал. Подпись здесь
-# не проверяем: пакеты собраны на этой же машине. Правила NoExtract
-# уменьшают образ: не кладём переводы на другие языки.
+# не проверяем (SigLevel = Never): пакеты собраны на этой же машине, где
+# ключа Sedmio в связке pacman может и не быть, а на образ они кладутся
+# без подписей. Правила NoExtract уменьшают образ: не кладём переводы
+# на другие языки.
 # Перед первым репозиторием и комментарием над ним: строки до пустой
 # копятся в held и печатаются уже после [sedmio].
 awk -v repo="$REPO" '
@@ -58,7 +72,7 @@ awk -v repo="$REPO" '
   /^\[/ && !/^\[options\]/ {
     print "# Sedmio: пакеты дистрибутива, выше всех остальных"
     print "[sedmio]"
-    print "SigLevel = Optional TrustAll"
+    print "SigLevel = Never"
     print "Server = file://" repo
     print ""
     printf "%s", held; print
