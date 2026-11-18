@@ -1,0 +1,112 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Sedmio.Files
+
+// Строка адреса: путь кусочками (Домашняя папка › Фото › 2026), каждый
+// кликабелен. Клик по пустому месту или Ctrl+L — ввести путь текстом.
+Rectangle {
+    id: root
+    property url url
+    signal openRequested(url url)
+
+    readonly property bool editing: field.visible
+
+    function edit() {
+        field.text = FileOps.prettyPath(root.url);
+        field.visible = true;
+        field.forceActiveFocus();
+        field.selectAll();
+    }
+
+    implicitHeight: 36
+    radius: 10
+    color: Theme.surface
+    border.width: 1
+    border.color: field.activeFocus ? Theme.lineStrong : Theme.line
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: root.edit()
+    }
+
+    // Кусочки пути; не влезают — видна правая часть (текущая папка).
+    Flickable {
+        id: flick
+        anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
+        visible: !field.visible
+        clip: true
+        contentWidth: crumbsRow.width
+        flickableDirection: Flickable.HorizontalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentWidth > width
+        onContentWidthChanged: contentX = Math.max(0, contentWidth - width)
+        onWidthChanged: contentX = Math.max(0, contentWidth - width)
+
+        Row {
+            id: crumbsRow
+            height: flick.height
+            spacing: 0
+
+            Repeater {
+                model: FileOps.crumbs(root.url)
+
+                Row {
+                    required property var modelData
+                    required property int index
+                    height: crumbsRow.height
+
+                    SText {
+                        visible: parent.index > 0
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "›"
+                        leftPadding: 2
+                        rightPadding: 2
+                        color: Theme.inkMuted
+                    }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: crumb.implicitWidth + 16
+                        height: 26
+                        radius: 7
+                        color: crumbArea.containsMouse ? Theme.paperDeep : "transparent"
+
+                        SText {
+                            id: crumb
+                            anchors.centerIn: parent
+                            text: parent.parent.modelData.name
+                            weight: parent.parent.index === FileOps.crumbs(root.url).length - 1 ? 600 : 400
+                        }
+                        MouseArea {
+                            id: crumbArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: root.openRequested(parent.parent.modelData.url)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    TextField {
+        id: field
+        anchors { fill: parent; leftMargin: 4; rightMargin: 4 }
+        visible: false
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontBody
+        color: Theme.ink
+        selectionColor: Theme.greenSelect
+        selectedTextColor: Theme.ink
+        background: null
+        verticalAlignment: TextInput.AlignVCenter
+
+        onAccepted: {
+            visible = false;
+            root.openRequested(FileOps.urlFromInput(text));
+        }
+        onActiveFocusChanged: if (!activeFocus) visible = false
+        Keys.onEscapePressed: visible = false
+    }
+}

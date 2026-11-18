@@ -1,0 +1,42 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# «Файлы» — файловый менеджер Sedmio вместо Dolphin. Интерфейс на QML в
+# стиле оболочки, работа с файлами — KIO (фреймворк KDE, не Plasma): те же
+# корзина, сеть, флешки, миниатюры и ход копирования в оболочке.
+# Исходники — app/ рядом с этим файлом (src/ занята makepkg).
+
+pkgname=sedmio-files
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: файловый менеджер «Файлы» на QML и KIO"
+arch=('x86_64')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'qt6-base'
+  'qt6-declarative'
+  'kcoreaddons'
+  'kio'
+  'kio-extras'      # миниатюры картинок, sftp, smb
+  'kservice'
+  'solid'
+  'breeze-icons'
+  # Шрифт Onest из sedmio-branding сюда не вписан: makepkg ставит зависимости
+  # компилируемого пакета на машину сборки, а нашего пакета в репозиториях
+  # Arch нет. Его и так тянет sedmio-shell.
+)
+makedepends=(
+  'cmake'
+  'ninja'
+)
+
+build() {
+  cmake -G Ninja -S "$startdir/app" -B build -W no-dev \
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+    -D CMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

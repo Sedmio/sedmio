@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Files
+Name[ru]=Файлы
+GenericName=File Manager
+GenericName[ru]=Файловый менеджер
+Comment=Browse and manage files
+Comment[ru]=Папки и файлы на компьютере, флешках и в сети
+Icon=system-file-manager
+Exec=sedmio-files %u
+Terminal=false
+MimeType=inode/directory;
+Categories=Qt;KDE;System;FileTools;FileManager;
+Keywords=folder;files;explorer;
+Keywords[ru]=папка;файлы;проводник;
+StartupNotify=true
