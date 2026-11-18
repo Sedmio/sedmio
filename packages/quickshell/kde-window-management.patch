@@ -1,0 +1,800 @@
+diff --git a/assets/org.quickshell.desktop b/assets/org.quickshell.desktop
+index 63f65fd..c79f6b2 100644
+--- a/assets/org.quickshell.desktop
++++ b/assets/org.quickshell.desktop
+@@ -5,3 +5,7 @@ NoDisplay=true
+ 
+ Name=Quickshell
+ Icon=org.quickshell
++Exec=/usr/bin/quickshell
++# KWin only lets clients bind org_kde_plasma_window_management (window list)
++# when their desktop file lists it here and Exec matches the executable.
++X-KDE-Wayland-Interfaces=org_kde_plasma_window_management
+diff --git a/src/wayland/toplevel/CMakeLists.txt b/src/wayland/toplevel/CMakeLists.txt
+index 0c1d555..97b7c3a 100644
+--- a/src/wayland/toplevel/CMakeLists.txt
++++ b/src/wayland/toplevel/CMakeLists.txt
+@@ -1,5 +1,7 @@
+ qt_add_library(quickshell-wayland-toplevel-management STATIC
++	handle.cpp
+ 	wlr_toplevel.cpp
++	kde_toplevel.cpp
+ 	qml.cpp
+ )
+ 
+@@ -17,9 +19,14 @@ install_qml_module(quickshell-wayland-toplevel-management)
+ 
+ wl_proto(wlp-foreign-toplevel wlr-foreign-toplevel-management-unstable-v1 "${CMAKE_CURRENT_SOURCE_DIR}")
+ 
++# KWin: org_kde_plasma_window_management (kde_toplevel.cpp)
++find_package(PlasmaWaylandProtocols REQUIRED)
++wl_proto(wlp-plasma-window-management plasma-window-management "${PLASMA_WAYLAND_PROTOCOLS_DIR}")
++
+ target_link_libraries(quickshell-wayland-toplevel-management PRIVATE
+ 	Qt::Quick Qt::WaylandClient Qt::WaylandClientPrivate wayland-client
+ 	wlp-foreign-toplevel
++	wlp-plasma-window-management
+ )
+ 
+ qs_module_pch(quickshell-wayland-toplevel-management SET large)
+diff --git a/src/wayland/toplevel/handle.cpp b/src/wayland/toplevel/handle.cpp
+new file mode 100644
+index 0000000..47faa7f
+--- /dev/null
++++ b/src/wayland/toplevel/handle.cpp
+@@ -0,0 +1,4 @@
++#include "handle.hpp"
++
++// No code here: the file exists so that moc processes handle.hpp
++// (signals of the base window class).
+diff --git a/src/wayland/toplevel/handle.hpp b/src/wayland/toplevel/handle.hpp
+new file mode 100644
+index 0000000..ebd50fa
+--- /dev/null
++++ b/src/wayland/toplevel/handle.hpp
+@@ -0,0 +1,56 @@
++#pragma once
++
++#include <qlist.h>
++#include <qobject.h>
++#include <qrect.h>
++#include <qscreen.h>
++#include <qstring.h>
++#include <qtmetamacros.h>
++#include <qwindow.h>
++
++namespace qs::wayland::toplevel::impl {
++
++// A window from another application, as reported by one of the supported
++// protocols: wlr-foreign-toplevel-management (wlroots compositors, Hyprland)
++// or org_kde_plasma_window_management (KWin). The QML Toplevel wraps this
++// and does not care which protocol is behind it.
++class ToplevelHandle: public QObject {
++	Q_OBJECT;
++
++public:
++	explicit ToplevelHandle(QObject* parent = nullptr): QObject(parent) {}
++
++	[[nodiscard]] virtual QString appId() const = 0;
++	[[nodiscard]] virtual QString title() const = 0;
++	[[nodiscard]] virtual ToplevelHandle* parentToplevel() const = 0;
++	[[nodiscard]] virtual bool activated() const = 0;
++	[[nodiscard]] virtual bool maximized() const = 0;
++	[[nodiscard]] virtual bool minimized() const = 0;
++	[[nodiscard]] virtual bool fullscreen() const = 0;
++	[[nodiscard]] virtual QList<QScreen*> screens() const = 0;
++
++	virtual void activate() = 0;
++	virtual void close() = 0;
++	virtual void setMaximized(bool maximized) = 0;
++	virtual void setMinimized(bool minimized) = 0;
++	virtual void setFullscreen(bool fullscreen) = 0;
++	virtual void fullscreenOn(QScreen* screen) = 0;
++	virtual void setRectangle(QWindow* window, QRect rect) = 0;
++
++signals:
++	// sent once the initial state is known.
++	void ready();
++	// sent right before delete this.
++	void closed();
++
++	void appIdChanged();
++	void titleChanged();
++	void parentChanged();
++	void activatedChanged();
++	void maximizedChanged();
++	void minimizedChanged();
++	void fullscreenChanged();
++	void screensChanged();
++};
++
++} // namespace qs::wayland::toplevel::impl
+diff --git a/src/wayland/toplevel/kde_toplevel.cpp b/src/wayland/toplevel/kde_toplevel.cpp
+new file mode 100644
+index 0000000..ec77431
+--- /dev/null
++++ b/src/wayland/toplevel/kde_toplevel.cpp
+@@ -0,0 +1,281 @@
++#include "kde_toplevel.hpp"
++#include <algorithm>
++#include <cstdint>
++
++#include <private/qwaylandscreen_p.h>
++#include <private/qwaylandwindow_p.h>
++#include <qguiapplication.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qscreen.h>
++#include <qtmetamacros.h>
++#include <qwaylandclientextension.h>
++#include <wayland-client-protocol.h>
++
++#include "../../core/logcat.hpp"
++#include "qwayland-plasma-window-management.h"
++#include "wayland-plasma-window-management-client-protocol.h"
++
++namespace qs::wayland::toplevel::kde {
++
++QS_LOGGING_CATEGORY(logKdeToplevel, "quickshell.wayland.kdeToplevel", QtWarningMsg);
++
++namespace {
++
++constexpr uint32_t STATE_ACTIVE = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_ACTIVE;
++constexpr uint32_t STATE_MINIMIZED = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_MINIMIZED;
++constexpr uint32_t STATE_MAXIMIZED = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_MAXIMIZED;
++constexpr uint32_t STATE_FULLSCREEN = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_FULLSCREEN;
++constexpr uint32_t STATE_SKIPTASKBAR = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_SKIPTASKBAR;
++
++// window_with_uuid and get_window_by_uuid need 13, send_to_output 15.
++// Newer versions change how windows are announced (mapped, stacking order
++// objects) and bring nothing a taskbar needs.
++constexpr int MANAGER_VERSION = 16;
++constexpr uint32_t SEND_TO_OUTPUT_SINCE = 15;
++
++} // namespace
++
++ToplevelManager::ToplevelManager(): QWaylandClientExtensionTemplate(MANAGER_VERSION) {
++	this->initialize();
++}
++
++bool ToplevelManager::available() const { return this->isActive(); }
++
++const QVector<ToplevelHandle*>& ToplevelManager::readyToplevels() const {
++	return this->mReadyToplevels;
++}
++
++ToplevelHandle* ToplevelManager::handleFor(::org_kde_plasma_window* window) {
++	if (window == nullptr) return nullptr;
++
++	for (auto* other: this->mToplevels) {
++		if (other->object() == window) return other;
++	}
++
++	return nullptr;
++}
++
++ToplevelManager* ToplevelManager::instance() {
++	static auto* instance = new ToplevelManager(); // NOLINT
++	return instance;
++}
++
++void ToplevelManager::org_kde_plasma_window_management_window_with_uuid(
++    uint32_t /*id*/,
++    const QString& uuid
++) {
++	auto* handle = new ToplevelHandle();
++	QObject::connect(handle, &ToplevelHandle::closed, this, &ToplevelManager::onToplevelClosed);
++	QObject::connect(handle, &ToplevelHandle::ready, this, &ToplevelManager::onToplevelReady);
++
++	qCDebug(logKdeToplevel) << "Window" << uuid << "announced as" << handle;
++	this->mToplevels.push_back(handle);
++
++	// Not done in the constructor: the window could be unmapped right away,
++	// and touching the handle after that would be a use after free.
++	handle->init(this->get_window_by_uuid(uuid));
++}
++
++void ToplevelManager::onToplevelReady() {
++	auto* handle = qobject_cast<ToplevelHandle*>(this->sender());
++	this->mReadyToplevels.push_back(handle);
++	emit this->toplevelReady(handle);
++}
++
++void ToplevelManager::onToplevelClosed() {
++	auto* handle = qobject_cast<ToplevelHandle*>(this->sender());
++	this->mReadyToplevels.removeOne(handle);
++	this->mToplevels.removeOne(handle);
++}
++
++ToplevelHandle::ToplevelHandle() {
++	auto* app = qGuiApp;
++	QObject::connect(app, &QGuiApplication::screenAdded, this, &ToplevelHandle::updateScreens);
++	QObject::connect(app, &QGuiApplication::screenRemoved, this, &ToplevelHandle::updateScreens);
++}
++
++ToplevelHandle::~ToplevelHandle() {
++	if (this->isInitialized()) this->destroy();
++}
++
++QString ToplevelHandle::appId() const { return this->mAppId; }
++QString ToplevelHandle::title() const { return this->mTitle; }
++impl::ToplevelHandle* ToplevelHandle::parentToplevel() const { return this->mParent; }
++bool ToplevelHandle::activated() const { return (this->mState & STATE_ACTIVE) != 0; }
++bool ToplevelHandle::maximized() const { return (this->mState & STATE_MAXIMIZED) != 0; }
++bool ToplevelHandle::minimized() const { return (this->mState & STATE_MINIMIZED) != 0; }
++bool ToplevelHandle::fullscreen() const { return (this->mState & STATE_FULLSCREEN) != 0; }
++bool ToplevelHandle::skipTaskbar() const { return (this->mState & STATE_SKIPTASKBAR) != 0; }
++QList<QScreen*> ToplevelHandle::screens() const { return this->mScreens; }
++
++void ToplevelHandle::setState(uint32_t flag, bool on) { this->set_state(flag, on ? flag : 0); }
++
++// Activating a minimized window also restores it, as on a regular taskbar.
++void ToplevelHandle::activate() { this->setState(STATE_ACTIVE, true); }
++void ToplevelHandle::close() { this->QtWayland::org_kde_plasma_window::close(); }
++void ToplevelHandle::setMaximized(bool maximized) { this->setState(STATE_MAXIMIZED, maximized); }
++void ToplevelHandle::setMinimized(bool minimized) { this->setState(STATE_MINIMIZED, minimized); }
++
++void ToplevelHandle::setFullscreen(bool fullscreen) {
++	this->setState(STATE_FULLSCREEN, fullscreen);
++}
++
++void ToplevelHandle::fullscreenOn(QScreen* screen) {
++	auto version = wl_proxy_get_version(reinterpret_cast<wl_proxy*>(this->object())); // NOLINT
++	auto* waylandScreen =
++	    screen != nullptr ? dynamic_cast<QtWaylandClient::QWaylandScreen*>(screen->handle()) : nullptr;
++
++	if (waylandScreen != nullptr && version >= SEND_TO_OUTPUT_SINCE) {
++		this->send_to_output(waylandScreen->output());
++	}
++
++	this->setFullscreen(true);
++}
++
++// Where the window's taskbar entry is: KWin animates minimizing into it.
++void ToplevelHandle::setRectangle(QWindow* window, QRect rect) {
++	if (window == nullptr) {
++		if (this->rectWindow != nullptr) {
++			auto* waylandWindow =
++			    dynamic_cast<QtWaylandClient::QWaylandWindow*>(this->rectWindow->handle());
++
++			if (waylandWindow != nullptr && waylandWindow->surface() != nullptr) {
++				this->unset_minimized_geometry(waylandWindow->surface());
++			}
++
++			QObject::disconnect(this->rectWindow, nullptr, this, nullptr);
++			this->rectWindow = nullptr;
++		}
++
++		return;
++	}
++
++	if (this->rectWindow != window) {
++		if (this->rectWindow != nullptr) {
++			QObject::disconnect(this->rectWindow, nullptr, this, nullptr);
++		}
++
++		this->rectWindow = window;
++		QObject::connect(window, &QObject::destroyed, this, &ToplevelHandle::onRectWindowDestroyed);
++	}
++
++	auto send = [this, rect](QtWaylandClient::QWaylandWindow* waylandWindow) {
++		if (waylandWindow == nullptr || waylandWindow->surface() == nullptr) return;
++		this->set_minimized_geometry(
++		    waylandWindow->surface(),
++		    static_cast<uint32_t>(std::max(rect.x(), 0)),
++		    static_cast<uint32_t>(std::max(rect.y(), 0)),
++		    static_cast<uint32_t>(std::max(rect.width(), 0)),
++		    static_cast<uint32_t>(std::max(rect.height(), 0))
++		);
++	};
++
++	if (auto* waylandWindow = dynamic_cast<QtWaylandClient::QWaylandWindow*>(window->handle())) {
++		send(waylandWindow);
++	} else {
++		QObject::connect(window, &QWindow::visibleChanged, this, [window, send]() {
++			if (!window->isVisible()) return;
++			if (window->handle() == nullptr) window->create();
++			send(dynamic_cast<QtWaylandClient::QWaylandWindow*>(window->handle()));
++		});
++	}
++}
++
++void ToplevelHandle::onRectWindowDestroyed() { this->rectWindow = nullptr; }
++
++void ToplevelHandle::updateScreens() {
++	QList<QScreen*> screens;
++
++	if (this->mGeometry.isValid()) {
++		for (auto* screen: QGuiApplication::screens()) {
++			if (screen->geometry().intersects(this->mGeometry)) screens.push_back(screen);
++		}
++	}
++
++	if (screens != this->mScreens) {
++		this->mScreens = screens;
++		emit this->screensChanged();
++	}
++}
++
++void ToplevelHandle::updateReady() {
++	if (this->isReady || !this->initialStateReceived || this->skipTaskbar()) return;
++	this->isReady = true;
++	emit this->ready();
++}
++
++void ToplevelHandle::org_kde_plasma_window_title_changed(const QString& title) {
++	qCDebug(logKdeToplevel) << this << "got title" << title;
++	this->mTitle = title;
++	emit this->titleChanged();
++}
++
++void ToplevelHandle::org_kde_plasma_window_app_id_changed(const QString& appId) {
++	qCDebug(logKdeToplevel) << this << "got app id" << appId;
++	this->mAppId = appId;
++	emit this->appIdChanged();
++}
++
++void ToplevelHandle::org_kde_plasma_window_state_changed(uint32_t flags) {
++	auto changed = flags ^ this->mState;
++	this->mState = flags;
++	qCDebug(logKdeToplevel) << this << "got state" << Qt::hex << flags;
++
++	if ((changed & STATE_ACTIVE) != 0) emit this->activatedChanged();
++	if ((changed & STATE_MAXIMIZED) != 0) emit this->maximizedChanged();
++	if ((changed & STATE_MINIMIZED) != 0) emit this->minimizedChanged();
++	if ((changed & STATE_FULLSCREEN) != 0) emit this->fullscreenChanged();
++
++	this->updateReady();
++}
++
++void ToplevelHandle::org_kde_plasma_window_parent_window(::org_kde_plasma_window* parent) {
++	auto* handle = ToplevelManager::instance()->handleFor(parent);
++	qCDebug(logKdeToplevel) << this << "got parent" << handle;
++
++	if (handle == this->mParent) return;
++
++	if (this->mParent != nullptr) {
++		QObject::disconnect(this->mParent, nullptr, this, nullptr);
++	}
++
++	this->mParent = handle;
++
++	if (handle != nullptr) {
++		QObject::connect(handle, &ToplevelHandle::closed, this, &ToplevelHandle::onParentClosed);
++	}
++
++	emit this->parentChanged();
++}
++
++void ToplevelHandle::onParentClosed() {
++	this->mParent = nullptr;
++	emit this->parentChanged();
++}
++
++void ToplevelHandle::org_kde_plasma_window_geometry(
++    int32_t x,
++    int32_t y,
++    uint32_t width,
++    uint32_t height
++) {
++	this->mGeometry = QRect(x, y, static_cast<int>(width), static_cast<int>(height));
++	this->updateScreens();
++}
++
++void ToplevelHandle::org_kde_plasma_window_initial_state() {
++	qCDebug(logKdeToplevel) << this << "got initial state";
++	this->initialStateReceived = true;
++	this->updateReady();
++}
++
++void ToplevelHandle::org_kde_plasma_window_unmapped() {
++	qCDebug(logKdeToplevel) << this << "unmapped";
++	this->destroy();
++	emit this->closed();
++	delete this;
++}
++
++} // namespace qs::wayland::toplevel::kde
+diff --git a/src/wayland/toplevel/kde_toplevel.hpp b/src/wayland/toplevel/kde_toplevel.hpp
+new file mode 100644
+index 0000000..cd208a5
+--- /dev/null
++++ b/src/wayland/toplevel/kde_toplevel.hpp
+@@ -0,0 +1,118 @@
++#pragma once
++
++#include <qlist.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qrect.h>
++#include <qscreen.h>
++#include <qstring.h>
++#include <qtmetamacros.h>
++#include <qvector.h>
++#include <qwayland-plasma-window-management.h>
++#include <qwaylandclientextension.h>
++#include <qwindow.h>
++
++#include "../../core/logcat.hpp"
++#include "handle.hpp"
++#include "wayland-plasma-window-management-client-protocol.h"
++
++// Windows of other applications through KWin's own protocol,
++// org_kde_plasma_window_management: KWin does not implement
++// wlr-foreign-toplevel-management. KWin only lets clients bind it when
++// their .desktop file lists it in X-KDE-Wayland-Interfaces
++// (see assets/org.quickshell.desktop).
++namespace qs::wayland::toplevel::kde {
++
++QS_DECLARE_LOGGING_CATEGORY(logKdeToplevel);
++
++class ToplevelHandle
++    : public impl::ToplevelHandle
++    , public QtWayland::org_kde_plasma_window {
++	Q_OBJECT;
++
++public:
++	ToplevelHandle();
++	~ToplevelHandle() override;
++	Q_DISABLE_COPY_MOVE(ToplevelHandle);
++
++	[[nodiscard]] QString appId() const override;
++	[[nodiscard]] QString title() const override;
++	[[nodiscard]] impl::ToplevelHandle* parentToplevel() const override;
++	[[nodiscard]] bool activated() const override;
++	[[nodiscard]] bool maximized() const override;
++	[[nodiscard]] bool minimized() const override;
++	[[nodiscard]] bool fullscreen() const override;
++	[[nodiscard]] QList<QScreen*> screens() const override;
++
++	// Windows KWin does not want on a taskbar: desktop, panels of other
++	// shells, on-screen displays and the like. They are never made ready.
++	[[nodiscard]] bool skipTaskbar() const;
++
++	void activate() override;
++	void close() override;
++	void setMaximized(bool maximized) override;
++	void setMinimized(bool minimized) override;
++	void setFullscreen(bool fullscreen) override;
++	void fullscreenOn(QScreen* screen) override;
++	void setRectangle(QWindow* window, QRect rect) override;
++
++private slots:
++	void onParentClosed();
++	void onRectWindowDestroyed();
++	void updateScreens();
++
++private:
++	void org_kde_plasma_window_title_changed(const QString& title) override;
++	void org_kde_plasma_window_app_id_changed(const QString& appId) override;
++	void org_kde_plasma_window_state_changed(uint32_t flags) override;
++	void org_kde_plasma_window_parent_window(::org_kde_plasma_window* parent) override;
++	void org_kde_plasma_window_geometry(int32_t x, int32_t y, uint32_t width, uint32_t height)
++	    override;
++	void org_kde_plasma_window_initial_state() override;
++	void org_kde_plasma_window_unmapped() override;
++
++	void setState(uint32_t flag, bool on);
++	void updateReady();
++
++	bool initialStateReceived = false;
++	bool isReady = false;
++	QString mAppId;
++	QString mTitle;
++	uint32_t mState = 0;
++	ToplevelHandle* mParent = nullptr;
++	QRect mGeometry;
++	QList<QScreen*> mScreens;
++	QWindow* rectWindow = nullptr;
++};
++
++class ToplevelManager
++    : public QWaylandClientExtensionTemplate<ToplevelManager>
++    , public QtWayland::org_kde_plasma_window_management {
++	Q_OBJECT;
++
++public:
++	[[nodiscard]] bool available() const;
++	[[nodiscard]] const QVector<ToplevelHandle*>& readyToplevels() const;
++	[[nodiscard]] ToplevelHandle* handleFor(::org_kde_plasma_window* window);
++
++	static ToplevelManager* instance();
++
++signals:
++	void toplevelReady(ToplevelHandle* toplevel);
++
++protected:
++	explicit ToplevelManager();
++
++	void org_kde_plasma_window_management_window_with_uuid(uint32_t id, const QString& uuid)
++	    override;
++
++private slots:
++	void onToplevelReady();
++	void onToplevelClosed();
++
++private:
++	QVector<ToplevelHandle*> mToplevels;
++	QVector<ToplevelHandle*> mReadyToplevels;
++};
++
++} // namespace qs::wayland::toplevel::kde
+diff --git a/src/wayland/toplevel/qml.cpp b/src/wayland/toplevel/qml.cpp
+index 3da9f7b..7b7ac40 100644
+--- a/src/wayland/toplevel/qml.cpp
++++ b/src/wayland/toplevel/qml.cpp
+@@ -9,23 +9,23 @@
+ #include "../../core/qmlscreen.hpp"
+ #include "../../core/util.hpp"
+ #include "../../window/proxywindow.hpp"
+-#include "../output_tracking.hpp"
++#include "handle.hpp"
++#include "kde_toplevel.hpp"
+ #include "wlr_toplevel.hpp"
+ 
+ namespace qs::wayland::toplevel {
+ 
+-Toplevel::Toplevel(wlr::ToplevelHandle* handle, QObject* parent): QObject(parent), handle(handle) {
++Toplevel::Toplevel(impl::ToplevelHandle* handle, QObject* parent): QObject(parent), handle(handle) {
+ 	// clang-format off
+-	QObject::connect(handle, &wlr::ToplevelHandle::closed, this, &Toplevel::onClosed);
+-	QObject::connect(handle, &wlr::ToplevelHandle::appIdChanged, this, &Toplevel::appIdChanged);
+-	QObject::connect(handle, &wlr::ToplevelHandle::titleChanged, this, &Toplevel::titleChanged);
+-	QObject::connect(handle, &wlr::ToplevelHandle::parentChanged, this, &Toplevel::parentChanged);
+-	QObject::connect(handle, &wlr::ToplevelHandle::activatedChanged, this, &Toplevel::activatedChanged);
+-	QObject::connect(&handle->visibleScreens, &WlOutputTracker::screenAdded, this, &Toplevel::screensChanged);
+-	QObject::connect(&handle->visibleScreens, &WlOutputTracker::screenRemoved, this, &Toplevel::screensChanged);
+-	QObject::connect(handle, &wlr::ToplevelHandle::maximizedChanged, this, &Toplevel::maximizedChanged);
+-	QObject::connect(handle, &wlr::ToplevelHandle::minimizedChanged, this, &Toplevel::minimizedChanged);
+-	QObject::connect(handle, &wlr::ToplevelHandle::fullscreenChanged, this, &Toplevel::fullscreenChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::closed, this, &Toplevel::onClosed);
++	QObject::connect(handle, &impl::ToplevelHandle::appIdChanged, this, &Toplevel::appIdChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::titleChanged, this, &Toplevel::titleChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::parentChanged, this, &Toplevel::parentChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::activatedChanged, this, &Toplevel::activatedChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::screensChanged, this, &Toplevel::screensChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::maximizedChanged, this, &Toplevel::maximizedChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::minimizedChanged, this, &Toplevel::minimizedChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::fullscreenChanged, this, &Toplevel::fullscreenChanged);
+ 	// clang-format on
+ }
+ 
+@@ -41,7 +41,7 @@ QString Toplevel::appId() const { return this->handle->appId(); }
+ QString Toplevel::title() const { return this->handle->title(); }
+ 
+ Toplevel* Toplevel::parent() const {
+-	return ToplevelManager::instance()->forImpl(this->handle->parent());
++	return ToplevelManager::instance()->forImpl(this->handle->parentToplevel());
+ }
+ 
+ bool Toplevel::activated() const { return this->handle->activated(); }
+@@ -49,7 +49,7 @@ bool Toplevel::activated() const { return this->handle->activated(); }
+ QList<QuickshellScreenInfo*> Toplevel::screens() const {
+ 	QList<QuickshellScreenInfo*> screens;
+ 
+-	for (auto* screen: this->handle->visibleScreens.screens()) {
++	for (auto* screen: this->handle->screens()) {
+ 		screens.push_back(QuickshellTracked::instance()->screenInfo(screen));
+ 	}
+ 
+@@ -113,6 +113,8 @@ void Toplevel::onRectangleProxyDestroyed() {
+ }
+ 
+ ToplevelManager::ToplevelManager() {
++	// Both protocols are listened to; a compositor offers one of them
++	// (wlroots and Hyprland — wlr, KWin — its own).
+ 	auto* manager = wlr::ToplevelManager::instance();
+ 
+ 	QObject::connect(
+@@ -125,9 +127,22 @@ ToplevelManager::ToplevelManager() {
+ 	for (auto* handle: manager->readyToplevels()) {
+ 		this->onToplevelReady(handle);
+ 	}
++
++	auto* kdeManager = kde::ToplevelManager::instance();
++
++	QObject::connect(
++	    kdeManager,
++	    &kde::ToplevelManager::toplevelReady,
++	    this,
++	    &ToplevelManager::onToplevelReady
++	);
++
++	for (auto* handle: kdeManager->readyToplevels()) {
++		this->onToplevelReady(handle);
++	}
+ }
+ 
+-Toplevel* ToplevelManager::forImpl(wlr::ToplevelHandle* impl) const {
++Toplevel* ToplevelManager::forImpl(impl::ToplevelHandle* impl) const {
+ 	if (impl == nullptr) return nullptr;
+ 
+ 	for (auto* toplevel: this->mToplevels.valueList()) {
+@@ -139,7 +154,7 @@ Toplevel* ToplevelManager::forImpl(wlr::ToplevelHandle* impl) const {
+ 
+ ObjectModel<Toplevel>* ToplevelManager::toplevels() { return &this->mToplevels; }
+ 
+-void ToplevelManager::onToplevelReady(wlr::ToplevelHandle* handle) {
++void ToplevelManager::onToplevelReady(impl::ToplevelHandle* handle) {
+ 	auto* toplevel = new Toplevel(handle, this);
+ 
+ 	// clang-format off
+diff --git a/src/wayland/toplevel/qml.hpp b/src/wayland/toplevel/qml.hpp
+index 72ceb1a..d7301ee 100644
+--- a/src/wayland/toplevel/qml.hpp
++++ b/src/wayland/toplevel/qml.hpp
+@@ -13,10 +13,9 @@
+ 
+ namespace qs::wayland::toplevel {
+ 
+-namespace wlr {
+-class ToplevelManager; // NOLINT
+-class ToplevelHandle;
+-} // namespace wlr
++namespace impl {
++class ToplevelHandle; // NOLINT
++} // namespace impl
+ 
+ ///! Window from another application.
+ /// A window/toplevel from another application, retrievable from
+@@ -56,7 +55,7 @@ class Toplevel: public QObject {
+ 	QML_UNCREATABLE("Toplevels must be acquired from the ToplevelManager.");
+ 
+ public:
+-	explicit Toplevel(wlr::ToplevelHandle* handle, QObject* parent);
++	explicit Toplevel(impl::ToplevelHandle* handle, QObject* parent);
+ 
+ 	/// Request that this toplevel is activated.
+ 	/// The request may be ignored by the compositor.
+@@ -91,7 +90,7 @@ public:
+ 	[[nodiscard]] bool fullscreen() const;
+ 	void setFullscreen(bool fullscreen);
+ 
+-	[[nodiscard]] wlr::ToplevelHandle* implHandle() const { return this->handle; }
++	[[nodiscard]] impl::ToplevelHandle* implHandle() const { return this->handle; }
+ 
+ signals:
+ 	void closed();
+@@ -110,7 +109,7 @@ private slots:
+ 	void onRectangleProxyDestroyed();
+ 
+ private:
+-	wlr::ToplevelHandle* handle;
++	impl::ToplevelHandle* handle;
+ 	ProxyWindowBase* rectWindow = nullptr;
+ 	QRect rectangle;
+ 
+@@ -121,7 +120,7 @@ class ToplevelManager: public QObject {
+ 	Q_OBJECT;
+ 
+ public:
+-	Toplevel* forImpl(wlr::ToplevelHandle* impl) const;
++	Toplevel* forImpl(impl::ToplevelHandle* impl) const;
+ 
+ 	[[nodiscard]] ObjectModel<Toplevel>* toplevels();
+ 
+@@ -131,7 +130,7 @@ signals:
+ 	void activeToplevelChanged();
+ 
+ private slots:
+-	void onToplevelReady(wlr::ToplevelHandle* handle);
++	void onToplevelReady(impl::ToplevelHandle* handle);
+ 	void onToplevelActiveChanged();
+ 	void onToplevelClosed();
+ 
+@@ -153,7 +152,7 @@ private:
+ ///! Exposes a list of Toplevels.
+ /// Exposes a list of windows from other applications as @@Toplevel$s via the
+ /// [zwlr-foreign-toplevel-management-v1](https://wayland.app/protocols/wlr-foreign-toplevel-management-unstable-v1)
+-/// wayland protocol.
++/// wayland protocol, or on KWin via org_kde_plasma_window_management.
+ class ToplevelManagerQml: public QObject {
+ 	Q_OBJECT;
+ 	// clang-format off
+diff --git a/src/wayland/toplevel/wlr_toplevel.cpp b/src/wayland/toplevel/wlr_toplevel.cpp
+index 6055e22..cc1295b 100644
+--- a/src/wayland/toplevel/wlr_toplevel.cpp
++++ b/src/wayland/toplevel/wlr_toplevel.cpp
+@@ -74,9 +74,18 @@ void ToplevelManager::onToplevelClosed() {
+ 	this->mToplevels.removeOne(handle);
+ }
+ 
++ToplevelHandle::ToplevelHandle() {
++	// clang-format off
++	QObject::connect(&this->visibleScreens, &WlOutputTracker::screenAdded, this, &ToplevelHandle::screensChanged);
++	QObject::connect(&this->visibleScreens, &WlOutputTracker::screenRemoved, this, &ToplevelHandle::screensChanged);
++	// clang-format on
++}
++
+ QString ToplevelHandle::appId() const { return this->mAppId; }
+ QString ToplevelHandle::title() const { return this->mTitle; }
+ ToplevelHandle* ToplevelHandle::parent() const { return this->mParent; }
++impl::ToplevelHandle* ToplevelHandle::parentToplevel() const { return this->mParent; }
++QList<QScreen*> ToplevelHandle::screens() const { return this->visibleScreens.screens(); }
+ bool ToplevelHandle::activated() const { return this->mActivated; }
+ bool ToplevelHandle::maximized() const { return this->mMaximized; }
+ bool ToplevelHandle::minimized() const { return this->mMinimized; }
+@@ -89,6 +98,8 @@ void ToplevelHandle::activate() {
+ 	this->QtWayland::zwlr_foreign_toplevel_handle_v1::activate(inputDevice->object());
+ }
+ 
++void ToplevelHandle::close() { this->QtWayland::zwlr_foreign_toplevel_handle_v1::close(); }
++
+ void ToplevelHandle::setMaximized(bool maximized) {
+ 	if (maximized) this->set_maximized();
+ 	else this->unset_maximized();
+diff --git a/src/wayland/toplevel/wlr_toplevel.hpp b/src/wayland/toplevel/wlr_toplevel.hpp
+index 2c69fcd..2aacb03 100644
+--- a/src/wayland/toplevel/wlr_toplevel.hpp
++++ b/src/wayland/toplevel/wlr_toplevel.hpp
+@@ -13,6 +13,7 @@
+ 
+ #include "../../core/logcat.hpp"
+ #include "../output_tracking.hpp"
++#include "handle.hpp"
+ #include "wayland-wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
+ 
+ namespace qs::wayland::toplevel::wlr {
+@@ -20,42 +21,33 @@ namespace qs::wayland::toplevel::wlr {
+ QS_DECLARE_LOGGING_CATEGORY(logToplevelManagement);
+ 
+ class ToplevelHandle
+-    : public QObject
++    : public impl::ToplevelHandle
+     , public QtWayland::zwlr_foreign_toplevel_handle_v1 {
+ 	Q_OBJECT;
+ 
+ public:
+-	[[nodiscard]] QString appId() const;
+-	[[nodiscard]] QString title() const;
++	ToplevelHandle();
++
++	[[nodiscard]] QString appId() const override;
++	[[nodiscard]] QString title() const override;
+ 	[[nodiscard]] ToplevelHandle* parent() const;
+-	[[nodiscard]] bool activated() const;
+-	[[nodiscard]] bool maximized() const;
+-	[[nodiscard]] bool minimized() const;
+-	[[nodiscard]] bool fullscreen() const;
+-
+-	void activate();
+-	void setMaximized(bool maximized);
+-	void setMinimized(bool minimized);
+-	void setFullscreen(bool fullscreen);
+-	void fullscreenOn(QScreen* screen);
+-	void setRectangle(QWindow* window, QRect rect);
++	[[nodiscard]] impl::ToplevelHandle* parentToplevel() const override;
++	[[nodiscard]] bool activated() const override;
++	[[nodiscard]] bool maximized() const override;
++	[[nodiscard]] bool minimized() const override;
++	[[nodiscard]] bool fullscreen() const override;
++	[[nodiscard]] QList<QScreen*> screens() const override;
++
++	void activate() override;
++	void close() override;
++	void setMaximized(bool maximized) override;
++	void setMinimized(bool minimized) override;
++	void setFullscreen(bool fullscreen) override;
++	void fullscreenOn(QScreen* screen) override;
++	void setRectangle(QWindow* window, QRect rect) override;
+ 
+ 	WlOutputTracker visibleScreens;
+ 
+-signals:
+-	// sent after the first done event.
+-	void ready();
+-	// sent right before delete this.
+-	void closed();
+-
+-	void appIdChanged();
+-	void titleChanged();
+-	void parentChanged();
+-	void activatedChanged();
+-	void maximizedChanged();
+-	void minimizedChanged();
+-	void fullscreenChanged();
+-
+ private slots:
+ 	void onParentClosed();
+ 	void onRectWindowDestroyed();

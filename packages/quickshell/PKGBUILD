@@ -1,0 +1,84 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Quickshell — основа оболочки Sedmio (панель, виджеты, рамка экрана)
+# вместо plasmashell. Свой пакет из исходников, а не пакет Arch: сюда
+# ложатся наши правки (patches), в первую очередь список окон через
+# протокол KWin org_kde_plasma_window_management — из коробки Quickshell
+# знает только wlr-foreign-toplevel, а его в KWin нет.
+#
+# Основа — PKGBUILD из Arch (extra/quickshell). [sedmio] стоит в
+# pacman.conf выше остальных, поэтому ставится этот пакет, а не пакет
+# Arch или CachyOS той же версии. Пересобирать при каждом обновлении
+# Qt: Quickshell завязан на его внутренности.
+
+pkgname=quickshell
+pkgver=0.3.2
+pkgrel=2
+pkgdesc='Flexible toolkit for making desktop shells with QtQuick (сборка Sedmio)'
+arch=('x86_64')
+url="https://git.outfoxxed.me/$pkgname/$pkgname"
+license=('LGPL-3.0-only')
+depends=(
+  'cpptrace'
+  'glibc'
+  'hicolor-icon-theme'
+  'jemalloc'
+  'libdrm'
+  'libgcc'
+  'libglvnd'
+  'libpipewire'
+  'libstdc++'
+  'libxcb'
+  'mesa'
+  'pam'
+  'polkit'
+  'qt6-base'
+  'qt6-declarative'
+  'qt6-svg'
+  'qt6-wayland'
+  'wayland'
+)
+makedepends=(
+  'cli11'
+  'cmake'
+  'ninja'
+  'plasma-wayland-protocols'
+  'qt6-shadertools'
+  'spirv-tools'
+  'vulkan-headers'
+  'wayland-protocols'
+)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
+        'kde-window-management.patch')
+sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
+            '8e147c038acd8636225c6a8cc95386f02b5ab20089aa0fc68e0e27b4909b489d')
+
+prepare() {
+  cd "$pkgname"
+  # Список окон (ToplevelManager) под KWin через org_kde_plasma_window_management:
+  # общий базовый класс окна, wlr-реализация переведена на него, рядом
+  # реализация для KDE. В org.quickshell.desktop — X-KDE-Wayland-Interfaces,
+  # без него KWin не даёт клиенту этот протокол.
+  patch -Np1 -i ../kde-window-management.patch
+}
+
+build() {
+  local cmake_options=(
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo
+    -D DISTRIBUTOR='Sedmio'
+    -D DISTRIBUTOR_DEBUGINFO_AVAILABLE=No
+    -D CRASH_REPORTER=Off
+    # Модули Hyprland завязаны на wlr-реализацию окна, а Hyprland нам не нужен.
+    -D HYPRLAND=OFF
+    -D SCREENCOPY_HYPRLAND_TOPLEVEL=OFF
+    -D CMAKE_INSTALL_PREFIX=/usr
+    -D INSTALL_QML_PREFIX=lib/qt6/qml
+  )
+  cmake -G Ninja -S "$pkgname" -B build -W no-dev "${cmake_options[@]}"
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" "$pkgname/LICENSE"
+}
