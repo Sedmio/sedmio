@@ -9,6 +9,8 @@ import Sedmio.Files
 ApplicationWindow {
     id: win
     required property url startUrl
+    // Что выделить, когда папка откроется (просили «показать файл»).
+    property var selectUrls: []
 
     width: 1100
     height: 700
@@ -153,9 +155,15 @@ ApplicationWindow {
         function onRowsInserted() { Qt.callLater(win.tryPending); }
         function onLayoutChanged() { Qt.callLater(win.tryPending); }
         function onDataChanged() { Qt.callLater(win.tryPending); }
+        function onLoadingChanged() {
+            if (folder.loading || win.selectUrls.length === 0) return;
+            const row = folder.selectUrls(win.selectUrls);
+            win.selectUrls = [];
+            if (row >= 0) view.focusRow(row);
+        }
     }
 
-    // Ошибки операций — полосой над папкой.
+    // Ошибки операций — полосой над папкой того окна, где работали последним.
     function showError(message) {
         banner.text = message;
         banner.visible = true;
@@ -163,8 +171,10 @@ ApplicationWindow {
     }
     Connections {
         target: FileOps
-        function onError(message) { win.showError(message); }
-        function onTrashUnavailable(urls, reason) { win.askDelete(urls, reason + " Вернуть будет нельзя."); }
+        function onError(message) { if (App.lastWindow === win) win.showError(message); }
+        function onTrashUnavailable(urls, reason) {
+            if (App.lastWindow === win) win.askDelete(urls, reason + " Вернуть будет нельзя.");
+        }
     }
 
     // ---- Клавиши (поля ввода забирают свои: Ctrl+C в поиске — копировать текст)
@@ -187,6 +197,7 @@ ApplicationWindow {
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: folder.reload() }
     Shortcut { sequence: "Ctrl+1"; onActivated: settings.mode = "grid" }
     Shortcut { sequence: "Ctrl+2"; onActivated: settings.mode = "list" }
+    Shortcut { sequence: "Ctrl+N"; onActivated: App.openWindow(folder.url) }
     Shortcut { sequences: ["Ctrl+W", "Ctrl+Q"]; onActivated: win.close() }
 
     // Кнопки «назад» и «вперёд» на мыши

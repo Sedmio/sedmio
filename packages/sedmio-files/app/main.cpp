@@ -1,22 +1,28 @@
 // «Файлы» — файловый менеджер Sedmio вместо Dolphin. Интерфейс на QML
 // в стиле оболочки, работа с файлами — KIO.
 //
-//   sedmio-files [папка]
+//   sedmio-files [папка или файл…]   файл — открыть его папку и выделить его
+//   sedmio-files --daemon            без окна, ждать просьб по D-Bus
+//                                    (так запускает шина для FileManager1)
 
+#include "app.h"
 #include "images.h"
+#include "prompts.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QFileInfo>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <QTimer>
 #include <QUrl>
 
 int main(int argc, char *argv[])
 {
-    // QApplication, а не QGuiApplication: окна KIO (файл уже есть, открыть
-    // с помощью) пока на QtWidgets.
+    // QApplication, а не QGuiApplication: редкие окна KIO (SSL, ошибки
+    // открытия) пока на QtWidgets.
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("sedmio-files"));
     app.setApplicationDisplayName(QStringLiteral("Файлы"));
@@ -27,26 +33,60 @@ int main(int argc, char *argv[])
     app.setDesktopFileName(QStringLiteral("sedmio-files"));
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("system-file-manager")));
 
-    // Свои элементы, без стиля Plasma.
-    QQuickStyle::setStyle(QStringLiteral("Basic"));
-
     QCommandLineParser parser;
     parser.addHelpOption();
-    parser.addPositionalArgument(QStringLiteral("folder"), QStringLiteral("Какую папку открыть"));
+    parser.addOption({QStringLiteral("daemon"), QStringLiteral("Не открывать окно, ждать просьб по D-Bus")});
+    parser.addPositionalArgument(QStringLiteral("paths"), QStringLiteral("Какие папки открыть или какие файлы показать"));
     parser.process(app);
 
-    QUrl start = QUrl::fromLocalFile(QDir::homePath());
-    if (!parser.positionalArguments().isEmpty())
-        start = QUrl::fromUserInput(parser.positionalArguments().constFirst(), QDir::currentPath(), QUrl::AssumeLocalFile);
+    // Папки откроем, файлы покажем выделенными в их папках.
+    QStringList folders;
+    QStringList items;
+    for (const QString &arg : parser.positionalArguments()) {
+        const QUrl url = QUrl::fromUserInput(arg, QDir::currentPath(), QUrl::AssumeLocalFile);
+        if (url.isLocalFile() && QFileInfo(url.toLocalFile()).isFile())
+            items.append(url.toString());
+        else
+            folders.append(url.toString());
+    }
+    const bool daemon = parser.isSet(QStringLiteral("daemon"));
+    if (!daemon && folders.isEmpty() && items.isEmpty())
+        folders.append(QUrl::fromLocalFile(QDir::homePath()).toString());
 
     QQmlApplicationEngine engine;
+    App files(&engine);
+
+    // Уже запущены — пусть откроет окно тот процесс.
+    if (!files.registerOnBus()) {
+        bool ok = true;
+        if (!folders.isEmpty())
+            ok &= App::forward(QStringLiteral("ShowFolders"), folders);
+        if (!items.isEmpty())
+            ok &= App::forward(QStringLiteral("ShowItems"), items);
+        if (ok)
+            return 0;
+        // Не ответил (завис?) — работаем сами.
+    }
+
+    QQuickStyle::setStyle(QStringLiteral("Basic"));
+    Prompts::install();
+
     engine.addImageProvider(QStringLiteral("icon"), new IconProvider);
     engine.addImageProvider(QStringLiteral("thumb"), new ThumbnailProvider);
-    engine.setInitialProperties({{QStringLiteral("startUrl"), start}});
-    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] {
-        QCoreApplication::exit(1);
-    }, Qt::QueuedConnection);
-    engine.loadFromModule("Sedmio.Files", "Main");
+    // Окно вопросов (файл уже есть, чем открыть) — одно на всю программу.
+    engine.loadFromModule("Sedmio.Files", "PromptWindow");
+    if (engine.rootObjects().isEmpty())
+        return 1;
+
+    const QString token = qEnvironmentVariable("XDG_ACTIVATION_TOKEN");
+    qunsetenv("XDG_ACTIVATION_TOKEN"); // не передавать запущенным программам
+    if (!folders.isEmpty())
+        files.showFolders(folders, token);
+    if (!items.isEmpty())
+        files.showItems(items, token);
+    // Подняли по D-Bus, а просьбы так и не пришло — не висеть зря.
+    if (daemon)
+        QTimer::singleShot(30000, &files, &App::maybeQuit);
 
     return app.exec();
 }

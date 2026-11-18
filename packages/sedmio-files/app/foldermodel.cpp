@@ -1,4 +1,5 @@
 #include "foldermodel.h"
+#include "images.h"
 
 #include <KDirLister>
 #include <KDirModel>
@@ -9,34 +10,6 @@
 #include <QFile>
 
 #include <dirent.h>
-
-
-namespace
-{
-// Для каких типов файлов есть миниатюры (картинки, видео, PDF…).
-bool canPreview(const QString &mime)
-{
-    static const QStringList supported = KIO::PreviewJob::supportedMimeTypes();
-    static QHash<QString, bool> cache;
-
-    auto it = cache.constFind(mime);
-    if (it != cache.constEnd())
-        return *it;
-
-    bool ok = false;
-    for (const QString &pattern : supported) {
-        if (pattern == mime || (pattern.endsWith(QLatin1String("/*")) && mime.startsWith(pattern.chopped(1)))) {
-            ok = true;
-            break;
-        }
-    }
-    // Пропускаем папки и то, что KIO отдал бы общим значком.
-    if (mime == QLatin1String("inode/directory"))
-        ok = false;
-    cache.insert(mime, ok);
-    return ok;
-}
-} // namespace
 
 FolderModel::FolderModel(QObject *parent)
     : KDirSortFilterProxyModel(parent)
@@ -351,6 +324,27 @@ void FolderModel::select(int row, int mode)
         break;
     }
     selectionUpdated();
+}
+
+int FolderModel::selectUrls(const QList<QUrl> &urls)
+{
+    QSet<QUrl> wanted;
+    for (const QUrl &url : urls)
+        wanted.insert(url.adjusted(QUrl::StripTrailingSlash | QUrl::NormalizePathSegments));
+
+    m_selected.clear();
+    int first = -1;
+    for (int row = 0; row < rowCount(); ++row) {
+        const QUrl url = urlAt(row);
+        if (!wanted.contains(url.adjusted(QUrl::StripTrailingSlash)))
+            continue;
+        m_selected.insert(url);
+        if (first < 0)
+            first = row;
+    }
+    m_anchor = first;
+    selectionUpdated();
+    return first;
 }
 
 void FolderModel::selectAll()

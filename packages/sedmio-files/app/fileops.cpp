@@ -1,4 +1,5 @@
 #include "fileops.h"
+#include "app.h"
 
 #include <KApplicationTrader>
 #include <KFileUtils>
@@ -46,8 +47,18 @@ FileOps::FileOps(QObject *parent)
     connect(undo, &KIO::FileUndoManager::undoTextChanged, this, &FileOps::undoChanged);
 }
 
+void FileOps::track(KJob *job)
+{
+    // Пока задание идёт, программа не закроется вместе с последним окном.
+    if (App *app = App::instance()) {
+        app->jobStarted();
+        connect(job, &QObject::destroyed, app, &App::jobFinished);
+    }
+}
+
 void FileOps::watch(KJob *job)
 {
+    track(job);
     connect(job, &KJob::result, this, [this, job] {
         if (job->error() && job->error() != ERR_USER_CANCELED)
             Q_EMIT error(job->errorString());
@@ -219,6 +230,7 @@ void FileOps::trash(const QList<QUrl> &urls)
         return;
     KIO::Job *job = KIO::trash(urls);
     KIO::FileUndoManager::self()->recordJob(KIO::FileUndoManager::Trash, urls, QUrl(QStringLiteral("trash:/")), job);
+    track(job);
     // Корзины нет (tmpfs, флешка без прав) или файл ей не по размеру —
     // спросим, удалить ли насовсем, вместо голой ошибки.
     connect(job, &KJob::result, this, [this, job, urls] {

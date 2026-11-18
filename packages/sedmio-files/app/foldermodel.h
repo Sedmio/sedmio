@@ -87,6 +87,8 @@ public:
     // Выделение. mode: 0 — только эта, 1 — переключить эту, 2 — от
     // предыдущей до этой, 3 — добавить эту.
     Q_INVOKABLE void select(int row, int mode = 0);
+    // Выделить эти адреса (что есть в папке); вернёт первую строку или -1.
+    Q_INVOKABLE int selectUrls(const QList<QUrl> &urls);
     Q_INVOKABLE void selectAll();
     Q_INVOKABLE void clearSelection();
     Q_INVOKABLE bool isSelected(int row) const;

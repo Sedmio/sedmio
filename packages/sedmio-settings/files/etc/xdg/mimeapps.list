@@ -1,0 +1,4 @@
+# Программы по умолчанию для всех пользователей Sedmio. Свой выбор
+# пользователя (~/.config/mimeapps.list) важнее этого файла.
+[Default Applications]
+inode/directory=sedmio-files.desktop

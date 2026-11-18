@@ -7,6 +7,30 @@
 #include <QIcon>
 #include <QPointer>
 
+// Для каких типов файлов есть миниатюры (картинки, видео, PDF…).
+bool canPreview(const QString &mime)
+{
+    static const QStringList supported = KIO::PreviewJob::supportedMimeTypes();
+    static QHash<QString, bool> cache;
+
+    auto it = cache.constFind(mime);
+    if (it != cache.constEnd())
+        return *it;
+
+    bool ok = false;
+    for (const QString &pattern : supported) {
+        if (pattern == mime || (pattern.endsWith(QLatin1String("/*")) && mime.startsWith(pattern.chopped(1)))) {
+            ok = true;
+            break;
+        }
+    }
+    // Пропускаем папки и то, что KIO отдал бы общим значком.
+    if (mime == QLatin1String("inode/directory"))
+        ok = false;
+    cache.insert(mime, ok);
+    return ok;
+}
+
 IconProvider::IconProvider()
     : QQuickImageProvider(QQuickImageProvider::Pixmap)
 {

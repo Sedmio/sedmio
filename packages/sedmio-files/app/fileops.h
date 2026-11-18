@@ -81,6 +81,7 @@ Q_SIGNALS:
     void trashUnavailable(const QList<QUrl> &urls, const QString &reason);
 
 private:
+    void track(KJob *job);
     void watch(KJob *job);
     void putOnClipboard(const QList<QUrl> &urls, bool cut);
 };

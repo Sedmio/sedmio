@@ -3,6 +3,9 @@
 #include <QQuickAsyncImageProvider>
 #include <QQuickImageProvider>
 
+// Есть ли у файлов этого типа миниатюры (картинки, видео, PDF…).
+bool canPreview(const QString &mime);
+
 // image://icon/<имя> — значок из темы (или файл по абсолютному пути).
 class IconProvider : public QQuickImageProvider
 {
