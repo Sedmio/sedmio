@@ -84,6 +84,26 @@ Singleton {
         }
     }
 
+    // Сопрячь устройство Bluetooth, а сопряглось — доверять ему и подключить.
+    // Здесь, а не в панели: на время запроса кода панель закрывается.
+    property var pairingDevice: null
+
+    function pairAndConnect(device) {
+        pairingDevice = device;
+        device.pair();
+    }
+
+    Connections {
+        target: root.pairingDevice
+        function onPairedChanged() {
+            const device = root.pairingDevice;
+            if (!device.paired) return;
+            root.pairingDevice = null;
+            device.trusted = true;
+            device.connect();
+        }
+    }
+
     // Экран, с которым сейчас работают: тот, где активное окно.
     // Для клавиш (Meta), у которых своего экрана нет.
     function focusedScreen() {

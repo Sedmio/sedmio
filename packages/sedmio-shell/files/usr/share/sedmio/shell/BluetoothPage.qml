@@ -111,17 +111,7 @@ ColumnLayout {
                     icon: page.deviceIcon(modelData)
                     title: modelData.name
                     subtitle: page.stateText(modelData)
-                    onClicked: if (!modelData.pairing) modelData.pair()
-
-                    // Сопряглось — сразу подключить и доверять.
-                    Connections {
-                        target: foundRow.modelData
-                        function onPairedChanged() {
-                            if (!foundRow.modelData.paired) return;
-                            foundRow.modelData.trusted = true;
-                            foundRow.modelData.connect();
-                        }
-                    }
+                    onClicked: if (!modelData.pairing) ShellState.pairAndConnect(modelData)
                 }
             }
         }

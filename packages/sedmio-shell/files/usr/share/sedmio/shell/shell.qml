@@ -81,6 +81,10 @@ ShellRoot {
     NetworkSecretAgent { id: networkAgent }
     NetworkPasswordDialog { agent: networkAgent }
 
+    // Сопряжение Bluetooth (коды, разрешения) — вместо агента bluedevil.
+    BluetoothAgent { id: bluetoothAgent }
+    BluetoothPairDialog { agent: bluetoothAgent }
+
     // Модули kded, чью работу теперь делает оболочка (агент паролей Wi‑Fi,
     // просьба о пожертвованиях), — выгрузить на этот сеанс. Подробности в скрипте.
     Process {

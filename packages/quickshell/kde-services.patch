@@ -33,15 +33,16 @@ index f3912a9..bb2485e 100644
 +endif()
 diff --git a/src/services/kde/CMakeLists.txt b/src/services/kde/CMakeLists.txt
 new file mode 100644
-index 0000000..1600140
+index 0000000..0e551de
 --- /dev/null
 +++ b/src/services/kde/CMakeLists.txt
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,22 @@
 +qt_add_library(quickshell-service-kde STATIC
 +	osd.cpp
 +	keyboard.cpp
 +	brightness.cpp
 +	secretagent.cpp
++	bluetoothagent.cpp
 +)
 +
 +qt_add_qml_module(quickshell-service-kde
@@ -58,6 +59,526 @@ index 0000000..1600140
 +target_link_libraries(quickshell PRIVATE quickshell-service-kdeplugin)
 +
 +qs_module_pch(quickshell-service-kde SET dbus)
+diff --git a/src/services/kde/bluetoothagent.cpp b/src/services/kde/bluetoothagent.cpp
+new file mode 100644
+index 0000000..19bf584
+--- /dev/null
++++ b/src/services/kde/bluetoothagent.cpp
+@@ -0,0 +1,380 @@
++#include "bluetoothagent.hpp"
++
++#include <qdbusconnection.h>
++#include <qdbusconnectioninterface.h>
++#include <qdbusextratypes.h>
++#include <qdbusmessage.h>
++#include <qdbuspendingcall.h>
++#include <qdbuspendingreply.h>
++#include <qdbusservicewatcher.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qstring.h>
++#include <qtimer.h>
++#include <qvariant.h>
++
++#include "../../core/logcat.hpp"
++
++namespace qs::service::kde {
++
++namespace {
++QS_LOGGING_CATEGORY(logBluetoothAgent, "quickshell.service.kde.bluetoothagent", QtWarningMsg);
++
++constexpr auto BLUEZ_SERVICE = "org.bluez";
++constexpr auto BLUEZ_PATH = "/org/bluez";
++constexpr auto AGENT_MANAGER = "org.bluez.AgentManager1";
++constexpr auto AGENT_PATH = "/org/quickshell/BluetoothAgent";
++constexpr auto AGENT_INTERFACE = "org.bluez.Agent1";
++constexpr auto CAPABILITY = "KeyboardDisplay";
++
++constexpr auto ERROR_REJECTED = "org.bluez.Error.Rejected";
++constexpr auto ERROR_CANCELED = "org.bluez.Error.Canceled";
++
++QDBusConnection bus() { return QDBusConnection::systemBus(); }
++
++QDBusMessage agentManagerCall(const QString& method) {
++	auto message = QDBusMessage::createMethodCall(BLUEZ_SERVICE, BLUEZ_PATH, AGENT_MANAGER, method);
++	message.setArguments({QVariant::fromValue(QDBusObjectPath(AGENT_PATH))});
++	return message;
++}
++} // namespace
++
++// ---- D-Bus object
++
++BluetoothAgentObject::BluetoothAgentObject(BluetoothAgent* agent)
++    : QDBusVirtualObject(agent)
++    , agent(agent) {}
++
++QString BluetoothAgentObject::introspect(const QString& /*path*/) const {
++	return R"(<interface name="org.bluez.Agent1">
++  <method name="Release"/>
++  <method name="RequestPinCode">
++    <arg name="device" type="o" direction="in"/>
++    <arg name="pincode" type="s" direction="out"/>
++  </method>
++  <method name="DisplayPinCode">
++    <arg name="device" type="o" direction="in"/>
++    <arg name="pincode" type="s" direction="in"/>
++  </method>
++  <method name="RequestPasskey">
++    <arg name="device" type="o" direction="in"/>
++    <arg name="passkey" type="u" direction="out"/>
++  </method>
++  <method name="DisplayPasskey">
++    <arg name="device" type="o" direction="in"/>
++    <arg name="passkey" type="u" direction="in"/>
++    <arg name="entered" type="q" direction="in"/>
++  </method>
++  <method name="RequestConfirmation">
++    <arg name="device" type="o" direction="in"/>
++    <arg name="passkey" type="u" direction="in"/>
++  </method>
++  <method name="RequestAuthorization">
++    <arg name="device" type="o" direction="in"/>
++  </method>
++  <method name="AuthorizeService">
++    <arg name="device" type="o" direction="in"/>
++    <arg name="uuid" type="s" direction="in"/>
++  </method>
++  <method name="Cancel"/>
++</interface>
++)";
++}
++
++bool BluetoothAgentObject::handleMessage(const QDBusMessage& message, const QDBusConnection& connection) {
++	if (message.interface() != AGENT_INTERFACE) return false;
++
++	// Only BlueZ may ask: anyone else on the system bus could otherwise make
++	// the shell show a fake pairing prompt.
++	const auto owner = connection.interface()->serviceOwner(BLUEZ_SERVICE).value();
++	if (owner.isEmpty() || message.service() != owner) {
++		connection.send(message.createErrorReply(ERROR_REJECTED, "Not BlueZ"));
++		return true;
++	}
++
++	const auto& member = message.member();
++	if (member == "Release") {
++		this->agent->release();
++		connection.send(message.createReply());
++	} else if (member == "Cancel") {
++		this->agent->cancelRequest();
++		connection.send(message.createReply());
++	} else if (member == "RequestPinCode" || member == "DisplayPinCode" || member == "RequestPasskey"
++	           || member == "DisplayPasskey" || member == "RequestConfirmation"
++	           || member == "RequestAuthorization" || member == "AuthorizeService")
++	{
++		if (message.arguments().isEmpty()) return false;
++		this->agent->handleRequest(message);
++	} else {
++		return false;
++	}
++
++	return true;
++}
++
++// ---- Agent
++
++BluetoothAgent::BluetoothAgent(QObject* parent)
++    : QObject(parent)
++    , object(new BluetoothAgentObject(this)) {
++	auto* watcher = new QDBusServiceWatcher(
++	    BLUEZ_SERVICE,
++	    bus(),
++	    QDBusServiceWatcher::WatchForRegistration | QDBusServiceWatcher::WatchForUnregistration,
++	    this
++	);
++
++	QObject::connect(watcher, &QDBusServiceWatcher::serviceRegistered, this, &BluetoothAgent::registerAgent);
++	QObject::connect(watcher, &QDBusServiceWatcher::serviceUnregistered, this, &BluetoothAgent::onBluezGone);
++
++	this->registerAgent();
++}
++
++BluetoothAgent::~BluetoothAgent() {
++	for (const auto& request: this->mQueue) {
++		if (request.message.type() == QDBusMessage::MethodCallMessage) {
++			bus().send(request.message.createErrorReply(ERROR_CANCELED, "Agent exited"));
++		}
++	}
++	this->mQueue.clear();
++
++	if (this->mRegistered) bus().call(agentManagerCall("UnregisterAgent"), QDBus::NoBlock);
++	if (this->mExported) bus().unregisterObject(AGENT_PATH);
++}
++
++void BluetoothAgent::registerAgent() {
++	if (!this->mExported) {
++		this->mExported =
++		    bus().registerVirtualObject(AGENT_PATH, this->object, QDBusConnection::SingleNode);
++		if (!this->mExported) {
++			qCWarning(logBluetoothAgent) << "Could not export the Bluetooth agent object";
++			return;
++		}
++	}
++
++	auto message = agentManagerCall("RegisterAgent");
++	message << QString(CAPABILITY);
++
++	auto* watcher = new QDBusPendingCallWatcher(bus().asyncCall(message), this);
++	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher* call) {
++		call->deleteLater();
++		const QDBusPendingReply<> reply = *call;
++		if (reply.isError()) {
++			// No BlueZ running is normal; it is picked up when it starts.
++			qCDebug(logBluetoothAgent) << "Could not register with BlueZ:" << reply.error().message();
++			this->setRegistered(false);
++			return;
++		}
++		this->setRegistered(true);
++
++		// bluedevil (kded) asks to be the default agent when the session
++		// starts, and the last one to ask wins: ask now and again a bit later.
++		this->requestDefault();
++		QTimer::singleShot(20000, this, &BluetoothAgent::requestDefault);
++		QTimer::singleShot(90000, this, &BluetoothAgent::requestDefault);
++	});
++}
++
++void BluetoothAgent::requestDefault() {
++	if (!this->mRegistered) return;
++	bus().call(agentManagerCall("RequestDefaultAgent"), QDBus::NoBlock);
++}
++
++void BluetoothAgent::onBluezGone() {
++	this->setRegistered(false);
++	if (this->mQueue.isEmpty()) return;
++	this->mQueue.clear();
++	emit this->requestChanged();
++}
++
++void BluetoothAgent::release() {
++	this->setRegistered(false);
++	this->cancelRequest();
++}
++
++void BluetoothAgent::setRegistered(bool registered) {
++	if (registered == this->mRegistered) return;
++	this->mRegistered = registered;
++	emit this->registeredChanged();
++}
++
++QString BluetoothAgent::kind() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().kind;
++}
++
++QString BluetoothAgent::devicePath() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().devicePath;
++}
++
++QString BluetoothAgent::deviceName() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().deviceName;
++}
++
++QString BluetoothAgent::deviceIcon() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().deviceIcon;
++}
++
++QString BluetoothAgent::code() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().code;
++}
++
++int BluetoothAgent::entered() const {
++	return this->mQueue.isEmpty() ? 0 : this->mQueue.constFirst().entered;
++}
++
++QString BluetoothAgent::service() const {
++	return this->mQueue.isEmpty() ? QString() : this->mQueue.constFirst().service;
++}
++
++void BluetoothAgent::handleRequest(const QDBusMessage& message) {
++	const auto& member = message.member();
++	const auto args = message.arguments();
++
++	Request request;
++	request.devicePath = args.at(0).value<QDBusObjectPath>().path();
++
++	auto passkey = [&](int index) {
++		return QString::number(args.value(index).toUInt()).rightJustified(6, '0');
++	};
++
++	if (member == "RequestConfirmation") {
++		request.kind = "confirm";
++		request.code = passkey(1);
++	} else if (member == "RequestPasskey") {
++		request.kind = "passkey";
++	} else if (member == "RequestPinCode") {
++		request.kind = "pin";
++	} else if (member == "DisplayPasskey") {
++		request.kind = "display-passkey";
++		request.code = passkey(1);
++		request.entered = static_cast<int>(args.value(2).toUInt());
++	} else if (member == "DisplayPinCode") {
++		request.kind = "display-pin";
++		request.code = args.value(1).toString();
++	} else if (member == "RequestAuthorization") {
++		request.kind = "authorize";
++	} else {
++		request.kind = "service";
++		request.service = args.value(1).toString();
++	}
++
++	if (request.kind.startsWith("display-")) {
++		// Called again as digits are typed on the device: update the count.
++		if (!this->mQueue.isEmpty()) {
++			auto& front = this->mQueue.first();
++			if (front.kind == request.kind && front.devicePath == request.devicePath) {
++				front.code = request.code;
++				front.entered = request.entered;
++				bus().send(message.createReply());
++				emit this->requestChanged();
++				return;
++			}
++		}
++		// Nothing to answer; the prompt stays until pairing ends or BlueZ cancels.
++		bus().send(message.createReply());
++	} else {
++		message.setDelayedReply(true);
++		request.message = message;
++	}
++
++	// Name, icon and trust of the device are needed first.
++	auto props = QDBusMessage::createMethodCall(
++	    BLUEZ_SERVICE,
++	    request.devicePath,
++	    "org.freedesktop.DBus.Properties",
++	    "GetAll"
++	);
++	props << QString("org.bluez.Device1");
++
++	this->mInFlight++;
++	auto* watcher = new QDBusPendingCallWatcher(bus().asyncCall(props), this);
++	QObject::connect(
++	    watcher,
++	    &QDBusPendingCallWatcher::finished,
++	    this,
++	    [this, request](QDBusPendingCallWatcher* call) mutable {
++		    call->deleteLater();
++		    const QDBusPendingReply<QVariantMap> reply = *call;
++		    this->mInFlight--;
++		    bool trusted = false;
++		    if (!reply.isError()) {
++			    const auto& values = reply.value();
++			    request.deviceName = values.value("Alias").toString();
++			    if (request.deviceName.isEmpty()) request.deviceName = values.value("Address").toString();
++			    request.deviceIcon = values.value("Icon").toString();
++			    trusted = values.value("Trusted").toBool();
++		    }
++		    this->enqueue(request, trusted);
++	    }
++	);
++}
++
++void BluetoothAgent::enqueue(Request request, bool trusted) {
++	// Canceled before it was shown.
++	if (this->mCancelInFlight) {
++		this->mCancelInFlight = false;
++		return;
++	}
++
++	// A trusted device may use its services without asking.
++	if (request.kind == "service" && trusted) {
++		bus().send(request.message.createReply());
++		return;
++	}
++
++	this->mQueue.push_back(request);
++	if (this->mQueue.size() == 1) emit this->requestChanged();
++}
++
++void BluetoothAgent::cancelRequest() {
++	if (this->mQueue.isEmpty()) {
++		if (this->mInFlight > 0) this->mCancelInFlight = true;
++		return;
++	}
++	// BlueZ gave up waiting (timeout, the device canceled): no answer needed.
++	this->mQueue.removeFirst();
++	emit this->requestChanged();
++}
++
++void BluetoothAgent::accept(const QString& value) {
++	if (this->mQueue.isEmpty()) return;
++	const auto& request = this->mQueue.constFirst();
++
++	if (request.message.type() != QDBusMessage::MethodCallMessage) {
++		this->finish(QDBusMessage());
++		return;
++	}
++
++	auto reply = request.message.createReply();
++	if (request.kind == "pin") {
++		reply << value;
++	} else if (request.kind == "passkey") {
++		bool ok = false;
++		const auto passkey = value.toUInt(&ok);
++		if (!ok || passkey > 999999) {
++			this->finish(request.message.createErrorReply(ERROR_REJECTED, "Invalid passkey"));
++			return;
++		}
++		reply << passkey;
++	}
++	this->finish(reply);
++}
++
++void BluetoothAgent::reject() {
++	if (this->mQueue.isEmpty()) return;
++	const auto& request = this->mQueue.constFirst();
++	if (request.message.type() != QDBusMessage::MethodCallMessage) {
++		this->finish(QDBusMessage());
++		return;
++	}
++	this->finish(request.message.createErrorReply(ERROR_REJECTED, "Rejected by the user"));
++}
++
++void BluetoothAgent::finish(const QDBusMessage& reply) {
++	if (reply.type() != QDBusMessage::InvalidMessage) bus().send(reply);
++	this->mQueue.removeFirst();
++	emit this->requestChanged();
++}
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/bluetoothagent.hpp b/src/services/kde/bluetoothagent.hpp
+new file mode 100644
+index 0000000..7ac67ca
+--- /dev/null
++++ b/src/services/kde/bluetoothagent.hpp
+@@ -0,0 +1,128 @@
++#pragma once
++
++#include <qdbusconnection.h>
++#include <qdbusmessage.h>
++#include <qdbusvirtualobject.h>
++#include <qlist.h>
++#include <qobject.h>
++#include <qqmlintegration.h>
++#include <qstring.h>
++#include <qtmetamacros.h>
++
++namespace qs::service::kde {
++
++class BluetoothAgent;
++
++/// D-Bus side of the agent: org.bluez.Agent1 on the system bus.
++class BluetoothAgentObject: public QDBusVirtualObject {
++	Q_OBJECT;
++
++public:
++	explicit BluetoothAgentObject(BluetoothAgent* agent);
++
++	QString introspect(const QString& path) const override;
++	bool handleMessage(const QDBusMessage& message, const QDBusConnection& connection) override;
++
++private:
++	BluetoothAgent* agent;
++};
++
++///! Bluetooth pairing prompts (BlueZ agent).
++/// When a device is being paired, BlueZ asks the agent to show or confirm
++/// a code, or to ask for one. In Plasma that is bluedevil in kded; this
++/// lets the shell show its own prompt. Requests are handled one at a time.
++///
++/// Pairing started by the shell itself (`BluetoothDevice.pair()`) always
++/// comes here. Pairing started by the other device, and connections of
++/// devices that are not trusted, go to the default agent: the agent asks to
++/// be it, and asks again a little later, since bluedevil asks the same when
++/// the session starts.
++///
++/// Request kinds:
++/// - `confirm`: does @@code match the one on the device? @@accept() or @@reject().
++/// - `passkey`, `pin`: type the code shown on the device: @@accept(code).
++/// - `display-passkey`, `display-pin`: type @@code on the device (a keyboard);
++///   @@entered keys are typed so far. Nothing to answer: @@accept() hides it.
++/// - `authorize`: the device asks to pair without a code.
++/// - `service`: an untrusted device wants to use a service (@@service is its UUID).
++class BluetoothAgent: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	/// True while the agent is registered with BlueZ.
++	Q_PROPERTY(bool registered READ registered NOTIFY registeredChanged);
++	/// True while there is a request.
++	Q_PROPERTY(bool active READ active NOTIFY requestChanged);
++	/// See the class docs.
++	Q_PROPERTY(QString kind READ kind NOTIFY requestChanged);
++	/// D-Bus path of the device, as `BluetoothDevice.dbusPath`.
++	Q_PROPERTY(QString devicePath READ devicePath NOTIFY requestChanged);
++	/// Name of the device.
++	Q_PROPERTY(QString deviceName READ deviceName NOTIFY requestChanged);
++	/// Icon name of the device (`phone`, `audio-headphones`...).
++	Q_PROPERTY(QString deviceIcon READ deviceIcon NOTIFY requestChanged);
++	/// Code to compare or to type on the device (passkeys are six digits).
++	Q_PROPERTY(QString code READ code NOTIFY requestChanged);
++	/// For `display-passkey`: how many digits are typed on the device.
++	Q_PROPERTY(int entered READ entered NOTIFY requestChanged);
++	/// For `service`: the service UUID.
++	Q_PROPERTY(QString service READ service NOTIFY requestChanged);
++
++public:
++	explicit BluetoothAgent(QObject* parent = nullptr);
++	~BluetoothAgent() override;
++	Q_DISABLE_COPY_MOVE(BluetoothAgent);
++
++	[[nodiscard]] bool registered() const { return this->mRegistered; }
++	[[nodiscard]] bool active() const { return !this->mQueue.isEmpty(); }
++	[[nodiscard]] QString kind() const;
++	[[nodiscard]] QString devicePath() const;
++	[[nodiscard]] QString deviceName() const;
++	[[nodiscard]] QString deviceIcon() const;
++	[[nodiscard]] QString code() const;
++	[[nodiscard]] int entered() const;
++	[[nodiscard]] QString service() const;
++
++	/// Accept the current request; for `passkey` and `pin`, with the typed code.
++	Q_INVOKABLE void accept(const QString& value = QString());
++	/// Decline the current request (pairing fails).
++	Q_INVOKABLE void reject();
++
++	struct Request {
++		QDBusMessage message; // empty for display requests: nothing to answer
++		QString kind;
++		QString devicePath;
++		QString deviceName;
++		QString deviceIcon;
++		QString code;
++		QString service;
++		int entered = 0;
++	};
++
++	// From BluetoothAgentObject.
++	void handleRequest(const QDBusMessage& message);
++	void release();
++	void cancelRequest();
++
++signals:
++	void registeredChanged();
++	void requestChanged();
++
++private slots:
++	void registerAgent();
++	void onBluezGone();
++	void requestDefault();
++
++private:
++	void enqueue(Request request, bool trusted);
++	void finish(const QDBusMessage& reply);
++	void setRegistered(bool registered);
++
++	BluetoothAgentObject* object = nullptr;
++	QList<Request> mQueue;
++	bool mRegistered = false;
++	bool mExported = false;
++	int mInFlight = 0; // requests waiting for device properties
++	bool mCancelInFlight = false;
++};
++
++} // namespace qs::service::kde
 diff --git a/src/services/kde/brightness.cpp b/src/services/kde/brightness.cpp
 new file mode 100644
 index 0000000..0410226
@@ -554,19 +1075,19 @@ index 0000000..d3f0dba
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/module.md b/src/services/kde/module.md
 new file mode 100644
-index 0000000..0d7f29f
+index 0000000..cea2c83
 --- /dev/null
 +++ b/src/services/kde/module.md
 @@ -0,0 +1,9 @@
 +name = "Quickshell.Services.Kde"
 +description = "Plasma session services for a shell that replaces plasmashell"
-+headers = [ "osd.hpp", "keyboard.hpp", "brightness.hpp", "secretagent.hpp" ]
++headers = [ "osd.hpp", "keyboard.hpp", "brightness.hpp", "secretagent.hpp", "bluetoothagent.hpp" ]
 +-----
 +Pieces of plasmashell other parts of a Plasma session rely on:
 +the on-screen display service (volume and brightness keys, keyboard
 +layout switches), KWin's keyboard layouts, powerdevil's screen
-+brightness and NetworkManager password prompts (instead of plasma-nm's
-+secret agent).
++brightness, NetworkManager password prompts (instead of plasma-nm's
++secret agent) and Bluetooth pairing prompts (instead of bluedevil's agent).
 diff --git a/src/services/kde/osd.cpp b/src/services/kde/osd.cpp
 new file mode 100644
 index 0000000..25fb3bc
