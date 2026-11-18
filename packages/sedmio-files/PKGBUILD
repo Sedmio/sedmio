@@ -13,7 +13,7 @@
 
 pkgname=sedmio-files
 pkgver=0.1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Sedmio: файловый менеджер «Файлы» на QML и KIO"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

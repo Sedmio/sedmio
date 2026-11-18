@@ -153,6 +153,48 @@ void App::showItems(const QStringList &uris, const QString &token)
         openWindow(folder, items.value(folder), token);
 }
 
+void App::showProperties(const QList<QUrl> &urls, const QString &token)
+{
+    if (urls.isEmpty())
+        return;
+    QQmlComponent component(m_engine, QStringLiteral("Sedmio.Files"), QStringLiteral("PropertiesWindow"));
+    QObject *object = component.createWithInitialProperties({
+        {QStringLiteral("urls"), QVariant::fromValue(urls)},
+    });
+    auto *window = qobject_cast<QQuickWindow *>(object);
+    if (!window) {
+        qWarning() << component.errorString();
+        delete object;
+        maybeQuit();
+        return;
+    }
+    QQmlEngine::setObjectOwnership(window, QQmlEngine::CppOwnership);
+    window->setTransientParent(m_lastWindow);
+    m_dialogs.append(window);
+    connect(window, &QWindow::visibleChanged, this, [this, window](bool visible) {
+        if (visible)
+            return;
+        m_dialogs.removeAll(window);
+        window->deleteLater();
+        QTimer::singleShot(0, this, &App::maybeQuit);
+    });
+    window->show();
+    if (!token.isEmpty())
+        KWindowSystem::setCurrentXdgActivationToken(token);
+    KWindowSystem::activateWindow(window);
+}
+
+void App::showItemProperties(const QStringList &uris, const QString &token)
+{
+    QList<QUrl> urls;
+    for (const QString &uri : uris)
+        urls.append(toUrl(uri));
+    if (urls.isEmpty())
+        maybeQuit();
+    else
+        showProperties(urls, token);
+}
+
 void App::jobStarted()
 {
     ++m_jobs;
@@ -166,7 +208,7 @@ void App::jobFinished()
 
 void App::maybeQuit()
 {
-    if (m_windows.isEmpty() && m_jobs <= 0)
+    if (m_windows.isEmpty() && m_dialogs.isEmpty() && m_jobs <= 0)
         QCoreApplication::quit();
 }
 
@@ -188,6 +230,5 @@ void FileManager1Adaptor::ShowItems(const QStringList &uriList, const QString &s
 
 void FileManager1Adaptor::ShowItemProperties(const QStringList &uriList, const QString &startUpId)
 {
-    // Окна свойств пока нет — покажем сами файлы.
-    m_app->showItems(uriList, startUpId);
+    m_app->showItemProperties(uriList, startUpId);
 }

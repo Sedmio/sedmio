@@ -30,6 +30,7 @@ FocusScope {
     signal renameFailed(string message)
     signal sortRequested(string key)
     signal openInNewTabRequested(url url)
+    signal previewRequested(int row)
 
     // ---- Навигация
 
@@ -117,5 +118,6 @@ FocusScope {
         }
         onSortRequested: key => tab.sortRequested(key)
         onOpenInNewTabRequested: url => tab.openInNewTabRequested(url)
+        onPreviewRequested: row => tab.previewRequested(row)
     }
 }

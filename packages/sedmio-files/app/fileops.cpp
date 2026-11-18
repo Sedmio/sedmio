@@ -1,5 +1,6 @@
 #include "fileops.h"
 #include "app.h"
+#include "images.h"
 
 #include <KApplicationTrader>
 #include <KFileUtils>
@@ -22,8 +23,11 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QImageReader>
 #include <QLocale>
 #include <QMimeData>
+#include <QMimeDatabase>
+#include <QStringDecoder>
 #include <QRegularExpression>
 #include <QStorageInfo>
 
@@ -314,6 +318,38 @@ QString FileOps::createFolder(const QUrl &directory, const QString &name)
 void FileOps::undo()
 {
     KIO::FileUndoManager::self()->undo();
+}
+
+QString FileOps::previewKind(const QString &mimeType) const
+{
+    static const QList<QByteArray> images = QImageReader::supportedMimeTypes();
+    if (images.contains(mimeType.toLatin1()))
+        return QStringLiteral("image");
+    const QMimeType mime = QMimeDatabase().mimeTypeForName(mimeType);
+    if (mime.inherits(QStringLiteral("text/plain")))
+        return QStringLiteral("text");
+    if (canPreview(mimeType))
+        return QStringLiteral("thumb");
+    return QStringLiteral("other");
+}
+
+QVariantMap FileOps::readText(const QUrl &url) const
+{
+    // Больше и не прочесть глазами, и не стоит держать в памяти.
+    constexpr qint64 limit = 256 * 1024;
+    QFile file(url.toLocalFile());
+    if (!url.isLocalFile() || !file.open(QIODevice::ReadOnly))
+        return {};
+    const QByteArray data = file.read(limit);
+    QString text = QStringDecoder(QStringDecoder::Utf8)(data);
+    // Обрезали посреди строки — показываем до последней целой.
+    const bool truncated = file.size() > limit;
+    if (truncated) {
+        const int end = text.lastIndexOf(QLatin1Char('\n'));
+        if (end > 0)
+            text.truncate(end);
+    }
+    return {{QStringLiteral("text"), text}, {QStringLiteral("truncated"), truncated}};
 }
 
 QString FileOps::prettyPath(const QUrl &url) const

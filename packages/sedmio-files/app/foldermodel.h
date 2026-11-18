@@ -80,6 +80,9 @@ public:
     Q_INVOKABLE QString nameAt(int row) const;
     Q_INVOKABLE QString mimeAt(int row) const;
     Q_INVOKABLE bool isDirAt(int row) const;
+    // Всё о строке разом, по именам ролей: {name, url, iconName, isDir, size,
+    // modified, typeText, mimeType, canPreview, childCount} — для просмотра.
+    Q_INVOKABLE QVariantMap infoAt(int row) const;
     // Строка с таким именем или -1.
     Q_INVOKABLE int rowOf(const QString &name) const;
     Q_INVOKABLE void reload();

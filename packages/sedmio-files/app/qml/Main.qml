@@ -176,6 +176,7 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; onActivated: win.switchTab(1) }
     Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+PgUp"]; onActivated: win.switchTab(-1) }
     Shortcut { sequence: "Ctrl+Q"; onActivated: win.close() }
+    Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: win.showProperties() }
     // Alt+1…9 — вкладка по номеру
     Repeater {
         model: 9
@@ -201,6 +202,28 @@ ApplicationWindow {
 
     Menu { id: menu }
     ConfirmDialog { id: confirm }
+
+    // Свойства выбранного, а если ничего не выбрано — этой папки.
+    function showProperties() {
+        App.showProperties(folder.selectedCount > 0 ? folder.selectedUrls() : [folder.url]);
+    }
+
+    QuickLook {
+        id: quickLook
+        folder: win.folder
+        onRowChosen: row => {
+            win.folder.select(row, 0);
+            if (win.view) win.view.focusRow(row);
+        }
+        onOpenRequested: row => win.openRow(row)
+        onClosed: if (win.view) win.view.forceActiveFocus()
+    }
+    // Ушли в другую папку или вкладку — показывать уже нечего.
+    onFolderChanged: quickLook.close()
+    Connections {
+        target: win.folder
+        function onUrlChanged() { quickLook.close(); }
+    }
 
     function appsMenu(row) {
         const urls = folder.isSelected(row) ? folder.selectedUrls() : [folder.urlAt(row)];
@@ -229,7 +252,8 @@ ApplicationWindow {
             const isDir = folder.isDirAt(row);
             const url = folder.urlAt(row);
             items = [
-                { text: "Открыть", icon: isDir ? "folder-open" : "document-open", action: () => win.openRow(row) }
+                { text: "Открыть", icon: isDir ? "folder-open" : "document-open", action: () => win.openRow(row) },
+                { text: "Просмотр", icon: "document-preview", shortcut: "Пробел", action: () => quickLook.show(row) }
             ];
             if (isDir)
                 items.push({ text: "Открыть в новой вкладке", icon: "tab-new", shortcut: "Средняя кнопка",
@@ -250,6 +274,8 @@ ApplicationWindow {
             items.push({ separator: true });
             items.push({ text: "В корзину", icon: "user-trash", shortcut: "Delete", enabled: win.canChange, action: win.trashSelection });
             items.push({ text: "Удалить навсегда", icon: "edit-delete", shortcut: "Shift+Delete", enabled: win.canChange, action: win.deleteSelection });
+            items.push({ separator: true });
+            items.push({ text: "Свойства", icon: "document-properties", shortcut: "Alt+Enter", action: win.showProperties });
         } else if (folder.isTrash) {
             items = [{ text: "Очистить корзину", icon: "trash-empty", enabled: folder.count > 0, action: win.emptyTrash }];
         } else {
@@ -266,6 +292,9 @@ ApplicationWindow {
             items.push({ separator: true });
             items.push({ text: "Обновить", icon: "view-refresh", shortcut: "F5", action: () => folder.reload() });
             items.push({ text: "Новая вкладка", icon: "tab-new", shortcut: "Ctrl+T", action: () => win.newTab(folder.url, false) });
+            items.push({ separator: true });
+            items.push({ text: "Свойства папки", icon: "document-properties", shortcut: "Alt+Enter",
+                         action: () => App.showProperties([folder.url]) });
         }
         menu.items = items;
         menu.openAt(item, x, y);
@@ -494,6 +523,7 @@ ApplicationWindow {
                             onRenameFailed: message => win.showError(message)
                             onSortRequested: key => win.sortBy(key)
                             onOpenInNewTabRequested: url => win.newTab(url, true)
+                            onPreviewRequested: row => quickLook.show(row)
                         }
                     }
                 }

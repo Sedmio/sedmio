@@ -26,6 +26,8 @@ FocusScope {
     signal sortRequested(string key)
     // Средняя кнопка на папке.
     signal openInNewTabRequested(url url)
+    // Пробел: показать файл, не открывая.
+    signal previewRequested(int row)
 
     readonly property Item view: loader.item
     readonly property int currentRow: view ? view.currentIndex : -1
@@ -112,6 +114,10 @@ FocusScope {
         case Qt.Key_PageDown: moveTo(current + page, event.modifiers); break;
         case Qt.Key_Space:
             if (event.modifiers & Qt.ControlModifier) folder.select(current, 1);
+            // Набирают имя с пробелом — это часть имени, а не просмотр.
+            else if (typed !== "") typeAhead(" ");
+            else if (current >= 0) root.previewRequested(current);
+            else if (folder.firstSelected() >= 0) root.previewRequested(folder.firstSelected());
             else return;
             break;
         case Qt.Key_Return:
@@ -128,16 +134,21 @@ FocusScope {
             if (event.text === "" || event.modifiers & (Qt.ControlModifier | Qt.AltModifier)
                 || event.text.charCodeAt(0) < 32)
                 return;
-            typed += event.text.toLowerCase();
-            typedTimer.restart();
-            for (let row = 0; row < folder.count; ++row) {
-                if (folder.nameAt(row).toLowerCase().startsWith(typed)) {
-                    moveTo(row, 0);
-                    break;
-                }
-            }
+            typeAhead(event.text);
         }
         event.accepted = true;
+    }
+
+    // Набор букв — перейти к файлу с таким началом имени.
+    function typeAhead(text) {
+        typed += text.toLowerCase();
+        typedTimer.restart();
+        for (let row = 0; row < folder.count; ++row) {
+            if (folder.nameAt(row).toLowerCase().startsWith(typed)) {
+                moveTo(row, 0);
+                break;
+            }
+        }
     }
 
     // Что тащим: адреса выделенного.

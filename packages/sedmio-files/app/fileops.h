@@ -63,6 +63,12 @@ public:
     // Положить в буфер пути файлов текстом, по одному в строке.
     Q_INVOKABLE void copyPaths(const QList<QUrl> &urls);
 
+    // Как показать файл в просмотре по пробелу: image — сама картинка,
+    // text — текст, thumb — большая миниатюра (видео, PDF), other — значок.
+    Q_INVOKABLE QString previewKind(const QString &mimeType) const;
+    // Начало текстового файла для просмотра: {text, truncated}.
+    Q_INVOKABLE QVariantMap readText(const QUrl &url) const;
+
     // Путь для показа: /home/user/Фото → ~/Фото.
     Q_INVOKABLE QString prettyPath(const QUrl &url) const;
     Q_INVOKABLE QString formatSize(qreal bytes) const;

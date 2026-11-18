@@ -265,6 +265,18 @@ QString FolderModel::nameAt(int row) const
     return itemAt(index(row, 0)).text();
 }
 
+QVariantMap FolderModel::infoAt(int row) const
+{
+    if (row < 0 || row >= rowCount())
+        return {};
+    const QModelIndex idx = index(row, 0);
+    QVariantMap info;
+    const QHash<int, QByteArray> roles = roleNames();
+    for (int role : {NameRole, UrlRole, IconRole, IsDirRole, SizeRole, ModifiedRole, TypeRole, MimeRole, CanPreviewRole, ChildCountRole})
+        info.insert(QString::fromLatin1(roles.value(role)), data(idx, role));
+    return info;
+}
+
 QString FolderModel::mimeAt(int row) const
 {
     if (row < 0 || row >= rowCount())

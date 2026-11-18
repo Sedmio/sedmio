@@ -20,6 +20,12 @@ QtObject {
         return number(n) + " " + plural(n, "объект", "объекта", "объектов");
     }
 
+    // 19 ноября 2026, 04:42 — для свойств, где нужна точная дата.
+    function fullDate(value) {
+        if (!value || isNaN(value.getTime())) return "";
+        return value.toLocaleDateString(Qt.locale("ru_RU"), "d MMMM yyyy") + ", " + Qt.formatTime(value, "hh:mm");
+    }
+
     // Сегодня, 14:32 · вчера, 09:10 · 3 ноября, 18:00 · 3 ноября 2024
     function date(value) {
         if (!value || isNaN(value.getTime())) return "";

@@ -26,6 +26,7 @@ qt_add_qml_module(sedmio-files
         fileops.cpp fileops.h
         app.cpp app.h
         prompts.cpp prompts.h
+        properties.cpp properties.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -42,6 +43,8 @@ qt_add_qml_module(sedmio-files
         qml/Menu.qml
         qml/ConfirmDialog.qml
         qml/PromptWindow.qml
+        qml/PropertiesWindow.qml
+        qml/QuickLook.qml
 )
 
 target_link_libraries(sedmio-files PRIVATE

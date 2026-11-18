@@ -42,6 +42,9 @@ public:
     Q_INVOKABLE void openWindow(const QUrl &folder, const QList<QUrl> &select = {}, const QString &token = {});
     void showFolders(const QStringList &uris, const QString &token);
     void showItems(const QStringList &uris, const QString &token);
+    // Окно «Свойства» этих файлов (над последним окном «Файлов», если есть).
+    Q_INVOKABLE void showProperties(const QList<QUrl> &urls, const QString &token = {});
+    void showItemProperties(const QStringList &uris, const QString &token);
 
     QWindow *lastWindow() const { return m_lastWindow; }
 
@@ -58,6 +61,8 @@ Q_SIGNALS:
 private:
     QQmlEngine *m_engine;
     QList<QPointer<QWindow>> m_windows;
+    // Окна свойств: пока открыты, программа тоже не закрывается.
+    QList<QPointer<QWindow>> m_dialogs;
     QPointer<QWindow> m_lastWindow;
     int m_jobs = 0;
 };
