@@ -96,12 +96,9 @@ ShellRoot {
     BluetoothAgent { id: bluetoothAgent }
     BluetoothPairDialog { agent: bluetoothAgent }
 
-    // Модули kded, чью работу теперь делает оболочка (агент паролей Wi‑Fi,
-    // просьба о пожертвованиях), — выгрузить на этот сеанс. Подробности в скрипте.
-    Process {
-        running: true
-        command: ["sh", Qt.resolvedUrl("scripts/unload-kded-modules.sh").toString().replace("file://", "")]
-    }
+    // Модули kded, чью работу делает оболочка (агент паролей Wi‑Fi из
+    // plasma-nm, просьба о пожертвованиях), не загружаются вовсе —
+    // /etc/xdg/kded5rc. Выгружать их на ходу нельзя: kded6 от этого падает.
 
     // Сервер уведомлений живёт в NotificationState, движок буфера обмена —
     // в ClipboardState, сервер заданий (ход копирования файлов) — в JobsState;

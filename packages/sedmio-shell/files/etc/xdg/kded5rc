@@ -1,0 +1,12 @@
+# Модули kded, чью работу делает оболочка Sedmio (пакет sedmio-shell):
+#   networkmanagement — агент паролей Wi‑Fi из plasma-nm (у оболочки свой);
+#   donationmessage   — просьба KDE о пожертвованиях.
+# Не загружаются при входе. Выгружать их на ходу нельзя — kded6 падает.
+# Имя файла — kded5rc: kded6 читает настройки под старым именем.
+# Запасная оболочка и режим use-plasmashell загружают networkmanagement
+# сами (sedmio-shell-fallback.service, plasma-plasmashell.service.d).
+[Module-networkmanagement]
+autoload=false
+
+[Module-donationmessage]
+autoload=false

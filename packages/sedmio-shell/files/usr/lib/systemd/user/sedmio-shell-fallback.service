@@ -14,6 +14,9 @@ Conflicts=sedmio-shell.service
 # Наш пакет Plasma/Shell (org.sedmio.shell, sedmio-login) — только экраны
 # блокировки и выхода, рабочего стола в нём нет.
 Environment=PLASMA_DEFAULT_SHELL=org.kde.plasma.desktop
+# Агент паролей Wi‑Fi из plasma-nm — для апплета сети plasmashell
+# (при нашей оболочке не загружается, /etc/xdg/kded5rc).
+ExecStartPre=-/usr/bin/busctl --user call org.kde.kded6 /kded org.kde.kded6 loadModule s networkmanagement
 ExecStart=/usr/bin/plasmashell --no-respawn
 ExecStartPost=-/bin/sh -c 'sleep 6; notify-send -u critical -a Sedmio -i dialog-warning "Оболочка Sedmio не запустилась" "Временно включена стандартная оболочка Plasma. Перезайдите в сеанс, чтобы попробовать снова."'
 Restart=on-failure
