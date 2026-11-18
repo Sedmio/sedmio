@@ -31,8 +31,10 @@ fi
 # Языки распознавания текста (Spectacle → tesseract → tessdata) указаны
 # здесь явно: поставщика виртуальной зависимости pacman выбирает только
 # среди явных целей, иначе ставит первый по алфавиту (африкаанс).
+# zlib-ng-compat — по той же причине: base тянет zlib из Arch, а CachyOS
+# заменяет его своим, и первый же pacman -Syu спрашивал «Заменить zlib?».
 pacstrap -K "$ROOT" \
-  base linux-firmware sudo nano efibootmgr \
+  base linux-firmware sudo nano efibootmgr zlib-ng-compat \
   cachyos-keyring cachyos-mirrorlist cachyos-v4-mirrorlist \
   tesseract-data-rus tesseract-data-eng \
   "$host"
