@@ -4,6 +4,10 @@
 [terminal]
 vt = 1
 
+# Служба PAM для сеансов пользователей: /etc/pam.d/sedmio-greetd.
+[general]
+service = "sedmio-greetd"
+
 [default_session]
 command = "/usr/lib/sedmio/greeter/start"
 user = "greeter"

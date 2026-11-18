@@ -1,0 +1,10 @@
+#%PAM-1.0
+# Сеансы пользователей, которые запускает greetd ([general] service в
+# /etc/greetd/sedmio.toml): то же, что служба greetd, плюс переменные
+# сеанса Plasma до регистрации в logind. Обычный вход их и так передаёт
+# (экран входа, Greetd.launch), а вход без пароля ([initial_session])
+# без них попадал бы в logind как «tty», а не wayland-сеанс KDE.
+auth       include      greetd
+account    include      greetd
+session    required     pam_env.so conffile=/usr/share/sedmio/greeter/session.conf readenv=0
+session    include      greetd

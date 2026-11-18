@@ -3,6 +3,10 @@
 [terminal]
 vt = 1
 
+# Служба PAM для сеансов пользователей: /etc/pam.d/sedmio-greetd.
+[general]
+service = "sedmio-greetd"
+
 [initial_session]
 command = "/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"
 user = "live"
