@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=8
+pkgrel=9
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -58,6 +58,7 @@ depends=(
   'amd-ucode'
   'reflector'
   'git'                     # нужен почти всегда, в т.ч. dev-setup.sh
+  'which'                   # установщик (Calamares) вызывает which в новой системе
   'mkinitcpio'
 
   # Явный выбор там, где у зависимости несколько поставщиков,

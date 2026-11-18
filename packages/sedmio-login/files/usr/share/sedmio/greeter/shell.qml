@@ -31,6 +31,10 @@ ShellRoot {
     // Кто входил последним — его и предлагаем.
     FileView { id: lastUser; path: root.stateDir + "/last-user"; blockLoading: true; printErrors: false }
     property int current: Math.max(0, users.findIndex(u => u.name === lastUser.text().trim()))
+    // Метка «вошли» для usr/lib/sedmio/greeter/start: экран входа закрылся
+    // быстро, а метка старая — значит, упал. Текст каждый раз новый (время):
+    // одинаковый текст FileView не перезаписывает и время файла не меняется.
+    FileView { id: launchedMark; path: root.stateDir + "/launched"; printErrors: false }
     readonly property var user: users[current] ?? { name: "", realName: "" }
 
     property bool busy: false
@@ -91,6 +95,7 @@ ShellRoot {
         function onError(text) { if (root.busy) root.reject("Не удалось войти: " + text); }
         function onReadyToLaunch() {
             lastUser.setText(root.user.name);
+            launchedMark.setText(String(Date.now()));
             root.leaving = true;
             launchTimer.start();
         }

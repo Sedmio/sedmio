@@ -50,10 +50,10 @@ export XCURSOR_THEME=breeze_cursors
 export XCURSOR_SIZE=24
 export QT_QPA_PLATFORM=wayland
 
-# Метка запуска: экран входа перед входом записывает last-user
-# (shell.qml) — файл новее метки значит, что вошли.
-touch "$state/started"
+# Перед входом экран входа пишет в launched время в миллисекундах
+# (shell.qml): оно не раньше нашего запуска — значит, вошли.
 started=$(date +%s)
+started_ms=$(date +%s%3N)
 
 # Раскладки — из /etc/xdg/kxkbrc (как в сеансе), поэтому без --locale1.
 # Шина D-Bus — пользовательская шина greeter от systemd (pam_systemd):
@@ -62,7 +62,9 @@ started=$(date +%s)
 kwin_wayland --drm --no-lockscreen --no-global-shortcuts \
   --exit-with-session "quickshell --path /usr/share/sedmio/greeter"
 
-if [ "$state/last-user" -nt "$state/started" ]; then
+launched=$(cat "$state/launched" 2>/dev/null)
+case $launched in ''|*[!0-9]*) launched=0 ;; esac
+if [ "$launched" -ge "$started_ms" ]; then
   echo 0 > "$state/failures"
 elif [ $(($(date +%s) - started)) -lt 30 ]; then
   echo $((failures + 1)) > "$state/failures"

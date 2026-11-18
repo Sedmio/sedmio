@@ -1,3 +1,9 @@
 [KDE]
 # Одинарный клик выделяет, двойной открывает
 SingleClick=false
+
+[General]
+# Цвета Sedmio (usr/share/color-schemes/Sedmio.colors). При входе Plasma
+# сверяет схему с ~/.config/kdeglobals и записывает туда её цвета.
+# Файла схемы нет — остаются прежние цвета (Breeze).
+ColorScheme=Sedmio
