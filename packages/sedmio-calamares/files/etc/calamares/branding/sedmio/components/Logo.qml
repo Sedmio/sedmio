@@ -19,6 +19,12 @@ Canvas {
         ctx.reset()
         ctx.clearRect(0, 0, width, height)
 
+        // Внешние листья доходят до края, а тени и обводка вылезают за него:
+        // рисуем чуть мельче, чтобы ничего не обрезалось.
+        ctx.translate(width / 2, height / 2)
+        ctx.scale(0.86, 0.86)
+        ctx.translate(-width / 2, -height / 2)
+
         const s = logo.size, c = s / 2
         const lx = Theme.lightX, ly = Theme.lightY
         const rgb = v => [v.r, v.g, v.b]

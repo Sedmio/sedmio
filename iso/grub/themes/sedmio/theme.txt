@@ -1,0 +1,118 @@
+# Тема меню загрузки Sedmio: светлая «бумага», седум в горшке справа,
+# меню слева, выбранный пункт — зелёная «пилюля». Палитра и шрифт — как
+# в установщике (components/Theme.qml).
+#
+# Картинки: tools/boot-theme/render.py. Шрифты *.pf2 делает
+# scripts/build-iso.sh из Onest: имена «Sedmio Text/Medium/Bold Regular N».
+# Положение — в процентах от экрана со сдвигом в пикселях («50%-200»).
+# Раскладка рассчитана на экраны от 1600×900 и выше (grub.cfg просит
+# 1920×1080, затем 1600×900); на 720 строках шапка наезжает на заголовок.
+
+title-text: ""
+desktop-image: "background.png"
+desktop-image-scale-method: "stretch"
+desktop-color: "#EEF1EA"
+
+# Правка параметров загрузки (клавиша E) и командная строка (C): светлая
+# карточка на всю ширину между шапкой и подсказкой, закрывает заголовок
+# и меню целиком. Шрифт — JetBrains Mono, как журнал в установщике
+# (файл mono-16.pf2, имя «Sedmio Mono Regular 16»). Высота — не меньше
+# 24 строк по 25 px: в меньшую GRUB не верит и рисует окно 80×24 по центру.
+terminal-font: "Sedmio Mono Regular 16"
+terminal-box: "terminal_box_*.png"
+terminal-left: "7%"
+terminal-top: "50%-310"
+terminal-width: "86%"
+terminal-height: "640"
+terminal-border: "0"
+
+# Шапка: знак и слово «sedmio»
++ image {
+    left = 7%
+    top = 6%
+    file = "header.png"
+}
+
+# Растение
++ image {
+    left = 72%-310
+    top = 50%-310
+    file = "plant.png"
+}
+
+# Заголовок
++ label {
+    left = 12%
+    top = 50%-262
+    width = 800
+    height = 24
+    text = "ЗАГРУЗКА С ФЛЕШКИ"
+    font = "Sedmio Bold Regular 16"
+    color = "#C8643B"
+}
++ label {
+    left = 12%
+    top = 50%-230
+    width = 900
+    height = 76
+    text = "Sedmio Linux"
+    font = "Sedmio Bold Regular 56"
+    color = "#1B251F"
+}
++ label {
+    left = 12%
+    top = 50%-140
+    width = 900
+    height = 32
+    text = "Выберите, как запустить систему"
+    font = "Sedmio Text Regular 22"
+    color = "#4B5A50"
+}
+
+# Меню: пункты с отступом 22 px, у выбранного — зелёная «пилюля»
+# (select_w/c/e.png, без верхней и нижней частей рамки: их GRUB рисует
+# снаружи пункта). Сдвинуто влево на отступ, чтобы текст встал ровно под
+# заголовком. Высота — ровно на шесть пунктов: 2·22 + 6·56 + 5·4 = 400.
++ boot_menu {
+    left = 12%-22
+    top = 50%-76
+    width = 600
+    height = 400
+    item_font = "Sedmio Text Regular 22"
+    selected_item_font = "Sedmio Medium Regular 22"
+    item_color = "#1B251F"
+    selected_item_color = "#F4F7F1"
+    item_height = 56
+    item_padding = 22
+    item_spacing = 4
+    icon_width = 0
+    icon_height = 0
+    item_icon_space = 0
+    selected_item_pixmap_style = "select_*.png"
+    scrollbar = false
+}
+
+# Обратный отсчёт — справа в нижней строке, напротив подсказки;
+# пропадает, как только нажата клавиша
++ label {
+    id = "__timeout__"
+    left = 93%-600
+    top = 100%-64
+    width = 600
+    height = 24
+    align = "right"
+    text = "Автоматический запуск через %d с"
+    font = "Sedmio Text Regular 16"
+    color = "#7E8A81"
+}
+
+# Подсказка по клавишам
++ label {
+    left = 7%
+    top = 100%-64
+    width = 1000
+    height = 24
+    text = "↑ ↓  выбрать        Enter  запустить        E  изменить параметры загрузки"
+    font = "Sedmio Text Regular 16"
+    color = "#7E8A81"
+}

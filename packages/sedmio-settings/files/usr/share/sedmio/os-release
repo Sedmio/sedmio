@@ -1,0 +1,11 @@
+NAME="Sedmio Linux"
+PRETTY_NAME="Sedmio Linux"
+ID=sedmio
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;47;93;70"
+HOME_URL="https://github.com/Sedmio/sedmio"
+DOCUMENTATION_URL="https://github.com/Sedmio/sedmio"
+SUPPORT_URL="https://github.com/Sedmio/sedmio/issues"
+BUG_REPORT_URL="https://github.com/Sedmio/sedmio/issues"
+LOGO=sedmio

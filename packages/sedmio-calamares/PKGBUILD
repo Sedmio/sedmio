@@ -3,7 +3,8 @@
 # Настройки и оформление установщика Calamares для live-образа.
 # Файлы из files/ копируются в корень как есть.
 #
-# Calamares берётся из репозитория CachyOS (пакет calamares, ветка 3.4).
+# Calamares — наша сборка с QML-модулями (packages/calamares).
+# Шрифт Onest ставится и в систему: им пользуются виджетные страницы (QSS).
 
 pkgname=sedmio-calamares
 pkgver=0.1.0
@@ -18,5 +19,7 @@ package() {
   cp -a "$startdir/files/." "$pkgdir/"
   find "$pkgdir" -type d -exec chmod 755 {} +
   find "$pkgdir" -type f -exec chmod 644 {} +
-  chmod 755 "$pkgdir/usr/lib/sedmio/installer/postinstall.sh"
+  chmod 755 "$pkgdir"/usr/lib/sedmio/installer/*.sh
+
+  install -Dm644 "$startdir/files/etc/calamares/branding/sedmio/fonts/Onest-Variable.ttf"     "$pkgdir/usr/share/fonts/sedmio/Onest-Variable.ttf"
 }

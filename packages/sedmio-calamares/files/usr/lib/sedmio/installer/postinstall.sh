@@ -14,16 +14,5 @@ fi
 # Консоль: русская раскладка и шрифт с кириллицей.
 printf 'KEYMAP=ru\nFONT=cyr-sun16\n' > "$ROOT/etc/vconsole.conf"
 
-# Профиль машины: батарея есть — ноутбук.
-if compgen -G '/sys/class/power_supply/BAT*' > /dev/null; then
-  host=sedmio-host-laptop
-else
-  host=sedmio-host-desktop
-fi
-echo "Профиль машины: $host"
-# TODO: ставить пакет профиля, когда репозиторий [sedmio] появится
-#       в целевой системе (пока он есть только локально в out/repo).
-# in_target pacman -S --noconfirm --needed "$host"
-
 # Службы из пресетов sedmio-base и профилей машины.
 in_target systemctl preset-all

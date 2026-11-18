@@ -1,3 +1,15 @@
 # Пакеты, добавляемые к стандартному списку releng.
+
+# Рабочий стол live-сессии и установщик
+sedmio-base
+sedmio-calamares
+# Находит другие системы на диске (Windows): без него страница разметки
+# не предлагает «Установить рядом», а в журнале — «os-prober cannot start»
+os-prober
+
+# Ключи и зеркала CachyOS: из live-системы pacstrap ставит пакеты CachyOS
+cachyos-keyring
+cachyos-mirrorlist
+cachyos-v4-mirrorlist
+
 git
-sedmio-settings

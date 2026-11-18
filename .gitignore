@@ -12,3 +12,4 @@ packages/*/*.log
 tools/installer-preview/.venv/
 tools/installer-preview/out/
 __pycache__/
+packages/*/*.tar.gz

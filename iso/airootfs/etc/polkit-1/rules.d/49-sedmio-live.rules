@@ -1,0 +1,7 @@
+// Live-сессия: пользователю live разрешено всё без пароля
+// (монтирование дисков, сеть, установщик).
+polkit.addRule(function(action, subject) {
+    if (subject.user == "live") {
+        return polkit.Result.YES;
+    }
+});

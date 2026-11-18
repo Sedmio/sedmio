@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Установить Sedmio
+Comment=Установка Sedmio на диск
+Icon=calamares
+Exec=sudo -E calamares
+Terminal=false
+Categories=System;

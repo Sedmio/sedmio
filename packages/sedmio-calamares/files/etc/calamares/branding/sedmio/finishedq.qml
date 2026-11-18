@@ -25,22 +25,62 @@ SPage {
                   : "Система установлена. Извлеките флешку и перезагрузите компьютер."
     }
 
+    // Подробности размечены для окна Calamares («Команда <i>…</i>»), но вывод
+    // команды внутри не экранирован, поэтому убираем только теги разметки,
+    // а не всё в угловых скобках (иначе пропадёт «<vda>» из вывода).
+    function plain(html) {
+        return (html || "").replace(/<br\s*\/?>/gi, "\n")
+                           .replace(/<\/?(i|b|u|em|strong|code|pre|tt)>/gi, "")
+                           .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+                           .replace(/&quot;/g, "\"").replace(/&amp;/g, "&").trim()
+    }
+
     Card {
         width: parent.width
         padding: 16
         visible: config.failed && config.failureDetails !== ""
 
-        TextEdit {
+        // Вывод команды бывает длинным. Причина ошибки обычно в последних
+        // строках, поэтому карточка открывается прокрученной к концу.
+        Item {
             width: parent.width
-            text: config.failureDetails
-            readOnly: true
-            selectByMouse: true
-            wrapMode: TextEdit.Wrap
-            font.family: "JetBrains Mono"
-            font.pixelSize: Theme.fontSmall
-            color: Theme.inkSoft
-            selectionColor: Theme.leafLight
+            height: Math.min(details.implicitHeight, 168)
+
+            Flickable {
+                id: detailsView
+                anchors.fill: parent
+                contentHeight: details.implicitHeight
+                contentY: Math.max(0, contentHeight - height)
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+
+                TextEdit {
+                    id: details
+                    width: parent.width
+                    text: page.plain(config.failureDetails)
+                    readOnly: true
+                    selectByMouse: true
+                    wrapMode: TextEdit.Wrap
+                    font.family: "JetBrains Mono"
+                    font.pixelSize: Theme.fontSmall
+                    color: Theme.inkSoft
+                    selectionColor: Theme.leafLight
+                }
+            }
+
+            ScrollFade { view: detailsView; atTop: true; tint: Theme.surface }
+            ScrollFade { view: detailsView; tint: Theme.surface }
         }
+    }
+
+    Text {
+        width: parent.width
+        visible: config.failed
+        text: "Полный журнал: /home/live/.cache/calamares/session.log"
+        wrapMode: Text.Wrap
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSmall
+        color: Theme.inkMuted
     }
 
     Row {
@@ -53,6 +93,7 @@ SPage {
             onClicked: config.doRestart(true)
         }
         SButton {
+            primary: config.failed
             text: "Закрыть"
             onClicked: ViewManager.quit()
         }

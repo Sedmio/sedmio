@@ -1,0 +1,38 @@
+--- a/src/libcalamaresui/ViewManager.cpp
++++ b/src/libcalamaresui/ViewManager.cpp
+@@ -158,32 +158,9 @@
+     cDebug() << Logger::SubEntry << "- message:" << message;
+     cDebug() << Logger::SubEntry << "- details:" << Logger::NoQuote << details;
+ 
+-    QString heading = Calamares::Settings::instance()->isSetupMode() ? tr( "Setup Failed", "@title" )
+-                                                                     : tr( "Installation Failed", "@title" );
+-
+-    ErrorDialog* errorDialog = new ErrorDialog();
+-    errorDialog->setWindowTitle( tr( "Error", "@title" ) );
+-    errorDialog->setHeading( "<strong>" + heading + "</strong>" );
+-    errorDialog->setInformativeText( message );
+-    errorDialog->setShouldOfferWebPaste( Calamares::Branding::instance()->uploadServer() );
+-    errorDialog->setDetails( details );
+-    errorDialog->show();
+-
+-    cDebug() << "Calamares will quit when the dialog closes.";
+-    connect( errorDialog,
+-             &QDialog::finished,
+-             [ errorDialog ]( int result )
+-             {
+-                 if ( result == QDialog::Accepted && errorDialog->shouldOfferWebPaste() )
+-                 {
+-                     Calamares::Paste::doLogUploadUI( errorDialog );
+-                 }
+-#if QT_VERSION < QT_VERSION_CHECK( 6, 0, 0 )
+-                 QApplication::quit();
+-#else
+-                 QApplication::exit( EXIT_SUCCESS );
+-#endif
+-             } );
++    // Sedmio: ошибку показывает страница finishedq (JobQueue после failed
++    // шлёт finished, и мы переходим на неё). Отдельное окно с ошибкой
++    // дублировало её, не брало стили и при закрытии завершало программу.
+ }
+ 
+ void

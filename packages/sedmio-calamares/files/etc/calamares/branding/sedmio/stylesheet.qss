@@ -1,11 +1,15 @@
 /*
- * Стили для страниц Calamares на виджетах (разметка диска, ход установки).
- * Палитра совпадает с components/Theme.qml — менять вместе.
- * Шрифт Onest должен быть установлен в систему live-образа (TODO: пакет).
- * Черновик: проверить на живой системе.
+ * Стили для страниц Calamares на виджетах: разметка диска и окна
+ * сообщений (ошибка установки). Палитра — как в components/Theme.qml,
+ * менять вместе. Шрифт Onest ставит пакет sedmio-calamares.
+ *
+ * Картинки — по абсолютному пути: Calamares передаёт QSS текстом,
+ * относительные пути в url() не работают.
  */
 
-#mainApp {
+/* ---------- основа */
+
+#mainApp, QDialog, QMessageBox {
     background-color: #EEF1EA;
 }
 
@@ -19,48 +23,145 @@ QLabel {
     background: transparent;
 }
 
-QPushButton {
+/* Заголовок страницы разметки — как components/PageHeader.qml.
+   Подписи добавляет патч packages/calamares/sedmio-look.patch. */
+QLabel#sedmioEyebrow {
+    color: #C8643B;
+    font-size: 13px;
+    font-weight: 600;
+}
+QLabel#sedmioTitle {
+    color: #1B251F;
+    font-size: 44px;
+    font-weight: 600;
+}
+QLabel#sedmioSubtitle {
+    color: #4B5A50;
+    font-size: 18px;
+}
+
+QToolTip {
+    background-color: #1B251F;
+    color: #F4F7F1;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+
+/* ---------- кнопки */
+
+QPushButton, QToolButton {
     background-color: transparent;
     border: 1px solid #D5DCCF;
-    border-radius: 22px;
-    padding: 9px 20px;
+    border-radius: 20px;
+    padding: 9px 22px;
+    min-height: 22px;
 }
-QPushButton:hover {
+QPushButton:hover, QToolButton:hover {
     background-color: #E3E8DE;
+    border-color: #B7C2B0;
+}
+QPushButton:pressed, QToolButton:pressed {
+    background-color: #DCE7DA;
 }
 QPushButton:default {
     background-color: #2F5D46;
     border: none;
     color: #F4F7F1;
 }
-QPushButton:disabled {
-    color: #7E8A81;
+QPushButton:default:hover {
+    background-color: #27503C;
 }
+QPushButton:disabled, QToolButton:disabled {
+    color: #7E8A81;
+    border-color: #E3E8DE;
+}
+
+/* ---------- переключатели */
+
+QRadioButton, QCheckBox {
+    spacing: 12px;
+    background: transparent;
+}
+
+/* Рамка входит во внешний размер: 18 + 2·2 = 10 + 6·2 = 22, иначе
+   у выбранного кружка скругления не хватает и он становится квадратным. */
+QRadioButton::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 11px;
+    border: 2px solid #B7C2B0;
+    background-color: #F8FAF5;
+}
+QRadioButton::indicator:hover {
+    border-color: #2F5D46;
+}
+QRadioButton::indicator:checked {
+    width: 10px;
+    height: 10px;
+    border: 6px solid #2F5D46;
+    background-color: #F8FAF5;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 7px;
+    border: 2px solid #B7C2B0;
+    background-color: #F8FAF5;
+}
+QCheckBox::indicator:hover {
+    border-color: #2F5D46;
+}
+QCheckBox::indicator:checked {
+    border-color: #2F5D46;
+    background-color: #2F5D46;
+    image: url(/etc/calamares/branding/sedmio/images/check.svg);
+}
+
+/* ---------- поля и списки */
 
 QComboBox, QLineEdit, QSpinBox {
     background-color: #F8FAF5;
     border: 1px solid #D5DCCF;
-    border-radius: 14px;
-    padding: 8px 12px;
+    border-radius: 12px;
+    padding: 8px 14px;
+    min-height: 22px;
+    selection-background-color: #DCE7DA;
+    selection-color: #1B251F;
 }
-QComboBox:hover, QLineEdit:hover {
+QComboBox:hover, QLineEdit:hover, QSpinBox:hover {
     border-color: #B7C2B0;
 }
-QComboBox:focus, QLineEdit:focus {
+QComboBox:focus, QLineEdit:focus, QSpinBox:focus {
     border: 1.5px solid #2F5D46;
+}
+QComboBox {
+    padding-right: 34px;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 30px;
+    border: none;
+    background: transparent;
+}
+QComboBox::down-arrow {
+    image: url(/etc/calamares/branding/sedmio/images/chevron-down.svg);
+    width: 14px;
+    height: 14px;
 }
 QComboBox QAbstractItemView {
     background-color: #F8FAF5;
+    border: 1px solid #D5DCCF;
+    border-radius: 12px;
+    padding: 6px;
+    outline: none;
     selection-background-color: #DCE7DA;
     selection-color: #1B251F;
 }
 
-QRadioButton, QCheckBox {
-    spacing: 10px;
-    background: transparent;
-}
-
-QTreeView, QListView, QTableView {
+QTreeView, QListView, QTableView, QTextEdit, QPlainTextEdit {
     background-color: #F8FAF5;
     alternate-background-color: #F2F5EF;
     border: 1px solid #D5DCCF;
@@ -68,13 +169,33 @@ QTreeView, QListView, QTableView {
     selection-background-color: #DCE7DA;
     selection-color: #1B251F;
 }
+QTreeView::item, QListView::item {
+    padding: 6px 4px;
+}
 
 QHeaderView::section {
     background-color: #EEF1EA;
     color: #4B5A50;
     border: none;
+    border-bottom: 1px solid #D5DCCF;
     padding: 8px;
+    font-size: 13px;
 }
+
+/* ---------- страница хода установки */
+
+/* Слайды и журнал лежат во вкладках без заголовков: без рамки вкладок */
+#slideshow QTabWidget::pane {
+    border: none;
+    background: transparent;
+}
+#slideshow QToolBar {
+    background: transparent;
+    border: none;
+    spacing: 0;
+}
+
+/* ---------- полоса хода установки */
 
 QProgressBar {
     background-color: #E3E8DE;
@@ -89,15 +210,65 @@ QProgressBar::chunk {
     border-radius: 3px;
 }
 
+/* ---------- прокрутка */
+
 QScrollBar:vertical {
     background: transparent;
     width: 10px;
+    margin: 4px 2px;
 }
 QScrollBar::handle:vertical {
     background: #D5DCCF;
-    border-radius: 5px;
+    border-radius: 3px;
     min-height: 24px;
 }
-QScrollBar::add-line, QScrollBar::sub-line {
+QScrollBar::handle:vertical:hover {
+    background: #B7C2B0;
+}
+QScrollBar:horizontal {
+    background: transparent;
+    height: 10px;
+    margin: 2px 4px;
+}
+QScrollBar::handle:horizontal {
+    background: #D5DCCF;
+    border-radius: 3px;
+    min-width: 24px;
+}
+QScrollBar::add-line, QScrollBar::sub-line,
+QScrollBar::add-page, QScrollBar::sub-page {
+    width: 0;
     height: 0;
+    background: none;
+}
+
+/* ---------- разделители */
+
+QFrame[frameShape="4"], QFrame[frameShape="5"] {
+    color: #D5DCCF;
+}
+/* Страница разметки: список вариантов и подписи под полосами — без
+   своего серого фона, на «бумаге» окна */
+QScrollArea#m_itemsScrollArea,
+QScrollArea#m_itemsScrollArea > QWidget > QWidget,
+PartitionLabelsView, PartitionBarsView {
+    background: transparent;
+    border: none;
+}
+/* Полоса прокрутки этого списка (вариантов больше двух, когда на диске
+   уже есть система): под прозрачной областью её дорожку никто не рисует,
+   и она выходила чёрной — красим в цвет окна */
+QScrollArea#m_itemsScrollArea QScrollBar,
+QScrollArea#m_itemsScrollArea > QWidget#qt_scrollarea_vcontainer,
+QScrollArea#m_itemsScrollArea > QWidget#qt_scrollarea_hcontainer {
+    background: #EEF1EA;
+}
+
+/* Линия над «Зашифровать систему» на странице разметки: рамкой рисуется
+   тёмной, поэтому — одна светлая граница */
+QFrame#hLine {
+    border: none;
+    border-top: 1px solid #D5DCCF;
+    background: transparent;
+    max-height: 1px;
 }

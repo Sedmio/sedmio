@@ -16,8 +16,11 @@ SPage {
     property bool showAdvanced: false
 
     readonly property bool passwordsMatch: config.userPassword === config.userPasswordSecondary
-    // 0 — годится, 1 — слабый (разрешён), 2 — не годится
-    readonly property bool passwordInvalid: config.userPassword !== "" && config.userPasswordValidity === 2
+    // 0 — годится, 1 — слабый (разрешён), 2 — не годится. Несовпадение
+    // Calamares тоже считает «не годится», но о нём говорит второе поле,
+    // поэтому у первого — только ошибки самого пароля.
+    readonly property bool passwordInvalid: config.userPassword !== "" && passwordsMatch
+                                            && config.userPasswordValidity === 2
 
     function onActivate() {
         page.replayAppear()
@@ -121,6 +124,8 @@ SPage {
             width: parent.width
             spacing: 14
             visible: page.showAdvanced
+            opacity: visible ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.animNormal } }
 
             STextField {
                 width: (parent.width - parent.spacing) / 2

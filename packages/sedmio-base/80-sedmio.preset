@@ -4,3 +4,6 @@ enable NetworkManager.service
 enable bluetooth.service
 enable power-profiles-daemon.service
 enable reflector.timer
+# Обновляет systemd-boot в разделе EFI при следующей загрузке после
+# обновления пакета systemd (иначе там навсегда остаётся версия с установки).
+enable systemd-boot-update.service

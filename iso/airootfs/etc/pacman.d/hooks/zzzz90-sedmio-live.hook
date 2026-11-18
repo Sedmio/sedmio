@@ -1,0 +1,11 @@
+# Настройка live-системы при сборке образа (после установки пакетов).
+# Хуки из airootfs удаляются в конце сборки (zzzz99 из releng).
+[Trigger]
+Operation = Install
+Type = Package
+Target = sedmio-base
+
+[Action]
+Description = Настройка live-системы Sedmio...
+When = PostTransaction
+Exec = /usr/local/lib/sedmio-live/setup.sh

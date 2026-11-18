@@ -26,7 +26,9 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        width: parent.width - root.contentWidth - Theme.sideMargin * 1.5
+        // От общей ширины контента, а не от ширины этой страницы: горшок
+        // на всех страницах стоит на одном месте и одного размера.
+        width: parent.width - Theme.contentWidth - Theme.sideMargin * 1.5
 
         Backdrop { anchors.fill: parent }
 
@@ -86,7 +88,8 @@ Rectangle {
     EdgeFade {
         atTop: false
         y: root.height - height
-        shown: flick.contentY < flick.contentHeight - flick.height - 4
+        // Снизу у контента запас 48 px: пока скрыт только он, растворять нечего
+        shown: flick.contentHeight - flick.height - flick.contentY > 48
     }
 
     // ---------- появление по очереди
@@ -123,10 +126,31 @@ Rectangle {
         sedum.regrow(root.stage - 1)
     }
 
-    // Плавно прокрутить к концу страницы (например, после раскрытия блока)
+    // Плавно прокрутить к концу страницы (например, после раскрытия блока).
+    // Высота Column пересчитывается не сразу, поэтому ещё полсекунды
+    // догоняем конец при каждом её изменении.
+    property bool _followEnd: false
+
     function scrollToEnd() {
+        _followEnd = true
+        followTimer.restart()
+        _scrollNow()
+    }
+
+    function _scrollNow() {
         scroll.to = Math.max(0, flick.contentHeight - flick.height)
         scroll.restart()
+    }
+
+    Connections {
+        target: flick
+        function onContentHeightChanged() { if (root._followEnd) root._scrollNow() }
+    }
+
+    Timer {
+        id: followTimer
+        interval: 600
+        onTriggered: root._followEnd = false
     }
 
     NumberAnimation {

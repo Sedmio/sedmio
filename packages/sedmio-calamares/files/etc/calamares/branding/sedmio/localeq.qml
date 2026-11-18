@@ -10,7 +10,7 @@ SPage {
     id: page
 
     stage: 2
-    contentWidth: 580
+    contentWidth: 540   // шире обычного под два списка, но не заходит на растение
     centerVertically: false
 
     readonly property string tzCode: config.currentTimezoneCode
@@ -28,6 +28,17 @@ SPage {
                 return
             }
         }
+    }
+
+    // «Азия/Бангкок» → «Бангкок, Азия»
+    function placeName(name) {
+        const parts = (name || "").split("/")
+        return parts.length === 2 ? parts[1] + ", " + parts[0] : name
+    }
+
+    // Названия регионов, которые не влезают в колонку
+    function regionName(key, name) {
+        return key === "Arctic" ? "Арктика" : name
     }
 
     function showRegion(key) {
@@ -51,7 +62,9 @@ SPage {
         width: parent.width
         eyebrow: "Часовой пояс"
         title: "Где вы сейчас?"
-        subtitle: "Мы определили: " + config.currentTimezoneName + ". Если неверно — выберите город."
+        // Без «мы определили»: если сети не было, это просто запасной вариант
+        subtitle: "Сейчас выбрано: " + page.placeName(config.currentTimezoneName)
+                  + ". Если неверно — выберите свой город."
     }
 
     Row {
@@ -59,47 +72,56 @@ SPage {
         height: 300
         spacing: 12
 
-        // Регионы — простым списком без рамки
-        ListView {
+        // Регионы — простым списком без рамки; у краёв список
+        // растворяется в фоне, пока есть что прокручивать
+        Item {
             width: 170
             height: parent.height
-            clip: true
-            spacing: 2
-            model: config.regionModel
-            boundsBehavior: Flickable.StopAtBounds
 
-            delegate: Rectangle {
-                readonly property bool selected: model.key === page.shownRegion
+            ListView {
+                id: regions
+                anchors.fill: parent
+                clip: true
+                spacing: 2
+                model: config.regionModel
+                boundsBehavior: Flickable.StopAtBounds
 
-                width: ListView.view.width
-                height: 38
-                radius: height / 2
-                color: selected ? Theme.green
-                     : regionMouse.containsMouse ? Theme.paperDeep
-                     : "transparent"
-                Behavior on color { ColorAnimation { duration: Theme.animFast } }
+                delegate: Rectangle {
+                    readonly property bool selected: model.key === page.shownRegion
 
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.left: parent.left
-                    anchors.leftMargin: 16
-                    width: parent.width - 28
-                    text: model.name
-                    elide: Text.ElideRight
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    font.weight: parent.selected ? Font.DemiBold : Font.Normal
-                    color: parent.selected ? Theme.textOnGreen : Theme.ink
-                }
+                    width: ListView.view.width
+                    height: 38
+                    radius: height / 2
+                    color: selected ? Theme.green
+                         : regionMouse.containsMouse ? Theme.paperDeep
+                         : "transparent"
+                    Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
-                MouseArea {
-                    id: regionMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: page.showRegion(model.key)
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 16
+                        width: parent.width - 28
+                        text: page.regionName(model.key, model.name)
+                        elide: Text.ElideRight
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontBody
+                        font.weight: parent.selected ? Font.DemiBold : Font.Normal
+                        color: parent.selected ? Theme.textOnGreen : Theme.ink
+                    }
+
+                    MouseArea {
+                        id: regionMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: page.showRegion(model.key)
+                    }
                 }
             }
+
+            ScrollFade { view: regions; atTop: true }
+            ScrollFade { view: regions }
         }
 
         // Города выбранного региона
@@ -115,59 +137,72 @@ SPage {
                 onTextEdited: page.search = text
             }
 
-            ListView {
+            Item {
                 width: parent.width
                 height: parent.parent.height - 16 - Theme.controlHeight - 6
-                clip: true
-                model: config.regionalZonesModel
-                boundsBehavior: Flickable.StopAtBounds
 
-                delegate: Rectangle {
-                    readonly property bool matches: page.search === ""
-                        || model.name.toLowerCase().indexOf(page.search.toLowerCase()) >= 0
-                    readonly property bool selected: page.shownRegion + "/" + model.key === page.tzCode
+                ListView {
+                    id: cities
+                    anchors.fill: parent
+                    clip: true
+                    model: config.regionalZonesModel
+                    boundsBehavior: Flickable.StopAtBounds
+                    // Все города региона создаются сразу (их до сотни), чтобы
+                    // выбранный мог сам прокрутить список к себе
+                    cacheBuffer: 6000
 
-                    width: ListView.view.width
-                    height: matches ? 40 : 0
-                    visible: matches
-                    radius: 12
-                    color: selected ? Theme.greenWash
-                         : zoneMouse.containsMouse ? Theme.paper
-                         : "transparent"
-                    Behavior on color { ColorAnimation { duration: Theme.animFast } }
+                    delegate: Rectangle {
+                        readonly property bool matches: page.search === ""
+                            || model.name.toLowerCase().indexOf(page.search.toLowerCase()) >= 0
+                        readonly property bool selected: page.shownRegion + "/" + model.key === page.tzCode
 
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left
-                        anchors.leftMargin: 14
-                        width: parent.width - 48
-                        text: model.name
-                        elide: Text.ElideRight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontBody
-                        font.weight: parent.selected ? Font.DemiBold : Font.Normal
-                        color: parent.selected ? Theme.green : Theme.ink
-                    }
+                        Component.onCompleted: if (selected) Qt.callLater(cities.positionViewAtIndex, index, ListView.Center)
 
-                    Text {
-                        visible: parent.selected
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.right: parent.right
-                        anchors.rightMargin: 14
-                        text: "✓"
-                        font.pixelSize: Theme.fontBody
-                        font.weight: Font.Bold
-                        color: Theme.green
-                    }
+                        width: ListView.view.width
+                        height: matches ? 40 : 0
+                        visible: matches
+                        radius: 12
+                        color: selected ? Theme.greenWash
+                             : zoneMouse.containsMouse ? Theme.paper
+                             : "transparent"
+                        Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
-                    MouseArea {
-                        id: zoneMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: config.setCurrentLocation(page.shownRegion, model.key)
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.leftMargin: 14
+                            width: parent.width - 48
+                            text: model.name
+                            elide: Text.ElideRight
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontBody
+                            font.weight: parent.selected ? Font.DemiBold : Font.Normal
+                            color: parent.selected ? Theme.green : Theme.ink
+                        }
+
+                        Text {
+                            visible: parent.selected
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.right: parent.right
+                            anchors.rightMargin: 14
+                            text: "✓"
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Font.Bold
+                            color: Theme.green
+                        }
+
+                        MouseArea {
+                            id: zoneMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: config.setCurrentLocation(page.shownRegion, model.key)
+                        }
                     }
                 }
+
+                ScrollFade { view: cities; atTop: true; tint: Theme.surface }
+                ScrollFade { view: cities; tint: Theme.surface }
             }
         }
     }

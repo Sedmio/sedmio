@@ -4,12 +4,21 @@ import io.calamares.core 1.0
 import "components"
 
 // Кнопки снизу (navigation: qml,bottom): «Отмена» слева тихо,
-// «Назад» и главное действие справа.
+// «Назад» и главное действие справа. На последней странице (finishedq)
+// кнопки свои, поэтому здесь ничего не показываем.
 Rectangle {
     id: nav
 
     height: 64
     color: Theme.paper
+
+    // Число шагов: у модели ViewManager нет свойства count, считает Repeater
+    Repeater {
+        id: steps
+        model: ViewManager
+        delegate: Item {}
+    }
+    readonly property bool atEnd: steps.count > 0 && ViewManager.currentStepIndex === steps.count - 1
 
     // В подписях Calamares есть «&» для горячих клавиш: «&Далее».
     function clean(label) {
@@ -21,7 +30,7 @@ Rectangle {
         anchors.leftMargin: Theme.sideMargin - 18
         anchors.verticalCenter: parent.verticalCenter
         text: nav.clean(ViewManager.quitLabel)
-        visible: ViewManager.quitVisible
+        visible: ViewManager.quitVisible && !nav.atEnd
         enabled: ViewManager.quitEnabled
         onClicked: ViewManager.quit()
     }
@@ -31,7 +40,7 @@ Rectangle {
         anchors.rightMargin: Theme.sideMargin
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
-        visible: ViewManager.backAndNextVisible
+        visible: ViewManager.backAndNextVisible && !nav.atEnd
 
         SButton {
             text: nav.clean(ViewManager.backLabel)

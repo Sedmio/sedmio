@@ -1,0 +1,10 @@
+# Хук 90-sedmio-os-release.hook срабатывает на обновления filesystem, но не
+# в той транзакции, где ставится сам этот пакет (pacstrap ставит всё разом),
+# поэтому при установке и обновлении кладём os-release и отсюда.
+post_install() {
+  install -m644 /usr/share/sedmio/os-release /usr/lib/os-release
+}
+
+post_upgrade() {
+  post_install
+}

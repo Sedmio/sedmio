@@ -35,8 +35,15 @@ Column {
         implicitHeight: Theme.controlHeight
         leftPadding: 16
         rightPadding: 16
+        readonly property bool secret: echoMode === TextInput.Password
+
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontBody
+        // Пароль — точками «•» из Onest: «●» по умолчанию берётся из
+        // другого шрифта и выходит грубым. Точки мелкие, поэтому крупнее
+        // кегль и немного воздуха между ними.
+        font.pixelSize: secret ? 22 : Theme.fontBody
+        font.letterSpacing: secret ? 1.5 : 0
+        passwordCharacter: "•"
         color: Theme.ink
         selectionColor: Theme.leafLight
         selectedTextColor: Theme.ink
@@ -51,7 +58,8 @@ Column {
             verticalAlignment: Text.AlignVCenter
             visible: field.text === ""
             text: field.placeholderText
-            font: field.font
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
             color: field.placeholderTextColor
             elide: Text.ElideRight
         }

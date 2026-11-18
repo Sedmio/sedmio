@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=1
+pkgrel=3
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -56,6 +56,13 @@ depends=(
   # Система
   'amd-ucode'
   'reflector'
+  'mkinitcpio'
+
+  # Явный выбор там, где у зависимости несколько поставщиков,
+  # иначе pacstrap берёт первый по алфавиту:
+  'qt6-multimedia-ffmpeg'   # qt6-multimedia-backend
+  'tesseract-data-rus'      # tessdata для распознавания текста
+  'tesseract-data-eng'      # в Spectacle (иначе — африкаанс)
 )
 
 package() {

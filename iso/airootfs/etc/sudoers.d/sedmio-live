@@ -1,0 +1,2 @@
+# Live-сессия: установщику и пользователю нужен root без пароля.
+live ALL=(ALL) NOPASSWD: ALL

@@ -1,0 +1,13 @@
+# Название системы: /usr/lib/os-release принадлежит пакету filesystem
+# (Arch Linux), и каждое его обновление возвращало бы «Arch Linux» в меню
+# загрузки, «О системе» и т. д. После обновления кладём своё обратно.
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = filesystem
+
+[Action]
+Description = Sedmio: название системы в os-release
+When = PostTransaction
+Exec = /usr/bin/install -m644 /usr/share/sedmio/os-release /usr/lib/os-release

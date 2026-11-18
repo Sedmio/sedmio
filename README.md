@@ -47,7 +47,7 @@ docs/                    спецификация и решения
 Один раз на машине сборки:
 
 ```bash
-sudo pacman -S --needed base-devel archiso git
+sudo pacman -S --needed base-devel archiso git grub ttf-jetbrains-mono
 ```
 
 Подключить репозитории CachyOS официальным скриптом CachyOS (он сам определит

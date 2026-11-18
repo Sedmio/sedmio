@@ -13,7 +13,9 @@ Rectangle {
     color: Theme.paper
 
     readonly property int current: ViewManager.currentStepIndex
-    readonly property int total: ViewManager.rowCount()
+    // Число шагов — по самому списку: rowCount() вычисляется один раз,
+    // а Calamares заполняет шаги уже после создания полосы.
+    readonly property int total: steps.count
 
     Row {
         anchors.left: parent.left
@@ -56,6 +58,7 @@ Rectangle {
             spacing: 5
 
             Repeater {
+                id: steps
                 model: ViewManager
 
                 delegate: Rectangle {

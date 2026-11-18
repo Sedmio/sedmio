@@ -1,0 +1,243 @@
+diff -ruN a/src/libcalamaresui/viewpages/ExecutionViewStep.cpp b/src/libcalamaresui/viewpages/ExecutionViewStep.cpp
+--- a/src/libcalamaresui/viewpages/ExecutionViewStep.cpp
++++ b/src/libcalamaresui/viewpages/ExecutionViewStep.cpp
+@@ -89,6 +89,9 @@
+ 
+     layout->addWidget( m_tab_widget );
+     Calamares::unmarginLayout( layout );
++    // Sedmio: поля как у QML-страниц. Отступы раскладки ViewManager
++    // перезаписывает (widgetMargins, ~9 px), поэтому поля — у самого виджета.
++    m_widget->setContentsMargins( 69, 0, 63, 0 );
+     layout->addLayout( bottomLayout );
+ 
+     bottomLayout->addSpacing( Calamares::defaultFontHeight() / 2 );
+@@ -103,6 +106,10 @@
+             QSize( 32, 32 ) ),
+         "Toggle log" );
+     auto toggleLogButton = dynamic_cast< QToolButton* >( toolBar->widgetForAction( toggleLogAction ) );
++    // Sedmio: подпись по-русски, без значка — кнопка как остальные
++    toggleLogAction->setText( QStringLiteral( "Журнал" ) );
++    toolBar->setToolButtonStyle( Qt::ToolButtonTextOnly );
++    toggleLogButton->setObjectName( QStringLiteral( "exec-log-button" ) );
+     connect( toggleLogButton, &QToolButton::clicked, this, &ExecutionViewStep::toggleLog );
+ 
+     barLayout->addWidget( m_progressBar );
+diff -ruN a/src/libcalamaresui/widgets/PrettyRadioButton.cpp b/src/libcalamaresui/widgets/PrettyRadioButton.cpp
+--- a/src/libcalamaresui/widgets/PrettyRadioButton.cpp
++++ b/src/libcalamaresui/widgets/PrettyRadioButton.cpp
+@@ -49,7 +49,10 @@
+ void
+ PrettyRadioButton::setText( const QString& text )
+ {
+-    m_label->setText( text );
++    // Sedmio: красный из палитры вместо чистого red
++    QString styled( text );
++    styled.replace( QStringLiteral( "color=\"red\"" ), QStringLiteral( "color=\"#B5462E\"" ) );
++    m_label->setText( styled );
+ }
+ 
+ 
+diff -ruN a/src/modules/partition/PartitionViewStep.cpp b/src/modules/partition/PartitionViewStep.cpp
+--- a/src/modules/partition/PartitionViewStep.cpp
++++ b/src/modules/partition/PartitionViewStep.cpp
+@@ -50,7 +50,7 @@
+     , m_choicePage( nullptr )
+     , m_manualPartitionPage( nullptr )
+ {
+-    m_widget->setContentsMargins( 0, 0, 0, 0 );
++    m_widget->setContentsMargins( 70, 0, 64, 0 );  // Sedmio: поля как у QML-страниц
+ 
+     m_waitingWidget = new WaitingWidget( QString() );
+     m_widget->addWidget( m_waitingWidget );
+diff -ruN a/src/modules/partition/core/ColorUtils.cpp b/src/modules/partition/core/ColorUtils.cpp
+--- a/src/modules/partition/core/ColorUtils.cpp
++++ b/src/modules/partition/core/ColorUtils.cpp
+@@ -31,22 +31,23 @@
+ static const int NUM_PARTITION_COLORS = 5;
+ static const int NUM_NEW_PARTITION_COLORS = 4;
+ //Let's try to use the Breeze palette
++// Sedmio: приглушённые природные цвета (components/Theme.qml)
+ static const QColor PARTITION_COLORS[ NUM_PARTITION_COLORS ] = {
+-    "#2980b9",  //Dark Plasma Blue
+-    "#27ae60",  //Dark Icon Green
+-    "#c9ce3b",  //Dirty Yellow
+-    "#3daee9",  //Plasma Blue
+-    "#9b59b6",  //Purple
++    "#5E7F8C",  // сизый
++    "#8FA876",  // оливковый
++    "#C9A86A",  // песок
++    "#7C93A6",  // серо-голубой
++    "#A07E9C",  // приглушённый лиловый
+ };
+ static const QColor NEW_PARTITION_COLORS[ NUM_NEW_PARTITION_COLORS ] = {
+-    "#c0392b",  //Dark Icon Red
+-    "#f39c1f",  //Dark Icon Yellow
+-    "#f1b7bc",  //Light Salmon
+-    "#fed999",  //Light Orange
++    "#C8643B",  // терракота: первый новый раздел (загрузочный)
++    "#6E9C74",  // лист: система
++    "#E8B04A",  // цветок
++    "#A8C59F",  // светлый лист
+ };
+-static QColor FREE_SPACE_COLOR = "#777777";
+-static QColor EXTENDED_COLOR = "#aaaaaa";
+-static QColor UNKNOWN_DISKLABEL_COLOR = "#4d4151";
++static QColor FREE_SPACE_COLOR = "#C9D1C3";
++static QColor EXTENDED_COLOR = "#A9B5A2";
++static QColor UNKNOWN_DISKLABEL_COLOR = "#B7C2B0";
+ 
+ static QMap< QString, QColor > s_partitionColorsCache;
+ 
+diff -ruN a/src/modules/partition/gui/ChoicePage.cpp b/src/modules/partition/gui/ChoicePage.cpp
+--- a/src/modules/partition/gui/ChoicePage.cpp
++++ b/src/modules/partition/gui/ChoicePage.cpp
+@@ -96,9 +96,11 @@
+     m_mainLayout->setDirection( QBoxLayout::TopToBottom );
+     m_drivesLayout->setDirection( QBoxLayout::LeftToRight );
+ 
++    // Sedmio: «EFI»/«BIOS» и тип таблицы разделов человеку ничего не
++    // говорят — виджеты остаются (их обновляет код), но скрыты.
+     BootInfoWidget* bootInfoWidget = new BootInfoWidget( this );
+     m_drivesLayout->insertWidget( 0, bootInfoWidget );
+-    m_drivesLayout->insertSpacing( 1, Calamares::defaultFontHeight() / 2 );
++    bootInfoWidget->hide();
+ 
+     m_drivesCombo = new QComboBox( this );
+     m_mainLayout->setStretchFactor( m_drivesLayout, 0 );
+@@ -109,11 +111,45 @@
+ 
+     m_deviceInfoWidget = new DeviceInfoWidget;
+     m_drivesLayout->addWidget( m_deviceInfoWidget );
++    m_deviceInfoWidget->hide();
+     m_drivesLayout->addStretch();
+ 
+     m_messageLabel->setWordWrap( true );
+     m_messageLabel->hide();
+ 
++    // Sedmio: заголовок, как у QML-страниц (components/PageHeader.qml).
++    // Интерфейс только русский, поэтому тексты прямо здесь. Размеры и
++    // цвета — в stylesheet.qss (#sedmioEyebrow, #sedmioTitle, #sedmioSubtitle);
++    // межбуквенное расстояние QSS не умеет, его задаём шрифтом.
++    {
++        auto* eyebrow = new QLabel( QStringLiteral( "Диск" ), this );
++        eyebrow->setObjectName( QStringLiteral( "sedmioEyebrow" ) );
++        QFont eyebrowFont = eyebrow->font();
++        eyebrowFont.setLetterSpacing( QFont::AbsoluteSpacing, 1.2 );
++        eyebrowFont.setCapitalization( QFont::AllUppercase );
++        eyebrow->setFont( eyebrowFont );
++
++        auto* title = new QLabel( QStringLiteral( "Куда установить Sedmio?" ), this );
++        title->setObjectName( QStringLiteral( "sedmioTitle" ) );
++        QFont titleFont = title->font();
++        titleFont.setLetterSpacing( QFont::AbsoluteSpacing, -1.2 );
++        title->setFont( titleFont );
++
++        auto* subtitle = new QLabel( QStringLiteral( "Выберите диск и способ установки. Полосы внизу показывают, "
++                                                     "какой диск сейчас и каким он станет." ),
++                                     this );
++        subtitle->setObjectName( QStringLiteral( "sedmioSubtitle" ) );
++        subtitle->setWordWrap( true );
++
++        auto* header = new QVBoxLayout;
++        header->setSpacing( 10 );
++        header->setContentsMargins( 0, 0, 0, 14 );
++        header->addWidget( eyebrow );
++        header->addWidget( title );
++        header->addWidget( subtitle );
++        m_mainLayout->insertLayout( 0, header );
++    }
++
+     Calamares::unmarginLayout( m_itemsLayout );
+ 
+     // Drive selector + preview
+@@ -136,7 +172,7 @@
+ ChoicePage::retranslate()
+ {
+     retranslateUi( this );
+-    m_drivesLabel->setText( tr( "Select storage de&vice:", "@label" ) );
++    m_drivesLabel->setText( QStringLiteral( "&Диск:" ) );  // Sedmio: короче, чем «Выбрать устройство хранения»
+     m_previewBeforeLabel->setText( tr( "Current:", "@label" ) );
+     m_previewAfterLabel->setText( tr( "After:", "@label" ) );
+ 
+diff -ruN a/src/modules/partition/gui/PartitionBarsView.cpp b/src/modules/partition/gui/PartitionBarsView.cpp
+--- a/src/modules/partition/gui/PartitionBarsView.cpp
++++ b/src/modules/partition/gui/PartitionBarsView.cpp
+@@ -24,7 +24,7 @@
+ 
+ static const int VIEW_HEIGHT = qMax( Calamares::defaultFontHeight() + 8,  // wins out with big fonts
+                                      int( Calamares::defaultFontHeight() * 0.6 ) + 22 );  // wins out with small fonts
+-static constexpr int CORNER_RADIUS = 3;
++static constexpr int CORNER_RADIUS = 6;
+ static const int EXTENDED_PARTITION_MARGIN = qMax( 4, VIEW_HEIGHT / 6 );
+ 
+ // The SELECTION_MARGIN is applied within a hardcoded 2px padding anyway, so
+@@ -127,7 +127,7 @@
+         painter->setBrush( color );
+     }
+ 
+-    QColor borderColor = color.darker();
++    QColor borderColor = color.darker( 112 );
+ 
+     painter->setPen( borderColor );
+ 
+@@ -141,9 +141,9 @@
+ 
+     QLinearGradient gradient( 0, 0, 0, height / 2 );
+ 
+-    qreal c = isFreeSpace ? 0 : 1;
+-    gradient.setColorAt( 0, QColor::fromRgbF( c, c, c, 0.3 ) );
+-    gradient.setColorAt( 1, QColor::fromRgbF( c, c, c, 0 ) );
++    // Sedmio: плоские полосы, без блика
++    gradient.setColorAt( 0, Qt::transparent );
++    gradient.setColorAt( 1, Qt::transparent );
+ 
+     painter->setPen( Qt::NoPen );
+ 
+diff -ruN a/src/modules/partition/gui/PartitionLabelsView.cpp b/src/modules/partition/gui/PartitionLabelsView.cpp
+--- a/src/modules/partition/gui/PartitionLabelsView.cpp
++++ b/src/modules/partition/gui/PartitionLabelsView.cpp
+@@ -33,7 +33,7 @@
+ static const int LAYOUT_MARGIN = 4;
+ static const int LABEL_PARTITION_SQUARE_MARGIN = qMax( Calamares::defaultFontHeight() - 2, 18 );
+ static const int LABELS_MARGIN = LABEL_PARTITION_SQUARE_MARGIN;
+-static const int CORNER_RADIUS = 2;
++static const int CORNER_RADIUS = 4;
+ 
+ static QStringList
+ buildUnknownDisklabelTexts( Device* dev )
+@@ -106,7 +106,7 @@
+ {
+     painter->fillRect( rect.adjusted( 1, 1, -1, -1 ), brush );
+     painter->setRenderHint( QPainter::Antialiasing, true );
+-    painter->setPen( QPalette().shadow().color() );
++    painter->setPen( brush.color().darker( 112 ) );
+     painter->translate( .5, .5 );
+     painter->drawRoundedRect( rect.adjusted( 0, 0, -1, -1 ), CORNER_RADIUS, CORNER_RADIUS );
+     painter->translate( -.5, -.5 );
+@@ -373,7 +373,7 @@
+                                 const QPoint& pos,
+                                 bool selected )
+ {
+-    painter->setPen( Qt::black );
++    painter->setPen( QColor( "#1B251F" ) );
+     int vertOffset = 0;
+     int width = 0;
+     for ( const QString& textLine : text )
+@@ -382,7 +382,7 @@
+         painter->drawText(
+             pos.x() + LABEL_PARTITION_SQUARE_MARGIN, pos.y() + vertOffset + textSize.height() / 2, textLine );
+         vertOffset += textSize.height();
+-        painter->setPen( Qt::gray );
++        painter->setPen( QColor( "#7E8A81" ) );
+         width = qMax( width, textSize.width() );
+     }
+ 
+@@ -395,7 +395,7 @@
+         drawSelectionSquare( painter, partitionSquareRect.adjusted( 2, 2, -2, -2 ), color );
+     }
+ 
+-    painter->setPen( Qt::black );
++    painter->setPen( QColor( "#1B251F" ) );
+ }
+ 
+ QModelIndex

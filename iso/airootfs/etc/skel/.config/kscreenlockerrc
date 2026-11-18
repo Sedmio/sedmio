@@ -1,0 +1,4 @@
+# Live-сессия: экран не блокируется (пароля у пользователя live нет).
+[Daemon]
+Autolock=false
+LockOnResume=false
