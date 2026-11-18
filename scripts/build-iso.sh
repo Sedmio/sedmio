@@ -55,7 +55,8 @@ sed -i "s/^airootfs_image_tool_options=.*/airootfs_image_tool_options=('-comp' '
 # Права на файлы live-системы из iso/airootfs
 sed -i '/^file_permissions=(/a \
   ["/etc/sudoers.d/sedmio-live"]="0:0:440"\
-  ["/usr/local/lib/sedmio-live/setup.sh"]="0:0:755"' "$PROFILE/profiledef.sh"
+  ["/usr/local/lib/sedmio-live/setup.sh"]="0:0:755"\
+  ["/usr/local/bin/chcon"]="0:0:755"' "$PROFILE/profiledef.sh"
 
 # Репозитории для сборки: как на машине сборки (CachyOS + multilib)
 # плюс локальный [sedmio] — первым: если у нас появится своя сборка
