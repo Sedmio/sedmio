@@ -19,7 +19,12 @@ Singleton {
     property int maximum: 100
     property string text: ""
 
+    // Это видно на открытой панели управления — индикатор поверх не нужен
+    // (kded присылает его на любое изменение громкости, и от ползунка тоже).
+    readonly property var shownInControl: ["volume", "microphone", "brightness", "powerProfile", "wifi", "bluetooth"]
+
     function show() {
+        if (ShellState.controlScreen !== "" && shownInControl.includes(kind)) return;
         screenName = ShellState.focusedScreen();
         shown = true;
         hideTimer.restart();

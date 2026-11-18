@@ -24,11 +24,23 @@ ShellRoot {
     IpcHandler {
         target: "launcher"
         function toggle(): void {
-            if (ShellState.launcherScreen !== "") ShellState.closeLauncher();
+            if (ShellState.launcherScreen !== "") ShellState.closeAll();
             else ShellState.openLauncher(ShellState.focusedScreen());
         }
         function open(): void { ShellState.openLauncher(ShellState.focusedScreen()); }
-        function close(): void { ShellState.closeLauncher(); }
+        function close(): void { ShellState.closeAll(); }
+    }
+
+    // Панель управления: клавиши Meta+A (usr/share/kglobalaccel/sedmio-control.desktop) —
+    //   quickshell ipc -p /usr/share/sedmio/shell call control toggle
+    IpcHandler {
+        target: "control"
+        function toggle(): void {
+            if (ShellState.controlScreen !== "") ShellState.closeAll();
+            else ShellState.openControl(ShellState.focusedScreen());
+        }
+        function open(): void { ShellState.openControl(ShellState.focusedScreen()); }
+        function close(): void { ShellState.closeAll(); }
     }
 
     // Всплывающие индикаторы: служба org.kde.osdService вместо plasmashell.

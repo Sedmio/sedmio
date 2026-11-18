@@ -33,13 +33,14 @@ index f3912a9..bb2485e 100644
 +endif()
 diff --git a/src/services/kde/CMakeLists.txt b/src/services/kde/CMakeLists.txt
 new file mode 100644
-index 0000000..522cdf3
+index 0000000..184bd77
 --- /dev/null
 +++ b/src/services/kde/CMakeLists.txt
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,20 @@
 +qt_add_library(quickshell-service-kde STATIC
 +	osd.cpp
 +	keyboard.cpp
++	brightness.cpp
 +)
 +
 +qt_add_qml_module(quickshell-service-kde
@@ -56,6 +57,288 @@ index 0000000..522cdf3
 +target_link_libraries(quickshell PRIVATE quickshell-service-kdeplugin)
 +
 +qs_module_pch(quickshell-service-kde SET dbus)
+diff --git a/src/services/kde/brightness.cpp b/src/services/kde/brightness.cpp
+new file mode 100644
+index 0000000..0410226
+--- /dev/null
++++ b/src/services/kde/brightness.cpp
+@@ -0,0 +1,218 @@
++#include "brightness.hpp"
++
++#include <memory>
++
++#include <qdbusconnection.h>
++#include <qdbusextratypes.h>
++#include <qdbusmessage.h>
++#include <qdbuspendingcall.h>
++#include <qdbuspendingreply.h>
++#include <qdbusservicewatcher.h>
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qminmax.h>
++#include <qobject.h>
++#include <qstring.h>
++#include <qvariant.h>
++
++#include "../../core/logcat.hpp"
++
++namespace qs::service::kde {
++
++namespace {
++QS_LOGGING_CATEGORY(logBrightness, "quickshell.service.kde.brightness", QtWarningMsg);
++
++constexpr auto SERVICE = "org.kde.ScreenBrightness";
++constexpr auto PATH = "/org/kde/ScreenBrightness";
++constexpr auto INTERFACE = "org.kde.ScreenBrightness";
++constexpr auto DISPLAY_INTERFACE = "org.kde.ScreenBrightness.Display";
++constexpr auto PROPERTIES = "org.freedesktop.DBus.Properties";
++
++// SetBrightness flag: change silently, the slider itself shows the value.
++constexpr uint SUPPRESS_INDICATOR = 0x1;
++
++QString displayPath(const QString& name) { return QString(PATH) + '/' + name; }
++} // namespace
++
++ScreenBrightness::ScreenBrightness(QObject* parent): QObject(parent) {
++	auto bus = QDBusConnection::sessionBus();
++
++	// clang-format off
++	bus.connect(SERVICE, PATH, INTERFACE, "BrightnessChanged", this, SLOT(onBrightnessChanged(QString, int, QString, QString)));
++	bus.connect(SERVICE, PATH, INTERFACE, "BrightnessRangeChanged", this, SLOT(onBrightnessRangeChanged(QString, int, int)));
++	bus.connect(SERVICE, PATH, INTERFACE, "DisplayAdded", this, SLOT(onDisplaysChanged()));
++	bus.connect(SERVICE, PATH, INTERFACE, "DisplayRemoved", this, SLOT(onDisplaysChanged()));
++	// clang-format on
++
++	// powerdevil may start after the shell or restart.
++	auto* watcher = new QDBusServiceWatcher(
++	    SERVICE,
++	    bus,
++	    QDBusServiceWatcher::WatchForRegistration | QDBusServiceWatcher::WatchForUnregistration,
++	    this
++	);
++
++	QObject::connect(
++	    watcher,
++	    &QDBusServiceWatcher::serviceRegistered,
++	    this,
++	    &ScreenBrightness::onDisplaysChanged
++	);
++
++	QObject::connect(
++	    watcher,
++	    &QDBusServiceWatcher::serviceUnregistered,
++	    this,
++	    &ScreenBrightness::onServiceUnregistered
++	);
++
++	this->fetch();
++}
++
++QVariantList ScreenBrightness::displays() const {
++	QVariantList list;
++	list.reserve(this->mDisplays.size());
++	for (const auto& display: this->mDisplays) list.push_back(display);
++	return list;
++}
++
++int ScreenBrightness::indexOf(const QString& name) const {
++	for (int i = 0; i < this->mDisplays.size(); i++) {
++		if (this->mDisplays.at(i).value("name").toString() == name) return i;
++	}
++	return -1;
++}
++
++void ScreenBrightness::setBrightness(const QString& name, int value) {
++	const auto index = this->indexOf(name);
++	if (index < 0) return;
++
++	auto& display = this->mDisplays[index];
++	value = qBound(0, value, display.value("maxBrightness").toInt());
++	if (display.value("brightness").toInt() != value) {
++		display.insert("brightness", value);
++		emit this->displaysChanged();
++	}
++
++	auto message =
++	    QDBusMessage::createMethodCall(SERVICE, displayPath(name), DISPLAY_INTERFACE, "SetBrightness");
++	message.setArguments({value, SUPPRESS_INDICATOR});
++	QDBusConnection::sessionBus().asyncCall(message);
++}
++
++void ScreenBrightness::onBrightnessChanged(
++    const QString& name,
++    int value,
++    const QString& /*client*/,
++    const QString& /*context*/
++) {
++	const auto index = this->indexOf(name);
++	if (index < 0) return;
++	auto& display = this->mDisplays[index];
++	if (display.value("brightness").toInt() == value) return;
++	display.insert("brightness", value);
++	emit this->displaysChanged();
++}
++
++void ScreenBrightness::onBrightnessRangeChanged(const QString& name, int maxBrightness, int value) {
++	const auto index = this->indexOf(name);
++	if (index < 0) return;
++	auto& display = this->mDisplays[index];
++	display.insert("maxBrightness", maxBrightness);
++	display.insert("brightness", value);
++	emit this->displaysChanged();
++}
++
++void ScreenBrightness::onDisplaysChanged() { this->fetch(); }
++
++void ScreenBrightness::onServiceUnregistered() {
++	this->mGeneration++;
++	if (this->mDisplays.isEmpty()) return;
++	this->mDisplays.clear();
++	emit this->displaysChanged();
++}
++
++void ScreenBrightness::fetch() {
++	const auto generation = ++this->mGeneration;
++	auto bus = QDBusConnection::sessionBus();
++
++	auto message = QDBusMessage::createMethodCall(SERVICE, PATH, PROPERTIES, "Get");
++	message.setArguments({INTERFACE, "DisplaysDBusNames"});
++	auto* watcher = new QDBusPendingCallWatcher(bus.asyncCall(message), this);
++
++	QObject::connect(
++	    watcher,
++	    &QDBusPendingCallWatcher::finished,
++	    this,
++	    [this, generation](QDBusPendingCallWatcher* call) {
++		    call->deleteLater();
++		    if (generation != this->mGeneration) return;
++
++		    const QDBusPendingReply<QDBusVariant> reply = *call;
++		    if (reply.isError()) {
++			    // No powerdevil (or no controllable display) — nothing to show.
++			    qCDebug(logBrightness) << "Could not list displays:" << reply.error().message();
++			    if (!this->mDisplays.isEmpty()) {
++				    this->mDisplays.clear();
++				    emit this->displaysChanged();
++			    }
++			    return;
++		    }
++
++		    const auto names = reply.value().variant().toStringList();
++
++		    // Read every display, then publish them all at once in order.
++		    auto pending = std::make_shared<QList<QVariantMap>>(names.size());
++		    auto remaining = std::make_shared<qsizetype>(names.size());
++
++		    if (names.isEmpty()) {
++			    this->mDisplays.clear();
++			    emit this->displaysChanged();
++			    return;
++		    }
++
++		    for (qsizetype i = 0; i < names.size(); i++) {
++			    const auto& name = names.at(i);
++			    auto get = QDBusMessage::createMethodCall(SERVICE, displayPath(name), PROPERTIES, "GetAll");
++			    get.setArguments({DISPLAY_INTERFACE});
++			    auto* displayWatcher =
++			        new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(get), this);
++
++			    QObject::connect(
++			        displayWatcher,
++			        &QDBusPendingCallWatcher::finished,
++			        this,
++			        [this, generation, pending, remaining, i, name](QDBusPendingCallWatcher* call) {
++				        call->deleteLater();
++				        if (generation != this->mGeneration) return;
++
++				        const QDBusPendingReply<QVariantMap> reply = *call;
++				        if (reply.isError()) {
++					        qCWarning(logBrightness)
++					            << "Could not read display" << name << reply.error().message();
++				        } else {
++					        const auto props = reply.value();
++					        (*pending)[i] = QVariantMap {
++					            {"name", name},
++					            {"label", props.value("Label").toString()},
++					            {"internal", props.value("IsInternal").toBool()},
++					            {"brightness", props.value("Brightness").toInt()},
++					            {"maxBrightness", props.value("MaxBrightness").toInt()},
++					        };
++				        }
++
++				        if (--(*remaining) > 0) return;
++
++				        this->mDisplays.clear();
++				        for (const auto& display: *pending) {
++					        if (!display.isEmpty()) this->mDisplays.push_back(display);
++				        }
++				        emit this->displaysChanged();
++			        }
++			    );
++		    }
++	    }
++	);
++}
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/brightness.hpp b/src/services/kde/brightness.hpp
+new file mode 100644
+index 0000000..7e99244
+--- /dev/null
++++ b/src/services/kde/brightness.hpp
+@@ -0,0 +1,52 @@
++#pragma once
++
++#include <qobject.h>
++#include <qqmlintegration.h>
++#include <qstring.h>
++#include <qstringlist.h>
++#include <qtmetamacros.h>
++#include <qvariant.h>
++
++namespace qs::service::kde {
++
++///! Screen brightness through Plasma's power management.
++/// Reads and sets the brightness of every display powerdevil can control
++/// (org.kde.ScreenBrightness): laptop panels through the backlight and
++/// external monitors through DDC/CI. This is what Plasma's brightness
++/// slider uses, so keys, the slider and the shell stay in sync.
++class ScreenBrightness: public QObject {
++	Q_OBJECT;
++	QML_ELEMENT;
++	QML_SINGLETON;
++	/// Controllable displays, in powerdevil's order. Each is an object with
++	/// `name` (D-Bus name, `display0`), `label` (human readable),
++	/// `internal` (built-in panel), `brightness` and `maxBrightness`.
++	Q_PROPERTY(QVariantList displays READ displays NOTIFY displaysChanged);
++
++public:
++	explicit ScreenBrightness(QObject* parent = nullptr);
++
++	[[nodiscard]] QVariantList displays() const;
++
++	/// Set a display's brightness (0 to its `maxBrightness`) without
++	/// showing the on-screen indicator.
++	Q_INVOKABLE void setBrightness(const QString& name, int value);
++
++signals:
++	void displaysChanged();
++
++private slots:
++	void onBrightnessChanged(const QString& name, int value, const QString& client, const QString& context);
++	void onBrightnessRangeChanged(const QString& name, int maxBrightness, int value);
++	void onDisplaysChanged();
++	void onServiceUnregistered();
++
++private:
++	void fetch();
++	int indexOf(const QString& name) const;
++
++	QList<QVariantMap> mDisplays;
++	quint64 mGeneration = 0;
++};
++
++} // namespace qs::service::kde
 diff --git a/src/services/kde/keyboard.cpp b/src/services/kde/keyboard.cpp
 new file mode 100644
 index 0000000..060f233
@@ -270,17 +553,18 @@ index 0000000..d3f0dba
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/module.md b/src/services/kde/module.md
 new file mode 100644
-index 0000000..ccd33ee
+index 0000000..c5b3712
 --- /dev/null
 +++ b/src/services/kde/module.md
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,8 @@
 +name = "Quickshell.Services.Kde"
 +description = "Plasma session services for a shell that replaces plasmashell"
-+headers = [ "osd.hpp", "keyboard.hpp" ]
++headers = [ "osd.hpp", "keyboard.hpp", "brightness.hpp" ]
 +-----
 +Pieces of plasmashell other parts of a Plasma session rely on:
 +the on-screen display service (volume and brightness keys, keyboard
-+layout switches) and KWin's keyboard layouts.
++layout switches), KWin's keyboard layouts and powerdevil's screen
++brightness.
 diff --git a/src/services/kde/osd.cpp b/src/services/kde/osd.cpp
 new file mode 100644
 index 0000000..25fb3bc

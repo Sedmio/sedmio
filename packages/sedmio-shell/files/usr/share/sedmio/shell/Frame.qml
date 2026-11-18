@@ -6,11 +6,12 @@ import Quickshell.Wayland
 
 // Рамка вокруг экрана со скруглёнными внутренними углами, слева в неё
 // встроена панель. Из рамки выезжают: запуск программ (сверху слева),
-// уведомления (сверху справа), индикатор громкости и яркости (снизу).
+// уведомления (сверху справа), панель управления (снизу слева, у часов),
+// индикатор громкости и яркости (снизу посередине).
 // Одно окно на весь экран поверх программ: рисовать можно где угодно,
 // а мышь окно ловит только на рамке и уведомлениях (mask), остальное
-// уходит окнам под ним. Пока открыт запуск — весь экран: клик мимо него
-// закрывает.
+// уходит окнам под ним. Пока открыт запуск или панель управления — весь
+// экран: клик мимо закрывает.
 PanelWindow {
     id: frame
     anchors { left: true; right: true; top: true; bottom: true }
@@ -18,9 +19,10 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "sedmio-frame"
-    WlrLayershell.keyboardFocus: launcherOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: launcherOpen || controlOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property bool launcherOpen: ShellState.launcherScreen === screen.name
+    readonly property bool controlOpen: ShellState.controlScreen === screen.name
 
     // 0 — запуск спрятан в рамке, 1 — выехал полностью.
     property real launcherProgress: launcherOpen ? 1 : 0
@@ -39,6 +41,21 @@ PanelWindow {
         NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic }
     }
 
+    // Панель управления: так же выезжает и меняет высоту по странице.
+    property real controlProgress: controlOpen ? 1 : 0
+    Behavior on controlProgress {
+        NumberAnimation {
+            duration: frame.controlOpen ? Theme.animNormal : Theme.animFast + 40
+            easing.type: frame.controlOpen ? Easing.OutCubic : Easing.InCubic
+        }
+    }
+    readonly property real controlWidth: 400
+    property real controlHeight: control.wantedHeight + 28
+    Behavior on controlHeight {
+        enabled: frame.controlProgress === 1
+        NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic }
+    }
+
     // Уведомления и индикатор — на экране, с которым сейчас работают.
     readonly property bool isFocusedScreen: ShellState.focusedScreen() === screen.name
     readonly property bool notificationsShown: isFocusedScreen && NotificationState.popups.length > 0
@@ -54,7 +71,7 @@ PanelWindow {
 
     mask: Region {
         item: content
-        Region { item: frame.launcherOpen ? null : hole; intersection: Intersection.Subtract }
+        Region { item: frame.launcherOpen || frame.controlOpen ? null : hole; intersection: Intersection.Subtract }
         Region { item: frame.notificationsShown ? notifications : null; intersection: Intersection.Combine }
     }
 
@@ -71,11 +88,29 @@ PanelWindow {
             height: frame.height - 2 * Theme.border
         }
 
-        // Клик мимо открытого запуска закрывает его.
+        // Клик мимо открытого запуска или панели закрывает их.
         MouseArea {
             anchors.fill: hole
-            enabled: frame.launcherOpen
-            onClicked: ShellState.closeLauncher()
+            enabled: frame.launcherOpen || frame.controlOpen
+            onClicked: ShellState.closeAll()
+        }
+
+        // Выехавшие панели ловят клики целиком, вместе с полями и
+        // промежутками: иначе клик мимо кнопки внутри панели провалится
+        // в «клик мимо панели» выше и закроет её.
+        MouseArea {
+            visible: frame.launcherOpen
+            x: Theme.barWidth
+            y: Theme.border
+            width: launcherShape.drawerWidth
+            height: frame.launcherHeight
+        }
+        MouseArea {
+            visible: frame.controlOpen
+            x: Theme.barWidth
+            y: frame.height - Theme.border - frame.controlHeight
+            width: frame.controlWidth
+            height: frame.controlHeight
         }
 
         // Всё, что сделано из «бумаги» рамки, — в одном слое: так у рамки
@@ -130,6 +165,19 @@ PanelWindow {
                 }
             }
 
+            // Панель управления: та же форма, отражённая к низу экрана.
+            Item {
+                anchors.fill: parent
+                transform: Scale { yScale: -1; origin.y: frame.height / 2 }
+
+                DrawerShape {
+                    x0: Theme.barWidth
+                    y0: Theme.border
+                    drawerWidth: frame.controlWidth
+                    drawerHeight: frame.controlHeight * frame.controlProgress
+                }
+            }
+
             EdgeDrawerShape {
                 centerX: hole.x + hole.width / 2
                 edgeY: frame.height - Theme.border
@@ -150,7 +198,22 @@ PanelWindow {
             opacity: Math.max(0, frame.launcherProgress * 2 - 1)
             visible: frame.launcherProgress > 0
             transform: Translate { y: (1 - frame.launcherProgress) * -24 }
-            onCloseRequested: restoreFocus => ShellState.closeLauncher(restoreFocus)
+            onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
+        }
+
+        ControlPanel {
+            id: control
+            open: frame.controlOpen
+            x: Theme.barWidth + 14
+            y: frame.height - Theme.border - frame.controlHeight + 14
+            width: frame.controlWidth - 28
+            height: frame.controlHeight - 28
+            maxHeight: hole.height - 60
+            clip: true
+            opacity: Math.max(0, frame.controlProgress * 2 - 1)
+            visible: frame.controlProgress > 0
+            transform: Translate { y: (1 - frame.controlProgress) * 24 }
+            onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
         }
 
         // Карточки уведомлений, новые сверху

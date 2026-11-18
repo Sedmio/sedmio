@@ -48,7 +48,7 @@ Item {
         width: 34
         horizontalAlignment: Text.AlignRight
         text: OsdState.percent
-        font.features: { "tnum": 1 }
+        font.features: ({ "tnum": 1 })
         size: 15
         weight: 600
     }

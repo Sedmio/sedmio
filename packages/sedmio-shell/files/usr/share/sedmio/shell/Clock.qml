@@ -1,9 +1,13 @@
 import QtQuick
 import Quickshell
 
-// Часы столбиком: часы над минутами. Дата — в подсказке.
+// Часы столбиком: часы над минутами. Дата — в подсказке,
+// клик — панель управления с календарём.
 BarButton {
     id: root
+    required property string screenName
+    active: ShellState.controlScreen === screenName
+    onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName); }
     implicitHeight: column.implicitHeight + 12
     hint: clock.date.toLocaleDateString(Qt.locale(), "dddd, d MMMM")
 

@@ -4,30 +4,67 @@ import Quickshell
 import Quickshell.Wayland
 
 // Общее состояние оболочки: что открыто и на каком экране.
+// Запуск программ и панель управления открываются по одному: открыв
+// одно, закрываем другое.
 Singleton {
+    id: root
+
     // Имя экрана, на котором открыт запуск программ; "" — закрыт.
     property string launcherScreen: ""
+    // То же для панели управления.
+    property string controlScreen: ""
 
-    // Окно, активное до открытия запуска. Пока запуск открыт, клавиатура
+    readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
+
+    // Окно, активное до открытия. Пока открыт запуск или панель, клавиатура
     // у оболочки; отпустив её, KWin сам фокус не возвращает — возвращаем.
-    property var windowBeforeLauncher: null
+    property var windowBefore: null
+
+    function rememberFocus() {
+        if (!anythingOpen) windowBefore = ToplevelManager.activeToplevel;
+    }
 
     function toggleLauncher(screenName) {
-        if (launcherScreen === screenName) closeLauncher();
+        if (launcherScreen === screenName) closeAll();
         else openLauncher(screenName);
     }
 
     function openLauncher(screenName) {
-        if (launcherScreen === "") windowBeforeLauncher = ToplevelManager.activeToplevel;
+        rememberFocus();
+        controlScreen = "";
         launcherScreen = screenName;
     }
 
-    // restoreFocus: false — когда запустили программу, фокус получит она.
-    function closeLauncher(restoreFocus) {
-        if (launcherScreen === "") return;
+    function toggleControl(screenName) {
+        if (controlScreen === screenName) closeAll();
+        else openControl(screenName);
+    }
+
+    function openControl(screenName) {
+        rememberFocus();
         launcherScreen = "";
-        if (restoreFocus !== false && windowBeforeLauncher) windowBeforeLauncher.activate();
-        windowBeforeLauncher = null;
+        controlScreen = screenName;
+    }
+
+    // restoreFocus: false — когда запустили программу, фокус получит она.
+    function closeAll(restoreFocus) {
+        if (!anythingOpen) return;
+        launcherScreen = "";
+        controlScreen = "";
+        if (restoreFocus !== false && windowBefore) windowBefore.activate();
+        windowBefore = null;
+    }
+
+    // Появилось новое окно (диалог пароля Wi‑Fi, окно программы), пока
+    // открыт запуск или панель: уступить ему клавиатуру, иначе в него не
+    // напечатать — пока панель открыта, клавиатура у оболочки.
+    Connections {
+        target: ToplevelManager.toplevels
+        function onObjectInsertedPost(object, index) {
+            if (!root.anythingOpen) return;
+            root.closeAll(false);
+            Qt.callLater(() => object.activate());
+        }
     }
 
     // Экран, с которым сейчас работают: тот, где активное окно.

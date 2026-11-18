@@ -57,16 +57,19 @@ Item {
 
         Battery {
             Layout.alignment: Qt.AlignHCenter
+            screenName: bar.screenName
             tooltip: bar.tooltip
         }
 
         Volume {
             Layout.alignment: Qt.AlignHCenter
+            screenName: bar.screenName
             tooltip: bar.tooltip
         }
 
         Clock {
             Layout.alignment: Qt.AlignHCenter
+            screenName: bar.screenName
             Layout.topMargin: 4
             tooltip: bar.tooltip
         }

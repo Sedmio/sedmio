@@ -6,6 +6,9 @@ import Quickshell.Widgets
 // Батарея ноутбука (UPower). На компьютере без батареи не видна.
 BarButton {
     id: root
+    required property string screenName
+    active: ShellState.controlScreen === screenName
+    onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName); }
     readonly property var device: UPower.displayDevice
     readonly property bool present: device !== null && device.isLaptopBattery && device.isPresent
     // UPower отдаёт долю от 0 до 1
