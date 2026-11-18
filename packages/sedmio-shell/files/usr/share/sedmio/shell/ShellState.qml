@@ -4,17 +4,18 @@ import Quickshell
 import Quickshell.Wayland
 
 // Общее состояние оболочки: что открыто и на каком экране.
-// Запуск программ и панель управления открываются по одному: открыв
-// одно, закрываем другое.
+// Запуск программ, панель управления и центр уведомлений открываются по
+// одному: открыв одно, закрываем другое.
 Singleton {
     id: root
 
     // Имя экрана, на котором открыт запуск программ; "" — закрыт.
     property string launcherScreen: ""
-    // То же для панели управления.
+    // То же для панели управления и центра уведомлений.
     property string controlScreen: ""
+    property string notificationsScreen: ""
 
-    readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
+    readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== "" || notificationsScreen !== ""
 
     // Окно, активное до открытия. Пока открыт запуск или панель, клавиатура
     // у оболочки; отпустив её, KWin сам фокус не возвращает — возвращаем.
@@ -32,6 +33,7 @@ Singleton {
     function openLauncher(screenName) {
         rememberFocus();
         controlScreen = "";
+        notificationsScreen = "";
         launcherScreen = screenName;
     }
 
@@ -43,7 +45,21 @@ Singleton {
     function openControl(screenName) {
         rememberFocus();
         launcherScreen = "";
+        notificationsScreen = "";
         controlScreen = screenName;
+    }
+
+    function toggleNotifications(screenName) {
+        if (notificationsScreen === screenName) closeAll();
+        else openNotifications(screenName);
+    }
+
+    function openNotifications(screenName) {
+        rememberFocus();
+        launcherScreen = "";
+        controlScreen = "";
+        notificationsScreen = screenName;
+        NotificationState.markRead();
     }
 
     // restoreFocus: false — когда запустили программу, фокус получит она.
@@ -51,6 +67,7 @@ Singleton {
         if (!anythingOpen) return;
         launcherScreen = "";
         controlScreen = "";
+        notificationsScreen = "";
         if (restoreFocus !== false && windowBefore) windowBefore.activate();
         windowBefore = null;
     }

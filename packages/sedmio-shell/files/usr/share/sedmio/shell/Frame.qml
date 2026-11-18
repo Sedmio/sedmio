@@ -10,8 +10,8 @@ import Quickshell.Wayland
 // индикатор громкости и яркости (снизу посередине).
 // Одно окно на весь экран поверх программ: рисовать можно где угодно,
 // а мышь окно ловит только на рамке и уведомлениях (mask), остальное
-// уходит окнам под ним. Пока открыт запуск или панель управления — весь
-// экран: клик мимо закрывает.
+// уходит окнам под ним. Пока открыт запуск, панель управления или центр
+// уведомлений — весь экран: клик мимо закрывает.
 PanelWindow {
     id: frame
     anchors { left: true; right: true; top: true; bottom: true }
@@ -19,10 +19,12 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "sedmio-frame"
-    WlrLayershell.keyboardFocus: launcherOpen || controlOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: anyOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     readonly property bool launcherOpen: ShellState.launcherScreen === screen.name
     readonly property bool controlOpen: ShellState.controlScreen === screen.name
+    readonly property bool historyOpen: ShellState.notificationsScreen === screen.name
+    readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen
 
     // 0 — запуск спрятан в рамке, 1 — выехал полностью.
     property real launcherProgress: launcherOpen ? 1 : 0
@@ -57,11 +59,17 @@ PanelWindow {
     }
 
     // Уведомления и индикатор — на экране, с которым сейчас работают.
+    // Пока открыт центр уведомлений (на любом экране), карточки не всплывают.
     readonly property bool isFocusedScreen: ShellState.focusedScreen() === screen.name
     readonly property bool notificationsShown: isFocusedScreen && NotificationState.popups.length > 0
+        && ShellState.notificationsScreen === ""
     readonly property bool osdShown: OsdState.shown && OsdState.screenName === screen.name
 
-    property real notificationsHeight: notificationsShown ? notifications.implicitHeight + 20 : 0
+    // Справа сверху один выдвижной ящик: в нём либо всплывающие карточки,
+    // либо центр уведомлений.
+    readonly property real notificationsWidth: 400
+    property real notificationsHeight: historyOpen ? history.wantedHeight + 28
+        : notificationsShown ? notifications.implicitHeight + 20 : 0
     Behavior on notificationsHeight { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
 
     property real osdProgress: osdShown ? 1 : 0
@@ -71,7 +79,7 @@ PanelWindow {
 
     mask: Region {
         item: content
-        Region { item: frame.launcherOpen || frame.controlOpen ? null : hole; intersection: Intersection.Subtract }
+        Region { item: frame.anyOpen ? null : hole; intersection: Intersection.Subtract }
         Region { item: frame.notificationsShown ? notifications : null; intersection: Intersection.Combine }
     }
 
@@ -91,7 +99,7 @@ PanelWindow {
         // Клик мимо открытого запуска или панели закрывает их.
         MouseArea {
             anchors.fill: hole
-            enabled: frame.launcherOpen || frame.controlOpen
+            enabled: frame.anyOpen
             onClicked: ShellState.closeAll()
         }
 
@@ -111,6 +119,13 @@ PanelWindow {
             y: frame.height - Theme.border - frame.controlHeight
             width: frame.controlWidth
             height: frame.controlHeight
+        }
+        MouseArea {
+            visible: frame.historyOpen
+            x: frame.width - Theme.border - frame.notificationsWidth
+            y: Theme.border
+            width: frame.notificationsWidth
+            height: frame.notificationsHeight
         }
 
         // Всё, что сделано из «бумаги» рамки, — в одном слое: так у рамки
@@ -160,7 +175,7 @@ PanelWindow {
                 DrawerShape {
                     x0: Theme.border
                     y0: Theme.border
-                    drawerWidth: notifications.width + 20
+                    drawerWidth: frame.notificationsWidth
                     drawerHeight: frame.notificationsHeight
                 }
             }
@@ -216,15 +231,30 @@ PanelWindow {
             onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
         }
 
+        NotificationCenter {
+            id: history
+            open: frame.historyOpen
+            x: frame.width - Theme.border - frame.notificationsWidth + 14
+            y: Theme.border + 14
+            width: frame.notificationsWidth - 28
+            height: frame.notificationsHeight - 28
+            maxHeight: hole.height - 60
+            clip: true
+            opacity: frame.historyOpen ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
+            onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
+        }
+
         // Карточки уведомлений, новые сверху
         Column {
             id: notifications
             x: frame.width - Theme.border - width - 10
             y: Theme.border + 10
-            width: 380
+            width: frame.notificationsWidth - 20
             spacing: 8
             opacity: frame.notificationsShown ? 1 : 0
-            visible: frame.notificationsHeight > 1
+            visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
 
             add: Transition {

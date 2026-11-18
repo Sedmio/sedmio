@@ -1,0 +1,9 @@
+# Глобальные клавиши центра уведомлений Sedmio (как Win+N в Windows 11).
+# Как устроено — в sedmio-launcher.desktop рядом.
+[Desktop Entry]
+Type=Application
+Name=Sedmio notifications
+Name[ru]=Уведомления Sedmio
+Icon=notifications
+Exec=quickshell ipc -p /usr/share/sedmio/shell call notifications toggle
+X-KDE-Shortcuts=Meta+N

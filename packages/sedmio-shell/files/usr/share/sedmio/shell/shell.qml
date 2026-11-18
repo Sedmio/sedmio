@@ -44,6 +44,18 @@ ShellRoot {
         function close(): void { ShellState.closeAll(); }
     }
 
+    // Центр уведомлений: Meta+N (usr/share/kglobalaccel/sedmio-notifications.desktop).
+    IpcHandler {
+        target: "notifications"
+        function toggle(): void {
+            if (ShellState.notificationsScreen !== "") ShellState.closeAll();
+            else ShellState.openNotifications(ShellState.focusedScreen());
+        }
+        function open(): void { ShellState.openNotifications(ShellState.focusedScreen()); }
+        function close(): void { ShellState.closeAll(); }
+        function clear(): void { NotificationState.clearAll(); }
+    }
+
     // Всплывающие индикаторы: служба org.kde.osdService вместо plasmashell.
     // Её вызывают kded (клавиши громкости, плееры), powerdevil (яркость),
     // KWin (раскладка).

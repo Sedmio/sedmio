@@ -5,7 +5,7 @@ import Quickshell.Io
 import Quickshell.Services.Notifications
 
 // Уведомления: сервер org.freedesktop.Notifications (раньше его держал
-// plasmashell), всплывающие карточки и режим «Не беспокоить».
+// plasmashell), всплывающие карточки, история и режим «Не беспокоить».
 Singleton {
     id: root
 
@@ -13,11 +13,31 @@ Singleton {
     property var popups: []
     readonly property int maxPopups: 4
 
-    // Все, что пришли и ещё не закрыты, — для истории.
-    readonly property var history: server.trackedNotifications
+    // История — все пришедшие и не закрытые, новые сверху. Мимолётные
+    // (transient: громкость, «скопировано») в историю не попадают.
+    readonly property var history: server.trackedNotifications.values
+        .filter(n => !n.transient)
+        .reverse()
 
-    // «Не беспокоить»: карточки не всплывают, кроме срочных.
-    // Хранится между сеансами.
+    // Когда пришло: id → Date (у самих уведомлений времени нет).
+    property var arrived: ({})
+
+    // Сколько пришло, пока центр уведомлений не открывали.
+    property int unread: 0
+    // Открыли центр — всё увидено: и всплывающие (срочные висят, пока их
+    // не закроют) больше не нужны.
+    function markRead() {
+        unread = 0;
+        popups = [];
+    }
+
+    // Закрыть все — как «Очистить всё» в центре уведомлений.
+    function clearAll() {
+        for (const n of history) n.dismiss();
+    }
+
+    // «Не беспокоить»: карточки не всплывают, кроме срочных; в историю
+    // всё равно попадают. Хранится между сеансами.
     property bool doNotDisturb: false
 
     readonly property string statePath:
@@ -54,6 +74,13 @@ Singleton {
 
         onNotification: notification => {
             notification.tracked = true;
+
+            const times = Object.assign({}, root.arrived);
+            times[notification.id] = new Date();
+            root.arrived = times;
+
+            if (!notification.transient && ShellState.notificationsScreen === "") root.unread++;
+
             if (!root.doNotDisturb || notification.urgency === NotificationUrgency.Critical)
                 root.add(notification);
         }
@@ -66,8 +93,25 @@ Singleton {
         notification.closed.connect(() => root.remove(notification));
     }
 
-    // Убрать карточку; само уведомление остаётся в истории, пока его не закроют.
+    // Убрать карточку с экрана; уведомление остаётся в истории, пока его
+    // не закроют. Мимолётное — закрыть совсем.
     function remove(notification) {
         popups = popups.filter(n => n !== notification);
     }
+
+    // «5 мин назад», «вчера, 14:32».
+    function ago(notification) {
+        const when = arrived[notification.id];
+        if (!when) return "";
+        const minutes = Math.floor((clock.date - when) / 60000);
+        if (minutes < 1) return "сейчас";
+        if (minutes < 60) return minutes + " мин назад";
+        const today = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate());
+        const time = Qt.formatTime(when, "hh:mm");
+        if (when >= today) return time;
+        if (when >= new Date(today - 86400000)) return "вчера, " + time;
+        return when.toLocaleDateString(Qt.locale(), "d MMMM") + ", " + time;
+    }
+
+    SystemClock { id: clock; precision: SystemClock.Minutes }
 }
