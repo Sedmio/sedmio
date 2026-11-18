@@ -1,0 +1,14 @@
+# Глобальные клавиши запуска программ Sedmio. kglobalaccel читает файлы из
+# этого каталога при старте сеанса и выполняет Exec по клавише.
+# Одиночный Meta в Plasma 6 — обычное сочетание kglobalaccel (у plasmashell
+# было «Meta, Alt+F1» для его меню), раздел ModifierOnlyShortcuts в kwinrc
+# KWin 6.8 уже не читает.
+# NoDisplay ставить нельзя: такие файлы kglobalaccel отключает. В меню
+# программ файл и так не попадает — он не в /usr/share/applications.
+[Desktop Entry]
+Type=Application
+Name=Sedmio launcher
+Name[ru]=Запуск программ Sedmio
+Icon=sedmio
+Exec=quickshell ipc -p /usr/share/sedmio/shell call launcher toggle
+X-KDE-Shortcuts=Meta,Alt+F1

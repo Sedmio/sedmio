@@ -5,9 +5,10 @@ import Quickshell
 import Quickshell.Wayland
 
 // Рамка вокруг экрана со скруглёнными внутренними углами, слева в неё
-// встроена панель. Одно окно на весь экран поверх программ: рисовать
-// можно где угодно (подсказки, позже — выезжающие панели), а мышь окно
-// ловит только на рамке (mask), остальное уходит окнам под ним.
+// встроена панель, из рамки выезжает запуск программ. Одно окно на весь
+// экран поверх программ: рисовать можно где угодно, а мышь окно ловит
+// только на рамке (mask), остальное уходит окнам под ним. Пока открыт
+// запуск — весь экран: клик мимо него закрывает.
 PanelWindow {
     id: frame
     anchors { left: true; right: true; top: true; bottom: true }
@@ -15,10 +16,30 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "sedmio-frame"
+    WlrLayershell.keyboardFocus: launcherOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    readonly property bool launcherOpen: ShellState.launcherScreen === screen.name
+
+    // 0 — запуск спрятан в рамке, 1 — выехал полностью.
+    property real launcherProgress: launcherOpen ? 1 : 0
+    Behavior on launcherProgress {
+        NumberAnimation {
+            duration: frame.launcherOpen ? Theme.animNormal : Theme.animFast + 40
+            easing.type: frame.launcherOpen ? Easing.OutCubic : Easing.InCubic
+        }
+    }
+
+    // Высота запуска по содержимому; меняется плавно.
+    readonly property real launcherMaxHeight: Math.min(hole.height - 120, 620)
+    property real launcherHeight: launcher.wantedHeight + 26
+    Behavior on launcherHeight {
+        enabled: frame.launcherProgress === 1
+        NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic }
+    }
 
     mask: Region {
         item: content
-        Region { item: hole; intersection: Intersection.Subtract }
+        Region { item: frame.launcherOpen ? null : hole; intersection: Intersection.Subtract }
     }
 
     Item {
@@ -34,11 +55,18 @@ PanelWindow {
             height: frame.height - 2 * Theme.border
         }
 
-        Shape {
-            anchors.fill: parent
-            preferredRendererType: Shape.CurveRenderer
+        // Клик мимо открытого запуска закрывает его.
+        MouseArea {
+            anchors.fill: hole
+            enabled: frame.launcherOpen
+            onClicked: ShellState.closeLauncher()
+        }
 
-            // Лёгкая тень с рамки на окна: рамка лежит поверх.
+        // Всё, что сделано из «бумаги» рамки, — в одном слое: так у рамки
+        // и выезжающих панелей общая тень и нет шва на стыке.
+        Item {
+            id: paper
+            anchors.fill: parent
             layer.enabled: true
             layer.effect: MultiEffect {
                 shadowEnabled: true
@@ -48,17 +76,45 @@ PanelWindow {
                 blurMax: 24
             }
 
-            ShapePath {
-                fillColor: Theme.paper
-                strokeColor: "transparent"
-                fillRule: ShapePath.OddEvenFill
+            Shape {
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
 
-                PathRectangle { x: 0; y: 0; width: frame.width; height: frame.height }
-                PathRectangle {
-                    x: hole.x; y: hole.y; width: hole.width; height: hole.height
-                    radius: Theme.frameRadius
+                ShapePath {
+                    fillColor: Theme.paper
+                    strokeColor: "transparent"
+                    fillRule: ShapePath.OddEvenFill
+
+                    PathRectangle { x: 0; y: 0; width: frame.width; height: frame.height }
+                    PathRectangle {
+                        x: hole.x; y: hole.y; width: hole.width; height: hole.height
+                        radius: Theme.frameRadius
+                    }
                 }
             }
+
+            DrawerShape {
+                id: launcherShape
+                x0: Theme.barWidth
+                y0: Theme.border
+                drawerWidth: 480
+                drawerHeight: frame.launcherHeight * frame.launcherProgress
+            }
+        }
+
+        Launcher {
+            id: launcher
+            open: frame.launcherOpen
+            x: launcherShape.x0 + 14
+            y: launcherShape.y0 + 12
+            width: launcherShape.drawerWidth - 28
+            height: frame.launcherHeight - 26
+            maxHeight: frame.launcherMaxHeight - 26
+            clip: true
+            opacity: Math.max(0, frame.launcherProgress * 2 - 1)
+            visible: frame.launcherProgress > 0
+            transform: Translate { y: (1 - frame.launcherProgress) * -24 }
+            onCloseRequested: restoreFocus => ShellState.closeLauncher(restoreFocus)
         }
 
         Bar {
@@ -67,6 +123,7 @@ PanelWindow {
             width: Theme.barWidth
             height: frame.height
             window: frame
+            screenName: frame.screen.name
             tooltip: tooltip
         }
 

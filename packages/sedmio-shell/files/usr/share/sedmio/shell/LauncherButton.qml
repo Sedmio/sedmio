@@ -2,11 +2,19 @@ import QtQuick
 import Quickshell
 import Quickshell.Widgets
 
-// Знак Sedmio вверху панели. Пока открывает KRunner; свой запуск
-// программ с поиском — следующий шаг.
+// Знак Sedmio вверху панели: открывает и закрывает запуск программ.
+// То же делают Meta и Alt+F1 (usr/share/kglobalaccel/sedmio-launcher.desktop).
 BarButton {
-    hint: "Программы"
-    onClicked: Quickshell.execDetached(["krunner"])
+    id: root
+    required property string screenName
+    readonly property bool open: ShellState.launcherScreen === screenName
+
+    active: open
+    hint: open ? "" : "Программы"
+    onClicked: {
+        if (tooltip) tooltip.hide();
+        ShellState.toggleLauncher(screenName);
+    }
 
     IconImage {
         anchors.centerIn: parent

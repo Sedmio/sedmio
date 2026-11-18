@@ -6,6 +6,7 @@ import QtQuick.Layouts
 Item {
     id: bar
     required property var window     // окно рамки: меню трея, сворачивание
+    required property string screenName
     required property Item tooltip
 
     ColumnLayout {
@@ -15,6 +16,7 @@ Item {
 
         LauncherButton {
             Layout.alignment: Qt.AlignHCenter
+            screenName: bar.screenName
             tooltip: bar.tooltip
         }
 
