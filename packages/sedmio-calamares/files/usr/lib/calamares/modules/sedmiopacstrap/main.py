@@ -88,7 +88,9 @@ class Progress:
                 self.set("Настраиваем обновления Sedmio…", P_FINISH)
             return
 
-        m = re.match(r"Packages \((\d+)\)", line)
+        # «Packages (582) a b c…», а с VerbosePkgLists (он включён в
+        # pacman.conf live-образа) — заголовок таблицы «Package (582) …»
+        m = re.match(r"Packages? \((\d+)\)", line)
         if m:
             self.total = int(m.group(1))
             return

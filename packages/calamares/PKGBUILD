@@ -10,7 +10,7 @@
 
 pkgname=calamares
 pkgver=3.4.3
-pkgrel=4
+pkgrel=5
 pkgdesc="Distribution-independent installer framework (сборка Sedmio, с QML-модулями)"
 arch=('x86_64')
 url="https://codeberg.org/Calamares/calamares"
@@ -45,10 +45,12 @@ makedepends=(
 conflicts=('cachyos-calamares')
 source=("$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz"
         'failure-dialog.patch'
-        'sedmio-look.patch')
+        'sedmio-look.patch'
+        'python-status.patch')
 sha256sums=('144cbbf6bdcebfb21685950db4f0777218519df095f62f4aa392f28348110d18'
             '9bb98028f222a4304efc8bf3c738d970183639c7a76ad4d19947ae21231c1b0f'
-            '2aa7b4e09a46584da729d15c81111b11642712364950d6541a016d4a780f4b37')
+            '2aa7b4e09a46584da729d15c81111b11642712364950d6541a016d4a780f4b37'
+            'c151c78bbda2c32701ae9b849df8015dc5439eaab6088f9bc3d57d7a9bf4a9f4')
 
 prepare() {
   # Без отдельного окна ошибки: её показывает страница finishedq,
@@ -62,6 +64,13 @@ prepare() {
   # «Журнал» вместо непереведённой «Toggle log».
   # Стили подписей — в branding/sedmio/stylesheet.qss.
   patch -d "$pkgname-$pkgver" -p1 < sedmio-look.patch
+
+  # Подпись под полосой хода от Python-модулей: в сборке с pybind11
+  # Calamares не вызывал pretty_status_message() (там стоит TODO), и
+  # вместо «Скачиваем программы: 512 из 2183 МБ» весь шаг висело его
+  # название. Теперь — как в сборке с Boost::Python: при каждом
+  # setprogress() подпись берётся из pretty_status_message().
+  patch -d "$pkgname-$pkgver" -p1 < python-status.patch
 
   # Свои значки вариантов разметки и дисков (icons/, 48×48, палитра
   # Sedmio) вместо значков KDE; вшиваются в libcalamaresui.

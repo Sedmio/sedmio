@@ -121,9 +121,12 @@ rm -rf "$PROFILE/efiboot"
 cp "$ROOT/iso/grub/grub.cfg" "$PROFILE/grub/grub.cfg"
 cp -r "$ROOT/iso/grub/themes" "$PROFILE/grub/"
 
-# Шрифты темы из Onest. Он переменный: -i выбирает начертание
-# (0 — Regular, 327680 — Medium, 393216 — SemiBold), -n даёт имя,
-# по которому их зовёт theme.txt («Sedmio Text Regular 22» и т. д.).
+# Шрифты темы из Onest — для пунктов меню и обратного отсчёта: их GRUB
+# рисует только шрифтом. Заголовок, подпись и подсказка — картинки
+# (tools/boot-theme/render.py): шрифты GRUB без сглаживания, буквы
+# в них выходят лесенкой. Onest переменный: -i выбирает начертание
+# (0 — Regular, 327680 — Medium), -n даёт имя, по которому их зовёт
+# theme.txt («Sedmio Text Regular 22» и т. д.).
 # Только латиница, кириллица, тире, кавычки и стрелки — файлы маленькие.
 FONT="$ROOT/packages/sedmio-calamares/files/etc/calamares/branding/sedmio/fonts/Onest-Variable.ttf"
 RANGE=0x20-0x7E,0xA0-0xFF,0x400-0x45F,0x2010-0x2027,0x2190-0x2193,0x2116-0x2116
@@ -135,8 +138,6 @@ mkfont "Sedmio Text"   0      16 text-16
 mkfont "Sedmio Text"   0      18 text-18
 mkfont "Sedmio Text"   0      22 text-22
 mkfont "Sedmio Medium" 327680 22 medium-22
-mkfont "Sedmio Bold"   393216 16 bold-16
-mkfont "Sedmio Bold"   393216 56 bold-56
 # Правка параметров (E) и командная строка — терминал, ему нужен
 # моноширинный шрифт: с Onest буквы стояли вразрядку. Символы рамок
 # (0x2500…) нужны дважды: рамка вокруг текста сплошная, а не из «- - |»,

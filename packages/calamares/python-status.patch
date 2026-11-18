@@ -1,0 +1,33 @@
+--- a/src/libcalamares/pybind11/PythonJob.cpp	2026-11-18 22:56:33.800134350 +0700
++++ b/src/libcalamares/pybind11/PythonJob.cpp	2026-11-18 22:56:33.806679950 +0700
+@@ -404,7 +404,29 @@
+ void
+ Job::emitProgress( double progressValue )
+ {
+-    // TODO: update prettyname
++    // Called from libcalamares.job.setprogress(), so the interpreter is
++    // alive and this thread holds the GIL. Update the status from the
++    // module's pretty_status_message(), as the Boost::Python jobs do.
++    try
++    {
++        const py::dict scope = py::module_::import( "__main__" ).attr( "__dict__" );
++        if ( scope.contains( "pretty_status_message" ) )
++        {
++            const QString s = asQString( scope[ "pretty_status_message" ]() ).trimmed();
++            if ( !s.isEmpty() )
++            {
++                m_d->description = s;
++            }
++        }
++    }
++    catch ( const py::error_already_set& e )
++    {
++        cWarning() << "Error in pretty_status_message():" << e.what();
++    }
++    catch ( const py::cast_error& e )
++    {
++        cWarning() << "pretty_status_message() did not return a string:" << e.what();
++    }
+     emit progress( progressValue );
+ }
+ 

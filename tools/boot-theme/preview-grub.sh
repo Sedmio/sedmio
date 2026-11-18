@@ -37,8 +37,6 @@ mkfont "Sedmio Text"   0      16 text-16
 mkfont "Sedmio Text"   0      18 text-18
 mkfont "Sedmio Text"   0      22 text-22
 mkfont "Sedmio Medium" 327680 22 medium-22
-mkfont "Sedmio Bold"   393216 16 bold-16
-mkfont "Sedmio Bold"   393216 56 bold-56
 grub-mkfont -n "Sedmio Mono" -s 16 -r "$RANGE,0x2500-0x257F" \
   -o "$G/themes/sedmio/mono-16.pf2" "$MONO" 2>/dev/null
 cp /usr/share/grub/unicode.pf2 "$G/fonts/"

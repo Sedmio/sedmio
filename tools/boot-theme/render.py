@@ -1,11 +1,18 @@
 """Картинки для темы меню загрузки (GRUB) образа Sedmio.
 
-    tools/installer-preview/.venv/Scripts/python tools/boot-theme/render.py
+    python -m venv tools/installer-preview/.venv
+    tools/installer-preview/.venv/bin/pip install -r tools/installer-preview/requirements.txt
+    tools/installer-preview/.venv/bin/python tools/boot-theme/render.py
 
 Рисует из тех же QML-компонентов, что и установщик (растение, знак,
 палитра), и кладёт PNG в iso/grub/themes/sedmio/ (меню UEFI) и заставку
 iso/syslinux/splash.png (меню BIOS). Шрифты (*.pf2) делает
 scripts/build-iso.sh через grub-mkfont: для этого нужен Linux.
+
+Неизменный текст меню (заголовок, подпись, подсказка по клавишам) — тоже
+картинки: шрифты GRUB (*.pf2) одноцветные, без сглаживания, и буквы
+выходят лесенкой. Шрифтом остаются только пункты меню и обратный отсчёт —
+их GRUB умеет рисовать только так.
 
 GRUB растягивает фон под экран, а картинки (растение, шапку) ставит как
 есть, по процентам от размера экрана. Поэтому фон — только бумага и
@@ -98,6 +105,7 @@ Window {
             font.family: Theme.fontFamily
             font.pixelSize: 38
             font.weight: Font.DemiBold
+            font.variableAxes: { "wght": 600 }   // Onest переменный, см. TEXTS
             color: Theme.ink
         }
     }
@@ -112,6 +120,41 @@ Window {
     width: 640; height: 480; visible: true
     color: Theme.ink
     Sedum { x: 640 - 230; y: 480 - 235; size: 240; stage: 6; still: true }
+}
+"""
+
+
+# Текст для GRUB: (файл, текст, размер в px, насыщенность, цвет, высота).
+# Размеры, цвета и высоты — как были у label в theme.txt. Насыщенность —
+# как у шрифтов, которые для них делал build-iso.sh: «Bold» там — SemiBold
+# (600). Onest переменный, и на Linux Qt не выбирает начертание по
+# font.weight — насыщенность задаётся осью wght напрямую.
+TEXTS = [
+    ("eyebrow.png", "ЗАГРУЗКА С ФЛЕШКИ", 16, 600, "Theme.terracotta", 24),
+    ("title.png", "Sedmio Linux", 56, 600, "Theme.ink", 76),
+    ("subtitle.png", "Выберите, как запустить систему", 22, 400, "Theme.inkSoft", 32),
+    ("hint.png", "↑ ↓  выбрать        Enter  запустить        E  изменить параметры загрузки",
+     16, 400, "Theme.inkMuted", 24),
+]
+
+# Строка текста от верхнего края картинки: базовая линия на высоте
+# ascent шрифта — там же, где её ставит label в GRUB, поэтому картинка
+# встаёт на место label с теми же left/top.
+TEXT = HEAD + """
+Window {
+    width: Math.ceil(label.implicitWidth) + 2; height: %(height)d; visible: true
+    color: "transparent"
+    Text {
+        id: label
+        x: 0; y: 0
+        text: "%(text)s"
+        textFormat: Text.PlainText
+        font.family: Theme.fontFamily
+        font.pixelSize: %(size)d
+        font.weight: %(weight)d
+        font.variableAxes: { "wght": %(weight)d }
+        color: %(color)s
+    }
 }
 """
 
@@ -181,6 +224,8 @@ def main():
     render(BACKGROUND, 600, "background.png")
     render(HEADER, 800, "header.png")
     render(PLANT, 4000, "plant.png")
+    for name, text, size, weight, color, height in TEXTS:
+        render(TEXT % dict(text=text, size=size, weight=weight, color=color, height=height), 800, name)
     box("select", GREEN, height=56, radius=28, pill=True)                          # выбранный пункт
     render(SPLASH, 4000, "splash.png", ROOT / "iso/syslinux")
     box("terminal_box", "#F8FAF5", height=64, radius=16, border="#D5DCCF")  # правка параметров (E)

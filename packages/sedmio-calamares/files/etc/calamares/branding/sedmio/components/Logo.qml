@@ -54,7 +54,11 @@ Canvas {
         let index = 0
         for (const ring of rings) {
             for (let i = 0; i < ring[0]; ++i, ++index) {
-                const turn = index * 137.508 * Math.PI / 180
+                // Листья по золотому углу; весь знак повёрнут на два шага
+                // (index − 2): у пяти внешних листьев есть ось симметрии через
+                // третий лист и середину плоской стороны напротив — так лист
+                // смотрит вверх, а плоская сторона ложится вниз, как основание.
+                const turn = (index - 2) * 137.508 * Math.PI / 180
                 const len = ring[1] * s, wid = ring[2] * s
                 // свет в осях листа
                 const ux = lx * Math.cos(turn) + ly * Math.sin(turn)

@@ -2,8 +2,11 @@
 # меню слева, выбранный пункт — зелёная «пилюля». Палитра и шрифт — как
 # в установщике (components/Theme.qml).
 #
-# Картинки: tools/boot-theme/render.py. Шрифты *.pf2 делает
-# scripts/build-iso.sh из Onest: имена «Sedmio Text/Medium/Bold Regular N».
+# Картинки: tools/boot-theme/render.py. Неизменный текст (заголовок,
+# подпись, подсказка) — тоже картинки: шрифты GRUB без сглаживания, и
+# буквы в них выходят лесенкой. Шрифтом — только пункты меню и обратный
+# отсчёт; их *.pf2 делает scripts/build-iso.sh из Onest: имена
+# «Sedmio Text/Medium Regular N».
 # Положение — в процентах от экрана со сдвигом в пикселях («50%-200»).
 # Раскладка рассчитана на экраны от 1600×900 и выше (grub.cfg просит
 # 1920×1080, затем 1600×900); на 720 строках шапка наезжает на заголовок.
@@ -40,33 +43,23 @@ terminal-border: "0"
     file = "plant.png"
 }
 
-# Заголовок
-+ label {
+# Заголовок: «ЗАГРУЗКА С ФЛЕШКИ», «Sedmio Linux» и подпись. Картинки
+# стоят там, где были label с тем же текстом: базовая линия текста в них
+# на той же высоте от верхнего края, что у label.
++ image {
     left = 12%
     top = 50%-262
-    width = 800
-    height = 24
-    text = "ЗАГРУЗКА С ФЛЕШКИ"
-    font = "Sedmio Bold Regular 16"
-    color = "#C8643B"
+    file = "eyebrow.png"
 }
-+ label {
++ image {
     left = 12%
     top = 50%-230
-    width = 900
-    height = 76
-    text = "Sedmio Linux"
-    font = "Sedmio Bold Regular 56"
-    color = "#1B251F"
+    file = "title.png"
 }
-+ label {
++ image {
     left = 12%
     top = 50%-140
-    width = 900
-    height = 32
-    text = "Выберите, как запустить систему"
-    font = "Sedmio Text Regular 22"
-    color = "#4B5A50"
+    file = "subtitle.png"
 }
 
 # Меню: пункты с отступом 22 px, у выбранного — зелёная «пилюля»
@@ -107,12 +100,8 @@ terminal-border: "0"
 }
 
 # Подсказка по клавишам
-+ label {
++ image {
     left = 7%
     top = 100%-64
-    width = 1000
-    height = 24
-    text = "↑ ↓  выбрать        Enter  запустить        E  изменить параметры загрузки"
-    font = "Sedmio Text Regular 16"
-    color = "#7E8A81"
+    file = "hint.png"
 }
