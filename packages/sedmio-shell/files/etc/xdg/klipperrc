@@ -1,0 +1,4 @@
+# Буфер обмена Sedmio (движок — klipper, историю показывает оболочка, Meta+V):
+# картинки тоже сохраняются в истории, как в Windows.
+[General]
+IgnoreImages=false

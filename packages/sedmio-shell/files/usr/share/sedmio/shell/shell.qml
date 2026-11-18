@@ -56,6 +56,17 @@ ShellRoot {
         function clear(): void { NotificationState.clearAll(); }
     }
 
+    // История буфера обмена: Meta+V (usr/share/kglobalaccel/sedmio-clipboard.desktop).
+    IpcHandler {
+        target: "clipboard"
+        function toggle(): void {
+            if (ShellState.clipboardScreen !== "") ShellState.closeAll();
+            else ShellState.openClipboard(ShellState.focusedScreen());
+        }
+        function open(): void { ShellState.openClipboard(ShellState.focusedScreen()); }
+        function close(): void { ShellState.closeAll(); }
+    }
+
     // Всплывающие индикаторы: служба org.kde.osdService вместо plasmashell.
     // Её вызывают kded (клавиши громкости, плееры), powerdevil (яркость),
     // KWin (раскладка).
@@ -92,9 +103,12 @@ ShellRoot {
         command: ["sh", Qt.resolvedUrl("scripts/unload-kded-modules.sh").toString().replace("file://", "")]
     }
 
-    // Сервер уведомлений живёт в NotificationState; обращение запускает его
-    // сразу, не дожидаясь первой карточки.
-    Component.onCompleted: NotificationState.popups
+    // Сервер уведомлений живёт в NotificationState, движок буфера обмена —
+    // в ClipboardState; обращение запускает их сразу, а не при первом показе.
+    Component.onCompleted: {
+        NotificationState.popups;
+        ClipboardState.count;
+    }
 
     // Заставка входа (KSplash) ждёт сигнала «рабочий стол готов»,
     // который раньше посылал plasmashell. Без него она висит до таймаута.

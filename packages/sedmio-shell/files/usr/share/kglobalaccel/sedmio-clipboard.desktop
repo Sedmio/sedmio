@@ -1,0 +1,9 @@
+# Глобальные клавиши истории буфера обмена Sedmio (как Win+V в Windows 11).
+# Как устроено — в sedmio-launcher.desktop рядом.
+[Desktop Entry]
+Type=Application
+Name=Sedmio clipboard
+Name[ru]=Буфер обмена Sedmio
+Icon=edit-paste
+Exec=quickshell ipc -p /usr/share/sedmio/shell call clipboard toggle
+X-KDE-Shortcuts=Meta+V

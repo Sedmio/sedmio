@@ -4,8 +4,8 @@ import Quickshell
 import Quickshell.Wayland
 
 // Общее состояние оболочки: что открыто и на каком экране.
-// Запуск программ, панель управления и центр уведомлений открываются по
-// одному: открыв одно, закрываем другое.
+// Запуск программ, панель управления, центр уведомлений и буфер обмена
+// открываются по одному: открыв одно, закрываем другое.
 Singleton {
     id: root
 
@@ -14,8 +14,10 @@ Singleton {
     // То же для панели управления и центра уведомлений.
     property string controlScreen: ""
     property string notificationsScreen: ""
+    property string clipboardScreen: ""
 
-    readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== "" || notificationsScreen !== ""
+    readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
+        || notificationsScreen !== "" || clipboardScreen !== ""
 
     // Окно, активное до открытия. Пока открыт запуск или панель, клавиатура
     // у оболочки; отпустив её, KWin сам фокус не возвращает — возвращаем.
@@ -34,6 +36,7 @@ Singleton {
         rememberFocus();
         controlScreen = "";
         notificationsScreen = "";
+        clipboardScreen = "";
         launcherScreen = screenName;
     }
 
@@ -46,6 +49,7 @@ Singleton {
         rememberFocus();
         launcherScreen = "";
         notificationsScreen = "";
+        clipboardScreen = "";
         controlScreen = screenName;
     }
 
@@ -58,8 +62,22 @@ Singleton {
         rememberFocus();
         launcherScreen = "";
         controlScreen = "";
+        clipboardScreen = "";
         notificationsScreen = screenName;
         NotificationState.markRead();
+    }
+
+    function toggleClipboard(screenName) {
+        if (clipboardScreen === screenName) closeAll();
+        else openClipboard(screenName);
+    }
+
+    function openClipboard(screenName) {
+        rememberFocus();
+        launcherScreen = "";
+        controlScreen = "";
+        notificationsScreen = "";
+        clipboardScreen = screenName;
     }
 
     // restoreFocus: false — когда запустили программу, фокус получит она.
@@ -68,6 +86,7 @@ Singleton {
         launcherScreen = "";
         controlScreen = "";
         notificationsScreen = "";
+        clipboardScreen = "";
         if (restoreFocus !== false && windowBefore) windowBefore.activate();
         windowBefore = null;
     }

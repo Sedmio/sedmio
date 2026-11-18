@@ -12,7 +12,7 @@
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -21,7 +21,8 @@ depends=(
   'quickshell'          # наша сборка: список окон под KWin
   'sedmio-branding'     # шрифт Onest
   'sedmio-settings'     # знак Sedmio в hicolor
-  'plasma-workspace'    # сеанс, в котором работает оболочка
+  'plasma-workspace'    # сеанс, в котором работает оболочка; движок буфера обмена (klipper)
+  'kitemmodels'         # поиск по истории буфера обмена
   'breeze-icons'
   'qt6-svg'
 )

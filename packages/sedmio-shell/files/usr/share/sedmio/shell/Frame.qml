@@ -6,8 +6,9 @@ import Quickshell.Wayland
 
 // Рамка вокруг экрана со скруглёнными внутренними углами, слева в неё
 // встроена панель. Из рамки выезжают: запуск программ (сверху слева),
-// уведомления (сверху справа), панель управления (снизу слева, у часов),
-// индикатор громкости и яркости (снизу посередине).
+// буфер обмена (сверху посередине), уведомления (сверху справа), панель
+// управления (снизу слева, у часов), индикатор громкости и яркости (снизу
+// посередине).
 // Одно окно на весь экран поверх программ: рисовать можно где угодно,
 // а мышь окно ловит только на рамке и уведомлениях (mask), остальное
 // уходит окнам под ним. Пока открыт запуск, панель управления или центр
@@ -24,7 +25,8 @@ PanelWindow {
     readonly property bool launcherOpen: ShellState.launcherScreen === screen.name
     readonly property bool controlOpen: ShellState.controlScreen === screen.name
     readonly property bool historyOpen: ShellState.notificationsScreen === screen.name
-    readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen
+    readonly property bool clipboardOpen: ShellState.clipboardScreen === screen.name
+    readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen || clipboardOpen
 
     // 0 — запуск спрятан в рамке, 1 — выехал полностью.
     property real launcherProgress: launcherOpen ? 1 : 0
@@ -55,6 +57,21 @@ PanelWindow {
     property real controlHeight: control.wantedHeight + 28
     Behavior on controlHeight {
         enabled: frame.controlProgress === 1
+        NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic }
+    }
+
+    // Буфер обмена: выезжает из верхней полосы посередине.
+    property real clipboardProgress: clipboardOpen ? 1 : 0
+    Behavior on clipboardProgress {
+        NumberAnimation {
+            duration: frame.clipboardOpen ? Theme.animNormal : Theme.animFast + 40
+            easing.type: frame.clipboardOpen ? Easing.OutCubic : Easing.InCubic
+        }
+    }
+    readonly property real clipboardWidth: Math.min(580, hole.width - 120)
+    property real clipboardHeight: clipboard.wantedHeight + 28
+    Behavior on clipboardHeight {
+        enabled: frame.clipboardProgress === 1
         NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic }
     }
 
@@ -119,6 +136,13 @@ PanelWindow {
             y: frame.height - Theme.border - frame.controlHeight
             width: frame.controlWidth
             height: frame.controlHeight
+        }
+        MouseArea {
+            visible: frame.clipboardOpen
+            x: hole.x + hole.width / 2 - frame.clipboardWidth / 2
+            y: Theme.border
+            width: frame.clipboardWidth
+            height: frame.clipboardHeight
         }
         MouseArea {
             visible: frame.historyOpen
@@ -193,6 +217,19 @@ PanelWindow {
                 }
             }
 
+            // Буфер обмена: та же форма, что у индикатора, отражённая к верху.
+            Item {
+                anchors.fill: parent
+                transform: Scale { yScale: -1; origin.y: frame.height / 2 }
+
+                EdgeDrawerShape {
+                    centerX: hole.x + hole.width / 2
+                    edgeY: frame.height - Theme.border
+                    drawerWidth: frame.clipboardWidth
+                    drawerHeight: frame.clipboardHeight * frame.clipboardProgress
+                }
+            }
+
             EdgeDrawerShape {
                 centerX: hole.x + hole.width / 2
                 edgeY: frame.height - Theme.border
@@ -228,6 +265,21 @@ PanelWindow {
             opacity: Math.max(0, frame.controlProgress * 2 - 1)
             visible: frame.controlProgress > 0
             transform: Translate { y: (1 - frame.controlProgress) * 24 }
+            onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
+        }
+
+        ClipboardPanel {
+            id: clipboard
+            open: frame.clipboardOpen
+            x: hole.x + hole.width / 2 - frame.clipboardWidth / 2 + 14
+            y: Theme.border + 14
+            width: frame.clipboardWidth - 28
+            height: frame.clipboardHeight - 28
+            maxHeight: Math.min(640, hole.height - 120)
+            clip: true
+            opacity: Math.max(0, frame.clipboardProgress * 2 - 1)
+            visible: frame.clipboardProgress > 0
+            transform: Translate { y: (1 - frame.clipboardProgress) * -24 }
             onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
         }
 
