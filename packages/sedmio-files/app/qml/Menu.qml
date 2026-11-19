@@ -21,10 +21,27 @@ Popup {
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent | Popup.CloseOnPressOutside
 
     function openAt(item, px, py) {
+        openedFrom = null;
         const p = item.mapToItem(Overlay.overlay, px, py);
         x = p.x;
         y = p.y;
         open();
+    }
+
+    // Меню кнопки-списка: второе нажатие на ту же кнопку закрывает. Нажатие
+    // мимо меню закрывает его ещё на нажатии, а щелчок потом открыл бы
+    // снова — открытое этой кнопкой только что не открываем.
+    property Item openedFrom: null
+    property real closedAt: 0
+    onClosed: closedAt = Date.now()
+
+    function toggleAt(item, px, py) {
+        if (item === openedFrom && Date.now() - closedAt < 400) {
+            openedFrom = null;
+            return;
+        }
+        openAt(item, px, py);
+        openedFrom = item;
     }
 
     enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animFast } }

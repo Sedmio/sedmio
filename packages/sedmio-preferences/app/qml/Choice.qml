@@ -39,7 +39,10 @@ Rectangle {
         id: area
         anchors.fill: parent
         hoverEnabled: true
-        onClicked: if (root.enabled_) popup.open()
+        // Повторное нажатие — закрыть: нажатие по самому списку его не
+        // закрывает (CloseOnPressOutsideParent), иначе закрылся бы по
+        // нажатию и тут же открылся снова по щелчку.
+        onClicked: if (root.enabled_) popup.opened ? popup.close() : popup.open()
     }
 
     Popup {
@@ -51,7 +54,7 @@ Rectangle {
         // У нижнего края окна — сдвинуть вверх, а не обрезать.
         margins: 8
         focus: true
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
 
         onOpened: list.positionViewAtIndex(Math.max(0, root.currentIndex), ListView.Contain)
 

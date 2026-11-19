@@ -65,7 +65,7 @@ Window {
             checked: win.level(who) === l,
             action: () => props.setAccess(who, l)
         }));
-        menu.openAt(button, 0, button.height + 4);
+        menu.toggleAt(button, 0, button.height + 4);
     }
 
     function chooseApplication(button) {
@@ -76,7 +76,7 @@ Window {
             checked: app.id === props.application.id,
             action: () => props.setApplication(app.id)
         }));
-        if (menu.items.length > 0) menu.openAt(button, 0, button.height + 4);
+        if (menu.items.length > 0) menu.toggleAt(button, 0, button.height + 4);
     }
 
     ColumnLayout {
