@@ -46,6 +46,15 @@ Item {
         onTriggered: if (--root.remaining <= 0) root.defaultAction()
     }
 
+    Loader {
+        id: taskManager
+        source: "TaskManagerLauncher.qml"
+    }
+    Connections {
+        target: taskManager.item
+        function onStarted() { root.cancelRequested(); }
+    }
+
     focus: true
     Keys.onEscapePressed: cancelRequested()
     Keys.onReturnPressed: if (!showAll) defaultAction()
@@ -132,6 +141,12 @@ Item {
                 label: "Выйти"
                 primary: !root.showAll
                 onClicked: root.logoutRequested()
+            }
+            Option {
+                visible: root.showAll && taskManager.status === Loader.Ready && taskManager.item.available
+                icon: "office-chart-line"
+                label: "Диспетчер задач"
+                onClicked: taskManager.item.run()
             }
         }
 
