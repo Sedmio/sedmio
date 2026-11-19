@@ -62,10 +62,10 @@ index 0000000..42dcdac
 +qs_module_pch(quickshell-service-kde SET dbus)
 diff --git a/src/services/kde/bluetoothagent.cpp b/src/services/kde/bluetoothagent.cpp
 new file mode 100644
-index 0000000..19bf584
+index 0000000..1696786
 --- /dev/null
 +++ b/src/services/kde/bluetoothagent.cpp
-@@ -0,0 +1,380 @@
+@@ -0,0 +1,390 @@
 +#include "bluetoothagent.hpp"
 +
 +#include <qdbusconnection.h>
@@ -83,6 +83,7 @@ index 0000000..19bf584
 +#include <qvariant.h>
 +
 +#include "../../core/logcat.hpp"
++#include "serviceturn.hpp"
 +
 +namespace qs::service::kde {
 +
@@ -196,6 +197,7 @@ index 0000000..19bf584
 +	QObject::connect(watcher, &QDBusServiceWatcher::serviceRegistered, this, &BluetoothAgent::registerAgent);
 +	QObject::connect(watcher, &QDBusServiceWatcher::serviceUnregistered, this, &BluetoothAgent::onBluezGone);
 +
++	this->mTurn = ServiceTurn<BluetoothAgent>::claim(this);
 +	this->registerAgent();
 +}
 +
@@ -209,9 +211,17 @@ index 0000000..19bf584
 +
 +	if (this->mRegistered) bus().call(agentManagerCall("UnregisterAgent"), QDBus::NoBlock);
 +	if (this->mExported) bus().unregisterObject(AGENT_PATH);
++
++	if (auto* next = ServiceTurn<BluetoothAgent>::release(this)) {
++		next->mTurn = true;
++		next->registerAgent();
++	}
 +}
 +
 +void BluetoothAgent::registerAgent() {
++	// Another object (the previous config generation) is the agent for now.
++	if (!this->mTurn) return;
++
 +	if (!this->mExported) {
 +		this->mExported =
 +		    bus().registerVirtualObject(AGENT_PATH, this->object, QDBusConnection::SingleNode);
@@ -448,10 +458,10 @@ index 0000000..19bf584
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/bluetoothagent.hpp b/src/services/kde/bluetoothagent.hpp
 new file mode 100644
-index 0000000..7ac67ca
+index 0000000..478bc41
 --- /dev/null
 +++ b/src/services/kde/bluetoothagent.hpp
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,130 @@
 +#pragma once
 +
 +#include <qdbusconnection.h>
@@ -575,6 +585,8 @@ index 0000000..7ac67ca
 +	QList<Request> mQueue;
 +	bool mRegistered = false;
 +	bool mExported = false;
++	// This object's turn to be the agent (see ServiceTurn).
++	bool mTurn = false;
 +	int mInFlight = 0; // requests waiting for device properties
 +	bool mCancelInFlight = false;
 +};
@@ -864,10 +876,10 @@ index 0000000..7e99244
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/jobs.cpp b/src/services/kde/jobs.cpp
 new file mode 100644
-index 0000000..8d0d437
+index 0000000..d1083c0
 --- /dev/null
 +++ b/src/services/kde/jobs.cpp
-@@ -0,0 +1,578 @@
+@@ -0,0 +1,586 @@
 +#include "jobs.hpp"
 +
 +#include <utility>
@@ -889,6 +901,7 @@ index 0000000..8d0d437
 +#include <qvariant.h>
 +
 +#include "../../core/logcat.hpp"
++#include "serviceturn.hpp"
 +
 +namespace qs::service::kde {
 +
@@ -1279,6 +1292,10 @@ index 0000000..8d0d437
 +// ---- Server
 +
 +JobViewServer::JobViewServer(QObject* parent): QObject(parent) {
++	if (ServiceTurn<JobViewServer>::claim(this)) this->start();
++}
++
++void JobViewServer::start() {
 +	auto bus = qs::service::kde::bus();
 +
 +	if (!bus.isConnected()) {
@@ -1320,16 +1337,19 @@ index 0000000..8d0d437
 +
 +	qCInfo(logJobs) << "Job view server registered.";
 +	this->mActive = true;
++	emit this->activeChanged();
 +}
 +
 +JobViewServer::~JobViewServer() {
-+	if (!this->mActive) return;
++	if (this->mActive) {
++		auto bus = qs::service::kde::bus();
++		bus.unregisterService(KUISERVER_SERVICE);
++		bus.unregisterService(JOBVIEWSERVER_SERVICE);
++		bus.unregisterObject(SERVER_PATH);
++		bus.unregisterObject(VIEWS_PATH, QDBusConnection::UnregisterTree);
++	}
 +
-+	auto bus = qs::service::kde::bus();
-+	bus.unregisterService(KUISERVER_SERVICE);
-+	bus.unregisterService(JOBVIEWSERVER_SERVICE);
-+	bus.unregisterObject(SERVER_PATH);
-+	bus.unregisterObject(VIEWS_PATH, QDBusConnection::UnregisterTree);
++	if (auto* next = ServiceTurn<JobViewServer>::release(this)) next->start();
 +}
 +
 +QString JobViewServer::requestView(
@@ -1448,10 +1468,10 @@ index 0000000..8d0d437
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/jobs.hpp b/src/services/kde/jobs.hpp
 new file mode 100644
-index 0000000..a4df21c
+index 0000000..3ac3cdb
 --- /dev/null
 +++ b/src/services/kde/jobs.hpp
-@@ -0,0 +1,258 @@
+@@ -0,0 +1,261 @@
 +#pragma once
 +
 +#include <qdatetime.h>
@@ -1699,6 +1719,9 @@ index 0000000..a4df21c
 +	void onServiceUnregistered(const QString& service);
 +
 +private:
++	// Registers the service; called when it is this object's turn
++	// (see ServiceTurn).
++	void start();
 +	void unwatch(JobView* job);
 +
 +	JobViewServerObject* object = nullptr;
@@ -1941,10 +1964,10 @@ index 0000000..1ee3a88
 +plasmashell).
 diff --git a/src/services/kde/osd.cpp b/src/services/kde/osd.cpp
 new file mode 100644
-index 0000000..25fb3bc
+index 0000000..f602a88
 --- /dev/null
 +++ b/src/services/kde/osd.cpp
-@@ -0,0 +1,132 @@
+@@ -0,0 +1,140 @@
 +#include "osd.hpp"
 +
 +#include <qdbusconnection.h>
@@ -1955,6 +1978,7 @@ index 0000000..25fb3bc
 +#include <qstring.h>
 +
 +#include "../../core/logcat.hpp"
++#include "serviceturn.hpp"
 +
 +namespace qs::service::kde {
 +
@@ -2046,6 +2070,10 @@ index 0000000..25fb3bc
 +void OsdAdaptor::hide() { emit this->server->hideRequested(); }
 +
 +OsdServer::OsdServer(QObject* parent): QObject(parent) {
++	if (ServiceTurn<OsdServer>::claim(this)) this->start();
++}
++
++void OsdServer::start() {
 +	auto bus = QDBusConnection::sessionBus();
 +
 +	if (!bus.isConnected()) {
@@ -2066,23 +2094,26 @@ index 0000000..25fb3bc
 +
 +	qCInfo(logOsd) << "OSD service registered as" << SERVICE;
 +	this->mActive = true;
++	emit this->activeChanged();
 +}
 +
 +OsdServer::~OsdServer() {
-+	if (!this->mActive) return;
++	if (this->mActive) {
++		auto bus = QDBusConnection::sessionBus();
++		bus.unregisterObject(PATH);
++		bus.unregisterService(SERVICE);
++	}
 +
-+	auto bus = QDBusConnection::sessionBus();
-+	bus.unregisterObject(PATH);
-+	bus.unregisterService(SERVICE);
++	if (auto* next = ServiceTurn<OsdServer>::release(this)) next->start();
 +}
 +
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/osd.hpp b/src/services/kde/osd.hpp
 new file mode 100644
-index 0000000..3f307e6
+index 0000000..76c2ced
 --- /dev/null
 +++ b/src/services/kde/osd.hpp
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,100 @@
 +#pragma once
 +
 +#include <qobject.h>
@@ -2174,6 +2205,10 @@ index 0000000..3f307e6
 +	void hideRequested();
 +
 +private:
++	// Registers the service; called when it is this object's turn
++	// (see ServiceTurn).
++	void start();
++
 +	OsdAdaptor adaptor {this};
 +	bool mActive = false;
 +};
@@ -2181,10 +2216,10 @@ index 0000000..3f307e6
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/secretagent.cpp b/src/services/kde/secretagent.cpp
 new file mode 100644
-index 0000000..d97aaff
+index 0000000..950456d
 --- /dev/null
 +++ b/src/services/kde/secretagent.cpp
-@@ -0,0 +1,321 @@
+@@ -0,0 +1,331 @@
 +#include "secretagent.hpp"
 +
 +#include <qbytearray.h>
@@ -2205,6 +2240,7 @@ index 0000000..d97aaff
 +#include <qvariant.h>
 +
 +#include "../../core/logcat.hpp"
++#include "serviceturn.hpp"
 +
 +namespace qs::service::kde {
 +
@@ -2343,6 +2379,7 @@ index 0000000..d97aaff
 +	    &NetworkSecretAgent::onNetworkManagerGone
 +	);
 +
++	this->mTurn = ServiceTurn<NetworkSecretAgent>::claim(this);
 +	this->registerAgent();
 +}
 +
@@ -2363,9 +2400,17 @@ index 0000000..d97aaff
 +	}
 +
 +	if (this->mExported) bus().unregisterObject(AGENT_PATH);
++
++	if (auto* next = ServiceTurn<NetworkSecretAgent>::release(this)) {
++		next->mTurn = true;
++		next->registerAgent();
++	}
 +}
 +
 +void NetworkSecretAgent::registerAgent() {
++	// Another object (the previous config generation) is the agent for now.
++	if (!this->mTurn) return;
++
 +	if (!this->mExported) {
 +		this->mExported =
 +		    bus().registerVirtualObject(AGENT_PATH, this->object, QDBusConnection::SingleNode);
@@ -2508,10 +2553,10 @@ index 0000000..d97aaff
 +} // namespace qs::service::kde
 diff --git a/src/services/kde/secretagent.hpp b/src/services/kde/secretagent.hpp
 new file mode 100644
-index 0000000..ba1808a
+index 0000000..6eed23a
 --- /dev/null
 +++ b/src/services/kde/secretagent.hpp
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,116 @@
 +#pragma once
 +
 +#include <qdbusconnection.h>
@@ -2623,6 +2668,62 @@ index 0000000..ba1808a
 +	QList<Request> mQueue;
 +	bool mRegistered = false;
 +	bool mExported = false;
++	// This object's turn to be the agent (see ServiceTurn).
++	bool mTurn = false;
++};
++
++} // namespace qs::service::kde
+diff --git a/src/services/kde/serviceturn.hpp b/src/services/kde/serviceturn.hpp
+new file mode 100644
+index 0000000..4fb70d3
+--- /dev/null
++++ b/src/services/kde/serviceturn.hpp
+@@ -0,0 +1,48 @@
++#pragma once
++
++#include <qlist.h>
++
++namespace qs::service::kde {
++
++// Whose turn it is to own a D-Bus service, for services that only one
++// object per process can export (a fixed object path or bus name).
++//
++// On a config reload the new generation's objects are created before the
++// old generation's are destroyed, so a new object would find the service
++// still taken and stay inactive: after any live reload (a package update
++// rewriting the shell's files) the shell silently lost its OSD, job view
++// server and agents until the next login. Instead, objects queue here: the
++// first one owns the service, and when it goes away the newest waiting
++// object takes over.
++template <typename T>
++class ServiceTurn {
++public:
++	// Adds the object to the queue; true if it owns the service now.
++	static bool claim(T* object) {
++		auto& queue = ServiceTurn::queue();
++		queue.append(object);
++		return queue.size() == 1;
++	}
++
++	// Removes the object from the queue. If it was the owner, returns the
++	// object that owns the service now (the newest waiting one) or nullptr.
++	// Call from the destructor after the service has been released.
++	static T* release(T* object) {
++		auto& queue = ServiceTurn::queue();
++		const bool wasOwner = !queue.isEmpty() && queue.first() == object;
++		queue.removeOne(object);
++		if (!wasOwner || queue.isEmpty()) return nullptr;
++
++		auto* next = queue.takeLast();
++		queue.prepend(next);
++		return next;
++	}
++
++private:
++	static QList<T*>& queue() {
++		static QList<T*> queue;
++		return queue;
++	}
 +};
 +
 +} // namespace qs::service::kde
