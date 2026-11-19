@@ -32,6 +32,7 @@ qt_add_qml_module(sedmio-preferences
         keyboard.cpp keyboard.h
         pointers.cpp pointers.h
         defaults.cpp defaults.h
+        power.cpp power.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -49,6 +50,7 @@ qt_add_qml_module(sedmio-preferences
         qml/KeyboardPage.qml
         qml/MousePage.qml
         qml/DefaultsPage.qml
+        qml/PowerPage.qml
         qml/SSlider.qml
         qml/DateTimePage.qml
         qml/AboutPage.qml

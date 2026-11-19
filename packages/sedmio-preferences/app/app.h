@@ -7,7 +7,7 @@
 
 // Один процесс «Параметров» на сеанс (имя org.sedmio.Preferences): второй
 // запуск передаёт ему раздел и выходит. Раздел — первый аргумент:
-// display, wallpaper, mouse, keyboard, defaults, datetime, about.
+// display, wallpaper, mouse, keyboard, power, defaults, datetime, about.
 class App : public QObject
 {
     Q_OBJECT
