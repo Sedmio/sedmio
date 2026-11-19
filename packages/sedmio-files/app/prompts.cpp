@@ -307,6 +307,14 @@ void Prompts::showFirst()
     Q_EMIT currentChanged();
 }
 
+QVariantMap Prompts::applicationInfo(const QString &desktopId)
+{
+    KService::Ptr service = KService::serviceByStorageId(desktopId);
+    if (!service && !desktopId.endsWith(QLatin1String(".desktop")))
+        service = KService::serviceByStorageId(desktopId + QLatin1String(".desktop"));
+    return service ? appInfo(service) : QVariantMap();
+}
+
 QVariantList Prompts::allApplications() const
 {
     KService::List services = KApplicationTrader::query([](const KService::Ptr &service) {

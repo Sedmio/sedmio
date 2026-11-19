@@ -1,5 +1,8 @@
 #include "portal.h"
+#include "prompts.h"
 
+#include <KApplicationTrader>
+#include <KService>
 #include <KWindowSystem>
 
 #include <QCoreApplication>
@@ -9,6 +12,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QMimeDatabase>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickWindow>
@@ -16,6 +20,7 @@
 
 #include <cstdio>
 #include <limits>
+#include <memory>
 
 using namespace Portal;
 
@@ -91,7 +96,6 @@ const QString serviceName = QStringLiteral("org.freedesktop.impl.portal.desktop.
 const QString objectPath = QStringLiteral("/org/freedesktop/portal/desktop");
 // Окно KDE (xdg-desktop-portal-kde) — запасное, если своё не создалось.
 const QString kdeService = QStringLiteral("org.freedesktop.impl.portal.desktop.kde");
-const QString chooserInterface = QStringLiteral("org.freedesktop.impl.portal.FileChooser");
 const QString requestInterface = QStringLiteral("org.freedesktop.impl.portal.Request");
 
 enum Response : uint { Success = 0, Cancelled = 1, Failed = 2 };
@@ -162,6 +166,20 @@ QVariantList choicesForQml(const QList<Choice> &choices)
                             {QStringLiteral("initial"), choice.initial}};
     }
     return list;
+}
+
+// Поверх окна программы, которая спросила: «wayland:ключ» (xdg-foreign)
+// или «x11:номер окна» в шестнадцатеричном виде.
+void placeOver(QWindow *window, const QString &parentWindow)
+{
+    if (parentWindow.startsWith(QLatin1String("wayland:"))) {
+        KWindowSystem::setMainWindow(window, parentWindow.mid(8));
+    } else if (parentWindow.startsWith(QLatin1String("x11:"))) {
+        bool ok = false;
+        const WId id = parentWindow.mid(4).toULongLong(&ok, 16);
+        if (ok)
+            KWindowSystem::setMainWindow(window, id);
+    }
 }
 
 void registerTypes()
@@ -328,6 +346,7 @@ FileChooserPortal::FileChooserPortal(QQmlEngine *engine)
     , m_engine(engine)
 {
     registerTypes();
+    new AppChooserPortal(this);
     m_idle.setSingleShot(true);
     m_idle.setInterval(idleTimeout);
     connect(&m_idle, &QTimer::timeout, this, &FileChooserPortal::idleQuit);
@@ -339,7 +358,7 @@ bool FileChooserPortal::registerOnBus()
     QDBusConnection bus = QDBusConnection::sessionBus();
     if (!bus.isConnected())
         return false;
-    if (!bus.registerObject(objectPath, this, QDBusConnection::ExportScriptableSlots))
+    if (!bus.registerObject(objectPath, this, QDBusConnection::ExportScriptableSlots | QDBusConnection::ExportAdaptors))
         return false;
     return bus.registerService(serviceName);
 }
@@ -451,16 +470,7 @@ void FileChooserPortal::show(const QString &mode, const QDBusObjectPath &handle,
         windowsChanged();
     });
 
-    // Поверх окна программы, которая спросила: «wayland:ключ» (xdg-foreign)
-    // или «x11:номер окна» в шестнадцатеричном виде.
-    if (parentWindow.startsWith(QLatin1String("wayland:"))) {
-        KWindowSystem::setMainWindow(window, parentWindow.mid(8));
-    } else if (parentWindow.startsWith(QLatin1String("x11:"))) {
-        bool ok = false;
-        const WId id = parentWindow.mid(4).toULongLong(&ok, 16);
-        if (ok)
-            KWindowSystem::setMainWindow(window, id);
-    }
+    placeOver(window, parentWindow);
     window->show();
     window->requestActivate();
 }
@@ -468,7 +478,7 @@ void FileChooserPortal::show(const QString &mode, const QDBusObjectPath &handle,
 void FileChooserPortal::forwardToKde(const QDBusMessage &call, const QDBusObjectPath &handle)
 {
     QDBusConnection bus = QDBusConnection::sessionBus();
-    QDBusMessage forward = QDBusMessage::createMethodCall(kdeService, objectPath, chooserInterface, call.member());
+    QDBusMessage forward = QDBusMessage::createMethodCall(kdeService, objectPath, call.interface(), call.member());
     forward.setArguments(call.arguments());
     // Окно открыто, пока человек выбирает: ждать без предела.
     auto *watcher = new QDBusPendingCallWatcher(bus.asyncCall(forward, std::numeric_limits<int>::max()), this);
@@ -506,6 +516,124 @@ void FileChooserPortal::idleQuit()
         }
         // Пришла просьба — работаем дальше (если имя ещё свободно — снова его).
         QDBusConnection::sessionBus().registerService(serviceName);
+    });
+}
+
+// ---- AppChooser
+
+AppChooserPortal::AppChooserPortal(FileChooserPortal *portal)
+    : QDBusAbstractAdaptor(portal)
+    , m_portal(portal)
+{
+}
+
+uint AppChooserPortal::ChooseApplication(const QDBusObjectPath &handle, const QString &, const QString &parent_window, const QStringList &choices,
+                                         const QVariantMap &options, const QDBusMessage &message, QVariantMap &)
+{
+    m_portal->chooseApplication(message, handle, parent_window, choices, options);
+    return 0;
+}
+
+void AppChooserPortal::UpdateChoices(const QDBusObjectPath &, const QStringList &)
+{
+}
+
+// Окно вопросов «Файлов» (PromptWindow.qml) — одно на процесс, создаётся
+// при первой просьбе: окну выбора файлов оно не нужно.
+QWindow *FileChooserPortal::promptWindow()
+{
+    if (!m_promptWindow) {
+        QQmlComponent component(m_engine, QStringLiteral("Sedmio.Files"), QStringLiteral("PromptWindow"));
+        QObject *object = component.create();
+        m_promptWindow = qobject_cast<QWindow *>(object);
+        if (!m_promptWindow) {
+            std::fprintf(stderr, "sedmio-files: окно «Открыть с помощью» не создалось: %s\n", qPrintable(component.errorString()));
+            delete object;
+            return nullptr;
+        }
+        QQmlEngine::setObjectOwnership(m_promptWindow, QQmlEngine::CppOwnership);
+    }
+    return m_promptWindow;
+}
+
+void FileChooserPortal::chooseApplication(const QDBusMessage &call, const QDBusObjectPath &handle, const QString &parentWindow,
+                                          const QStringList &choices, const QVariantMap &options)
+{
+    call.setDelayedReply(true);
+
+    QWindow *window = promptWindow();
+    if (!window) {
+        // Своё окно сломано — окно KDE.
+        forwardToKde(call, handle);
+        return;
+    }
+
+    // Подходящие программы: сначала выбранная в прошлый раз.
+    const QString last = options.value(QStringLiteral("last_choice")).toString();
+    QStringList ids = choices;
+    if (ids.removeAll(last) > 0)
+        ids.prepend(last);
+    QVariantList apps;
+    for (const QString &id : std::as_const(ids)) {
+        const QVariantMap info = Prompts::applicationInfo(id);
+        if (!info.isEmpty())
+            apps.append(info);
+    }
+
+    const QString mimeType = options.value(QStringLiteral("content_type")).toString();
+    // Что открываем: имя файла, а у ссылки — сайт (или сама ссылка).
+    const QUrl uri(options.value(QStringLiteral("uri")).toString());
+    QString name = options.value(QStringLiteral("filename")).toString();
+    if (name.isEmpty())
+        name = uri.isLocalFile() ? uri.fileName() : uri.host();
+    if (name.isEmpty())
+        name = uri.toString();
+    const QMimeType mime = QMimeDatabase().mimeTypeForName(mimeType);
+    const QVariantMap question{
+        {QStringLiteral("kind"), QStringLiteral("openWith")},
+        {QStringLiteral("mimeType"), mimeType},
+        {QStringLiteral("typeName"), mime.isValid() ? mime.comment() : QString()},
+        {QStringLiteral("name"), name},
+        {QStringLiteral("count"), 1},
+        {QStringLiteral("apps"), apps},
+        // «Всегда этой программой» — для файлов; браузер и почта — в «Параметрах».
+        {QStringLiteral("remember"), !mimeType.isEmpty() && !mimeType.startsWith(QLatin1String("x-scheme-handler/"))},
+    };
+
+    // Владелец вопроса: исчезнет (портал отменил просьбу) — вопрос снимется.
+    auto *owner = new QObject(this);
+    auto *request = new PortalRequest(handle, owner);
+    auto replied = std::make_shared<bool>(false);
+    auto finish = [this, call, owner, replied](uint response, const QVariantMap &results) {
+        if (*replied)
+            return;
+        *replied = true;
+        QDBusConnection::sessionBus().send(call.createReply({QVariant::fromValue(response), results}));
+        owner->deleteLater();
+        --m_open;
+        windowsChanged();
+    };
+    connect(request, &PortalRequest::closeRequested, owner, [finish] {
+        finish(Cancelled, {});
+    });
+
+    ++m_open;
+    m_idle.stop();
+    placeOver(window, parentWindow);
+    Prompts::instance()->ask(owner, question, [finish, mimeType](const QVariantMap &answer) {
+        QString id = answer.value(QStringLiteral("id")).toString();
+        const KService::Ptr service = KService::serviceByStorageId(id);
+        if (!service) {
+            finish(Cancelled, {});
+            return;
+        }
+        if (answer.value(QStringLiteral("remember")).toBool() && !mimeType.isEmpty())
+            KApplicationTrader::setPreferredService(mimeType, service);
+        // Порталу — имя без «.desktop».
+        id = service->storageId();
+        if (id.endsWith(QLatin1String(".desktop")))
+            id.chop(8);
+        finish(Success, {{QStringLiteral("choice"), id}});
     });
 }
 

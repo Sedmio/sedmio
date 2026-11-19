@@ -260,7 +260,10 @@ Window {
                     .map(a => Object.assign({ section: "Все программы" }, a));
                 return top.concat(rest);
             }
-            onRowsChanged: if (rows.length > 0 && !rows.some(r => r.id === selected)) selected = rows[0].id
+            // Подходящих нет — ничего не выбрано заранее (не открыть Enter-ом
+            // первым попавшимся); начали искать — первая найденная.
+            onRowsChanged: if (rows.length > 0 && !rows.some(r => r.id === selected)
+                               && (selected !== "" || search.text.trim() !== "")) selected = rows[0].id
 
             function open() {
                 if (selected !== "") win.reply({ id: selected, remember: remember.checked });
@@ -379,7 +382,7 @@ Window {
 
                 Check {
                     id: remember
-                    visible: (win.q.mimeType ?? "") !== ""
+                    visible: (win.q.mimeType ?? "") !== "" && win.q.remember !== false
                     text: "Всегда открывать файлы этого типа этой программой"
                 }
 

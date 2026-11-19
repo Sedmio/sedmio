@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDBusAbstractAdaptor>
 #include <QDBusArgument>
 #include <QDBusContext>
 #include <QDBusMessage>
@@ -11,9 +12,11 @@
 
 class QQmlEngine;
 class QQuickWindow;
+class QWindow;
 
 // Окно выбора файлов для всех программ: служба xdg-desktop-portal
-// org.freedesktop.impl.portal.FileChooser («Открыть», «Сохранить как»).
+// org.freedesktop.impl.portal.FileChooser («Открыть», «Сохранить как»),
+// а с ним и AppChooser («Открыть с помощью» — то же окно, что в «Файлах»).
 // Её вызывают Firefox, Chromium и Electron, Telegram, а с
 // PLASMA_INTEGRATION_USE_PORTAL=1 — и программы KDE/Qt вместо своего окна.
 //
@@ -99,12 +102,39 @@ public Q_SLOTS:
 private:
     // mode: open, save, saveFiles.
     void show(const QString &mode, const QDBusObjectPath &handle, const QString &parentWindow, const QString &title, const QVariantMap &options);
-    // Своё окно не создалось — отдать просьбу окну KDE и вернуть его ответ.
+    // Своё окно не создалось — отдать просьбу окну KDE (тот же интерфейс)
+    // и вернуть его ответ.
     void forwardToKde(const QDBusMessage &call, const QDBusObjectPath &handle);
     void windowsChanged();
     void idleQuit();
 
+    friend class AppChooserPortal;
+    void chooseApplication(const QDBusMessage &call, const QDBusObjectPath &handle, const QString &parentWindow, const QStringList &choices,
+                           const QVariantMap &options);
+    QWindow *promptWindow();
+
     QQmlEngine *m_engine;
     int m_open = 0;
     QTimer m_idle;
+    QPointer<QWindow> m_promptWindow;
+};
+
+// org.freedesktop.impl.portal.AppChooser на том же объекте, что FileChooser.
+class AppChooserPortal : public QDBusAbstractAdaptor
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.freedesktop.impl.portal.AppChooser")
+
+public:
+    explicit AppChooserPortal(FileChooserPortal *portal);
+
+public Q_SLOTS:
+    uint ChooseApplication(const QDBusObjectPath &handle, const QString &app_id, const QString &parent_window, const QStringList &choices,
+                           const QVariantMap &options, const QDBusMessage &message, QVariantMap &results);
+    // Список подходящих программ поменялся, пока окно открыто, — не обновляем:
+    // в окне и так есть все программы.
+    void UpdateChoices(const QDBusObjectPath &handle, const QStringList &choices);
+
+private:
+    FileChooserPortal *m_portal;
 };

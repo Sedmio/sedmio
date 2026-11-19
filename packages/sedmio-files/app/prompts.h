@@ -50,6 +50,9 @@ public:
 
     // Все программы для «Открыть с помощью»: [{id, name, icon, comment}].
     Q_INVOKABLE QVariantList allApplications() const;
+    // Одна программа по имени файла .desktop (с «.desktop» или без);
+    // нет такой — пусто.
+    static QVariantMap applicationInfo(const QString &desktopId);
 
 Q_SIGNALS:
     void currentChanged();
