@@ -47,10 +47,12 @@ Rectangle {
 
         Row {
             id: crumbsRow
+            readonly property int count: crumbs.count
             height: flick.height
             spacing: 0
 
             Repeater {
+                id: crumbs
                 model: FileOps.crumbs(root.url)
 
                 Row {
@@ -68,8 +70,11 @@ Rectangle {
                     }
 
                     Rectangle {
+                        // Текущая папка не влезает даже одна — с многоточием,
+                        // а не обрезанная посреди слова.
+                        readonly property bool last: parent.index === crumbsRow.count - 1
                         anchors.verticalCenter: parent.verticalCenter
-                        width: crumb.implicitWidth + 16
+                        width: last ? Math.min(crumb.implicitWidth + 16, flick.width) : crumb.implicitWidth + 16
                         height: 26
                         radius: 7
                         color: crumbArea.containsMouse ? Theme.paperDeep : "transparent"
@@ -77,8 +82,10 @@ Rectangle {
                         SText {
                             id: crumb
                             anchors.centerIn: parent
+                            width: Math.min(implicitWidth, parent.width - 16)
+                            elide: Text.ElideRight
                             text: parent.parent.modelData.name
-                            weight: parent.parent.index === FileOps.crumbs(root.url).length - 1 ? 600 : 400
+                            weight: parent.last ? 600 : 400
                         }
                         MouseArea {
                             id: crumbArea

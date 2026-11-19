@@ -410,7 +410,9 @@ ApplicationWindow {
 
                     // Поиск по этой папке
                     Rectangle {
-                        Layout.preferredWidth: search.activeFocus || search.text !== "" ? 240 : 180
+                        // Узкое окно — поиск уступает место адресу.
+                        Layout.preferredWidth: Math.min(search.activeFocus || search.text !== "" ? 240 : 180,
+                                                        Math.max(120, parent.width * 0.28))
                         Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.animFast } }
                         Layout.leftMargin: 4
                         implicitHeight: 36
@@ -429,7 +431,7 @@ ApplicationWindow {
                         TextField {
                             id: search
                             anchors { left: searchIcon.right; right: parent.right; top: parent.top; bottom: parent.bottom; leftMargin: 2; rightMargin: 4 }
-                            placeholderText: "Поиск в папке"
+                            placeholderText: width < 110 ? "Поиск" : "Поиск в папке"
                             placeholderTextColor: Theme.inkMuted
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
