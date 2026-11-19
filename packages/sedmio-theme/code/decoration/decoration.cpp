@@ -11,6 +11,7 @@
 #include <QFontMetricsF>
 #include <QPainter>
 #include <QPainterPath>
+#include <QTimer>
 
 K_PLUGIN_FACTORY_WITH_JSON(SedmioDecorationFactory, "sedmio.json", registerPlugin<Sedmio::Decoration>();)
 
@@ -43,7 +44,6 @@ bool Decoration::init()
     };
 
     connect(ThemeData::instance(), &ThemeData::changed, this, [this] {
-        clearShadowCache();
         updateLayout();
         updateShadow();
         update();
@@ -61,9 +61,11 @@ bool Decoration::init()
     });
     connect(w, &KDecoration3::DecoratedWindow::adjacentScreenEdgesChanged, this, &Decoration::updateLayout);
 
+    // Кнопки по новому списку из настроек группы пересоздают сами — только
+    // расставить заново (как Breeze, после них).
     const auto s = settings();
-    connect(s.get(), &KDecoration3::DecorationSettings::decorationButtonsLeftChanged, this, &Decoration::createButtons);
-    connect(s.get(), &KDecoration3::DecorationSettings::decorationButtonsRightChanged, this, &Decoration::createButtons);
+    connect(s.get(), &KDecoration3::DecorationSettings::decorationButtonsLeftChanged, this, &Decoration::updateButtonsGeometryLater);
+    connect(s.get(), &KDecoration3::DecorationSettings::decorationButtonsRightChanged, this, &Decoration::updateButtonsGeometryLater);
     connect(s.get(), &KDecoration3::DecorationSettings::reconfigured, this, repaint);
 
     createButtons();
@@ -101,14 +103,29 @@ QColor Decoration::themeColor(const QString &key) const
 
 void Decoration::createButtons()
 {
-    delete m_left;
-    delete m_right;
     m_left = new KDecoration3::DecorationButtonGroup(KDecoration3::DecorationButtonGroup::Position::Left, this, &Button::create);
     m_right = new KDecoration3::DecorationButtonGroup(KDecoration3::DecorationButtonGroup::Position::Right, this, &Button::create);
     m_left->setSpacing(buttonSpacing);
     m_right->setSpacing(buttonSpacing);
+    // Группа считает себя от левого края: кнопка справа пропала или
+    // появилась (окно перестало разворачиваться, второй рабочий стол) —
+    // прижать группу к правому краю заново.
+    connect(m_right, &KDecoration3::DecorationButtonGroup::geometryChanged, this, &Decoration::updateButtonsGeometryLater);
     updateButtonsGeometry();
     update();
+}
+
+void Decoration::updateButtonsGeometryLater()
+{
+    // Не сразу: расстановка меняет геометрию группы, а та снова зовёт сюда.
+    if (m_buttonsPending)
+        return;
+    m_buttonsPending = true;
+    QTimer::singleShot(0, this, [this] {
+        m_buttonsPending = false;
+        updateButtonsGeometry();
+        update();
+    });
 }
 
 void Decoration::updateLayout()
@@ -123,7 +140,10 @@ void Decoration::updateLayout()
     setBorderRadius(KDecoration3::BorderRadius(radius));
     setBorderOutline(KDecoration3::BorderOutline(isMaximized() ? 0 : 1, themeColor(QStringLiteral("windowOutline")),
                                                  KDecoration3::BorderRadius(radius)));
-    setOpaque(isMaximized());
+    // Развёрнутое окно непрозрачно, если заголовок без прозрачности (тема
+    // может дать #AARRGGBB) — иначе под ним остался бы мусор.
+    setOpaque(isMaximized() && themeColor(QStringLiteral("windowTitle")).alpha() == 255
+              && themeColor(QStringLiteral("windowTitleInactive")).alpha() == 255);
 
     updateButtonsGeometry();
     update();
@@ -170,9 +190,14 @@ void Decoration::paint(QPainter *painter, const QRectF &repaintArea)
 
     // Название — посередине окна, а если не помещается — между кнопками.
     QFont font = settings()->font();
-    const QString family = ThemeData::instance()->string(QStringLiteral("fontFamily"));
-    if (!family.isEmpty())
-        font.setFamily(family);
+    // Шрифт темы — одно имя или список запасных через запятую.
+    QStringList families;
+    for (const QString &family : ThemeData::instance()->string(QStringLiteral("fontFamily")).split(QLatin1Char(','))) {
+        if (!family.trimmed().isEmpty())
+            families << family.trimmed();
+    }
+    if (!families.isEmpty())
+        font.setFamilies(families);
     font.setPixelSize(13);
     font.setWeight(QFont::DemiBold);
     font.setVariableAxis(QFont::Tag("wght"), 600);

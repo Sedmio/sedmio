@@ -156,6 +156,7 @@ void ThemeData::reload()
     Q_ASSERT(ok);
 
     QString id = selectedId();
+    const QString selected = id;
     QString directory;
     QString themeFile = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
                                                QStringLiteral("sedmio/themes/%1/theme.json").arg(id));
@@ -191,9 +192,14 @@ void ThemeData::reload()
 
     // Следить: выбор темы и файл темы (правка на месте), их каталоги
     // (файл заменили целиком — старое наблюдение за ним пропало).
+    // Каталог своих тем создаём заранее, и каталог выбранной темы
+    // смотрим, даже если theme.json в нём ещё нет: тему кладут по шагам
+    // (сначала каталог, потом файл).
     const QString configDir = configHome() + QStringLiteral("/sedmio");
+    const QString userThemes = dataHome() + QStringLiteral("/sedmio/themes");
     QDir().mkpath(configDir);
-    QStringList paths{configDir, configDir + QStringLiteral("/theme"), dataHome() + QStringLiteral("/sedmio/themes")};
+    QDir().mkpath(userThemes);
+    QStringList paths{configDir, configDir + QStringLiteral("/theme"), userThemes, userThemes + QLatin1Char('/') + selected};
     if (!directory.isEmpty())
         paths << directory << themeFile;
     watch(paths);

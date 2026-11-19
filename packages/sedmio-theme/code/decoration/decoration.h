@@ -35,10 +35,12 @@ private:
     void createButtons();
     void updateLayout();
     void updateButtonsGeometry();
+    void updateButtonsGeometryLater();
     void updateShadow();
 
     KDecoration3::DecorationButtonGroup *m_left = nullptr;
     KDecoration3::DecorationButtonGroup *m_right = nullptr;
+    bool m_buttonsPending = false;
 };
 
 } // namespace Sedmio

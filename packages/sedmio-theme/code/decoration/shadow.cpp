@@ -105,13 +105,12 @@ std::shared_ptr<KDecoration3::DecorationShadow> windowShadow(const QColor &color
     shadow->setPadding(QMarginsF(extent, extent - offset, extent, extent + offset));
     shadow->setInnerShadowRect(QRectF(window.center(), QSizeF(1, 1)));
     shadow->setShadow(image);
+    // Тени прежних тем, которых уже нет ни у одного окна, — выбросить.
+    cache().removeIf([](const auto &it) {
+        return it.value().use_count() == 1;
+    });
     cache().insert(key, shadow);
     return shadow;
-}
-
-void clearShadowCache()
-{
-    cache().clear();
 }
 
 } // namespace Sedmio

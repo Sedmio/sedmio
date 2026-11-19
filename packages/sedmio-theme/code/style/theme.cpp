@@ -30,4 +30,9 @@ void Theme::update()
         if (value(it.key()) != it.value())
             insert(it.key(), it.value());
     }
+    // Ключа нет в новой теме — не оставлять значение прежней.
+    for (const QString &key : keys()) {
+        if (!values.contains(key) && key != QLatin1String("paletteSerial") && value(key).isValid())
+            clear(key);
+    }
 }
