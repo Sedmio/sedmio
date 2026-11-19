@@ -4,7 +4,16 @@
 # сеанса Plasma до регистрации в logind. Обычный вход их и так передаёт
 # (экран входа, Greetd.launch), а вход без пароля ([initial_session])
 # без них попадал бы в logind как «tty», а не wayland-сеанс KDE.
+#
+# pam_kwallet5 (kwallet-pam) открывает бумажник паролем входа, а если
+# бумажника ещё нет — создаёт его с этим паролем. Иначе первая программа,
+# которой нужно хранилище паролей (браузер, VS Code), открывала мастер
+# создания бумажника с выбором шифрования. «-» — нет модуля, вход идёт
+# как обычно. После session include greetd: модулю нужен XDG_RUNTIME_DIR
+# от pam_systemd.
 auth       include      greetd
+-auth      optional     pam_kwallet5.so
 account    include      greetd
 session    required     pam_env.so conffile=/usr/share/sedmio/greeter/session.conf readenv=0
 session    include      greetd
+-session   optional     pam_kwallet5.so auto_start
