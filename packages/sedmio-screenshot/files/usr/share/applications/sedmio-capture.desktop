@@ -1,0 +1,12 @@
+# Разрешение KWin на снимки экрана для /usr/lib/sedmio/sedmio-capture:
+# KWin пускает к org.kde.KWin.ScreenShot2 только программы, чей .desktop
+# называет этот интерфейс, а Exec — тот же исполняемый файл. В меню не
+# показывается.
+[Desktop Entry]
+Type=Application
+Name=Sedmio screenshot capture
+Name[ru]=Снимки экрана Sedmio
+Icon=org.kde.spectacle
+Exec=/usr/lib/sedmio/sedmio-capture
+NoDisplay=true
+X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2

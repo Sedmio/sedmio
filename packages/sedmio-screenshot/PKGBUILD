@@ -1,0 +1,40 @@
+# Maintainer: Sedmio <https://github.com/Sedmio/sedmio>
+#
+# Снимки экрана как «Ножницы» Windows 11. Здесь — sedmio-capture: берёт
+# снимки у KWin (org.kde.KWin.ScreenShot2, разрешение — в
+# usr/share/applications/sedmio-capture.desktop) и вырезает область.
+# Вид — в оболочке (sedmio-shell: ScreenshotOverlay, ScreenshotState),
+# клавиши PrtSc, Win+Shift+S, Win+PrtSc, Alt+PrtSc — /usr/lib/sedmio/screenshot
+# (sedmio-settings). Редактор и запись экрана — пока Spectacle.
+#
+# Исходники — app/ рядом с этим файлом (src/ занята makepkg).
+
+pkgname=sedmio-screenshot
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: снимки экрана"
+arch=('x86_64')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'qt6-base'
+  'kwin'          # снимает он (ScreenShot2)
+  'wl-clipboard'  # снимок — в буфер обмена (wl-copy)
+  'libnotify'     # уведомление с кнопками (notify-send)
+  'spectacle'     # «Изменить» и запись экрана
+)
+makedepends=('cmake' 'ninja')
+
+build() {
+  cmake -G Ninja -S "$startdir/app" -B build -W no-dev \
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+    -D CMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir/usr/share" -type d -exec chmod 755 {} +
+  find "$pkgdir/usr/share" -type f -exec chmod 644 {} +
+}

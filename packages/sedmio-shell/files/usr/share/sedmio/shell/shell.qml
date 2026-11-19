@@ -33,6 +33,7 @@ ShellRoot {
             Frame { screen: perScreen.modelData }
             FullscreenOsd { screen: perScreen.modelData; screenName: perScreen.modelData.name }
             FullscreenNotifications { screen: perScreen.modelData; screenName: perScreen.modelData.name }
+            ScreenshotOverlay { modelData: perScreen.modelData }
         }
     }
 
@@ -89,6 +90,13 @@ ShellRoot {
         }
         function open(): void { ShellState.openQuickMenu(ShellState.focusedScreen()); }
         function close(): void { ShellState.closeAll(); }
+    }
+
+    // «Ножницы»: PrtSc, Win+Shift+S (/usr/lib/sedmio/screenshot из sedmio-settings).
+    IpcHandler {
+        target: "screenshot"
+        function open(): void { ScreenshotState.open(); }
+        function close(): void { ScreenshotState.close(); }
     }
 
     // Программы на панели по номеру: Meta+1…9

@@ -1,18 +1,24 @@
 #!/bin/sh
-# Снимки экрана как в Windows 11; окно Spectacle не открывается, снимает
-# он же в фоновом режиме. Снимок сразу в буфере обмена и в папке
-# «Изображения/Снимки экрана», в уведомлении — кнопка правки.
-#   screenshot          PrtSc, Win+Shift+S: выделить область мышью
-#                       (снимок — когда отпустили кнопку);
-#   screenshot screen   Win+PrtSc: весь экран.
-#   screenshot window   Alt+PrtSc: активное окно.
+# Снимки экрана как в Windows 11 («Ножницы»). Снимок сразу в буфере обмена
+# и в папке «Изображения/Снимки экрана», в уведомлении — миниатюра и
+# кнопка «Изменить» (редактор Spectacle).
+#
+#   screenshot          PrtSc, Win+Shift+S: «Ножницы» оболочки — экран
+#                       замирает, выделить область мышью, сверху — режимы
+#                       (область, окно, весь экран, запись)
+#   screenshot screen   Win+PrtSc: все экраны сразу
+#   screenshot window   Alt+PrtSc: активное окно
+#
+# Для оболочки (ScreenshotState.qml):
+#   screenshot save <снимок экрана> <x> <y> <w> <h>   вырезать область и сохранить
+#   screenshot pick-window                          окно, выбранное щелчком (KWin)
+#
+# Снимает /usr/lib/sedmio/sedmio-capture (пакет sedmio-screenshot) у KWin.
+# Нет его или оболочки — как раньше, Spectacle в фоне.
 # Папку для снимков можно сменить в Spectacle (Параметры → Сохранение).
 
-case "$1" in
-  screen) what=--fullscreen gui=-f ;;
-  window) what=--activewindow gui=-a ;;
-  *) what=--region gui=-r ;;
-esac
+capture=/usr/lib/sedmio/sedmio-capture
+shell=/usr/share/sedmio/shell
 
 # «%XX» → байт: Spectacle хранит папку адресом (file:///…/50%25 → 50%).
 urldecode() {
@@ -29,18 +35,86 @@ urldecode() {
   }'
 }
 
-dir=$(kreadconfig6 --file spectaclerc --group ImageSave --key imageSaveLocation 2>/dev/null)
-case "$dir" in
-  file://*) dir=$(urldecode "${dir#file://}") ;;
+savedir() {
+  dir=$(kreadconfig6 --file spectaclerc --group ImageSave --key imageSaveLocation 2>/dev/null)
+  case "$dir" in
+    file://*) dir=$(urldecode "${dir#file://}") ;;
+  esac
+  if [ -z "$dir" ]; then
+    pictures=$(xdg-user-dir PICTURES 2>/dev/null)
+    [ -n "$pictures" ] && [ "$pictures" != "$HOME" ] || pictures="$HOME/Изображения"
+    dir="$pictures/Снимки экрана"
+  fi
+  mkdir -p "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
+# Новое имя файла снимка.
+target() {
+  dir=$(savedir) || return 1
+  name="Снимок экрана_$(date +%Y%m%d_%H%M%S)"
+  file="$dir/$name.png"
+  n=2
+  while [ -e "$file" ]; do file="$dir/${name}_$n.png"; n=$((n + 1)); done
+  printf '%s\n' "$file"
+}
+
+# Как раньше: Spectacle в фоне (gui — его окно, если и папки нет).
+spectacle_fallback() { # --region|--fullscreen|--activewindow  -r|-f|-a
+  file=$(target) || exec spectacle "$2"
+  exec spectacle --background "$1" --copy-image --output "$file"
+}
+
+run() { # программа в своей группе systemd (как из меню оболочки)
+  if [ -x /usr/lib/sedmio/launch ]; then /usr/lib/sedmio/launch "" "$@"; else "$@"; fi
+}
+
+# Готовый снимок: в буфер обмена, уведомление с миниатюрой и кнопками.
+done_shot() { # файл
+  file=$1
+  if command -v wl-copy >/dev/null 2>&1; then
+    wl-copy --type image/png < "$file" >/dev/null 2>&1
+  fi
+  dir=$(dirname -- "$file")
+  # Отдельно и без ожидания: уведомление висит, пока его не закроют.
+  (
+    action=$(notify-send --app-name="Снимок экрана" --icon=org.kde.spectacle \
+      --hint="string:image-path:file://$file" --hint=string:desktop-entry:org.kde.spectacle \
+      --action=default=Открыть --action=edit=Изменить --action=folder="Открыть папку" --wait \
+      "Снимок экрана сохранён" "Он в буфере обмена — можно вставить. Файл — в папке «$(basename -- "$dir")».")
+    case "$action" in
+      default) run xdg-open "$file" ;;
+      edit) run spectacle --edit-existing "$file" ;;
+      folder) run xdg-open "$dir" ;;
+    esac
+  ) </dev/null >/dev/null 2>&1 &
+}
+
+shoot() { # команда sedmio-capture (workspace | active-window | window)
+  file=$(target) || exit 1
+  "$capture" "$1" "$file" >/dev/null || exit $?
+  done_shot "$file"
+}
+
+case "$1" in
+  screen)
+    [ -x "$capture" ] || spectacle_fallback --fullscreen -f
+    shoot workspace ;;
+  window)
+    [ -x "$capture" ] || spectacle_fallback --activewindow -a
+    shoot active-window ;;
+  pick-window)
+    shoot window ;;
+  save)
+    [ $# -eq 6 ] || exit 2
+    file=$(target) || exit 1
+    "$capture" crop "$2" "$3" "$4" "$5" "$6" "$file" >/dev/null || exit 1
+    done_shot "$file" ;;
+  *)
+    # «Ножницы» оболочки; оболочка не отвечает — Spectacle.
+    if [ -x "$capture" ] && quickshell ipc -p "$shell" call screenshot open >/dev/null 2>&1; then
+      exit 0
+    fi
+    spectacle_fallback --region -r ;;
 esac
-if [ -z "$dir" ]; then
-  pictures=$(xdg-user-dir PICTURES 2>/dev/null)
-  [ -n "$pictures" ] && [ "$pictures" != "$HOME" ] || pictures="$HOME/Изображения"
-  dir="$pictures/Снимки экрана"
-fi
-
-# Нет папки и создать нельзя — пусть Spectacle сам решит, куда (обычное окно).
-mkdir -p "$dir" 2>/dev/null || exec spectacle "$gui"
-
-exec spectacle --background "$what" --copy-image \
-  --output "$dir/Снимок экрана_$(date +%Y%m%d_%H%M%S).png"
+exit 0

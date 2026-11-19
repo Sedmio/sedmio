@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=18
+pkgrel=19
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -45,6 +45,7 @@ depends=(
   'sedmio-files'            # «Файлы» вместо Dolphin
   'sedmio-preferences'      # «Параметры» перед параметрами KDE
   'sedmio-tasks'            # диспетчер задач (Ctrl+Shift+Esc)
+  'sedmio-screenshot'       # снимки экрана («Ножницы»: PrtSc, Win+Shift+S)
   'sedmio-update'           # обновления и снимки системы btrfs («Параметры» → «Обновление»)
   'konsole'
   'ark'
