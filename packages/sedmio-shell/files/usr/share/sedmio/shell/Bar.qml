@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Sedmio.Style
 
 // Панель слева, часть рамки. Сверху знак Sedmio и открытые окна,
@@ -9,6 +10,41 @@ Item {
     required property var window     // окно рамки: меню трея, сворачивание
     required property string screenName
     required property Item tooltip
+
+    // Правый щелчок по пустому месту панели — меню, как у панели задач
+    // Windows. Под кнопками: их щелчки до него не доходят.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.RightButton
+        onClicked: event => {
+            const p = mapToItem(null, event.x, event.y);
+            barMenu.anchor.rect.x = p.x;
+            barMenu.anchor.rect.y = p.y;
+            barMenu.visible = true;
+        }
+    }
+
+    ContextMenu {
+        id: barMenu
+        anchor.window: bar.window
+        anchor.rect.width: 1
+        anchor.rect.height: 1
+        anchor.edges: Edges.Bottom | Edges.Right
+        anchor.gravity: Edges.Bottom | Edges.Right
+        items: [
+            { icon: "utilities-system-monitor", text: "Диспетчер задач", action: "tasks" },
+            { icon: "user-desktop", text: "Показать рабочий стол", action: "desktop" },
+            { separator: true },
+            { icon: "preferences-system", text: "Параметры", action: "settings" },
+        ]
+        onTriggered: action => {
+            ShellState.closeAll(false);
+            if (action === "tasks") ShellState.launch("sedmio-tasks", ["sedmio-tasks"]);
+            else if (action === "settings") ShellState.launch("", ["/usr/lib/sedmio/open-settings"]);
+            else if (action === "desktop") Quickshell.execDetached(["busctl", "--user", "call", "org.kde.kglobalaccel",
+                "/component/kwin", "org.kde.kglobalaccel.Component", "invokeShortcut", "s", "Show Desktop"]);
+        }
+    }
 
     ColumnLayout {
         id: topGroup
