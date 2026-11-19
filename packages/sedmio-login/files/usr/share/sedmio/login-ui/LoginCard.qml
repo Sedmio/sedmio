@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
-import org.kde.plasma.private.keyboardindicator as KeyboardIndicator
+import Sedmio.Login as Login
 import Sedmio.Style
 
 // Кто входит: аватар, имя, поле пароля и строка сообщения под ним.
@@ -33,7 +33,7 @@ Column {
     spacing: 0
     width: 360
 
-    KeyboardIndicator.KeyState {
+    Login.KeyState {
         id: capsLock
         key: Qt.Key_CapsLock
     }

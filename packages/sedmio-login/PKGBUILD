@@ -24,9 +24,9 @@
 
 pkgname=sedmio-login
 pkgver=0.1.0
-pkgrel=14
+pkgrel=15
 pkgdesc="Sedmio: экраны входа (greetd) и блокировки"
-arch=('any')
+arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
 license=('MIT')
 depends=(
@@ -34,7 +34,8 @@ depends=(
   'quickshell>=0.3.2-8' # наша сборка; модуль Greetd в ней есть
   'kwin'                # экран входа идёт в своём KWin
   'kscreenlocker'
-  'plasma-workspace'    # модули раскладки, Caps Lock и сна для QML
+  'qt6-declarative'
+  'kguiaddons'          # Caps Lock (модуль Sedmio.Login, app/)
   'breeze'              # курсор
   'kwallet-pam'         # бумажник открывается паролем входа (etc/pam.d/sedmio-greetd)
   'python'              # usr/lib/sedmio/wallet-autologin, set-autologin
@@ -45,13 +46,21 @@ depends=(
   'sedmio-settings'     # знак Sedmio, раскладки (/etc/xdg/kxkbrc)
   'sedmio-session'      # сеанс после входа (/usr/bin/sedmio-session), вид экрана выхода
 )
+makedepends=('cmake' 'ninja')
 backup=('etc/greetd/sedmio.toml')
 
+build() {
+  cmake -G Ninja -S "$startdir/app" -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  cmake --build build
+}
+
 package() {
+  DESTDIR="$pkgdir" cmake --install build
   cp -a "$startdir/files/." "$pkgdir/"
   find "$pkgdir" -type d -exec chmod 755 {} +
   find "$pkgdir" -type f -exec chmod 644 {} +
-  chmod 755 "$pkgdir/usr/lib/sedmio/greeter/start" "$pkgdir/usr/lib/sedmio/wallet-autologin" \
+  chmod 755 "$pkgdir/usr/lib/qt6/qml/Sedmio/Login/libsedmiologin.so" \
+    "$pkgdir/usr/lib/sedmio/greeter/start" "$pkgdir/usr/lib/sedmio/wallet-autologin" \
     "$pkgdir/usr/lib/sedmio/set-autologin"
   install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
   ln -s ../sedmio-wallet-autologin.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-wallet-autologin.service"

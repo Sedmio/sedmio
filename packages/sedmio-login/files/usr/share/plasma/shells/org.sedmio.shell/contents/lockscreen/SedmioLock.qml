@@ -1,6 +1,6 @@
 import QtCore
 import QtQuick
-import org.kde.plasma.private.sessions as Sessions
+import Sedmio.Login as Login
 import "file:///usr/share/sedmio/login-ui"
 
 // Экран блокировки Sedmio (его загружает LockScreen.qml).
@@ -21,7 +21,7 @@ Item {
         dimmed: true
     }
 
-    Sessions.SessionManagement { id: session }
+    Login.Power { id: session }
 
     ClockBlock {
         anchors.horizontalCenter: parent.horizontalCenter

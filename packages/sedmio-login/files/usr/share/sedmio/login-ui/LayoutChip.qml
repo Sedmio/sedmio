@@ -1,5 +1,5 @@
 import QtQuick
-import org.kde.plasma.workspace.keyboardlayout as Keyboard
+import Sedmio.Login as Login
 import Sedmio.Style
 
 // Текущая раскладка (её держит KWin), как в Windows: ENG, РУС; клик — следующая.
@@ -9,7 +9,7 @@ Item {
     implicitHeight: 44
     visible: layouts.layoutsList.length > 1
 
-    Keyboard.KeyboardLayout { id: layouts }
+    Login.KeyboardLayout { id: layouts }
 
     // Как на панели (sedmio-shell, KeyboardLayout.qml): подписи языков из
     // Windows, остальные — кодом раскладки; своя подпись из kxkbrc главнее.

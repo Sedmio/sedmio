@@ -311,8 +311,8 @@ krunner, milou, layer-shell-qt), фреймворки KDE (kded, kglobalaccel,
 kwallet). Порядок: сеанс → заставка → аварийный режим вместо запасного
 plasmashell → powerdevil своей сборкой без plasma-workspace → plasma-nm и
 plasma-pa своей сборкой без апплетов → xdg-desktop-portal-kde своей
-сборкой без plasma-workspace (plasma-integration от неё не зависит) → удалить plasma-workspace, plasma-desktop,
-systemsettings.
+сборкой без plasma-workspace (plasma-integration от неё не зависит) →
+удалить plasma-workspace, plasma-desktop, systemsettings.
 
 **Сеанс — пакет sedmio-session** вместо startplasma-wayland, ksmserver,
 plasma-shutdown и ksmserver-logout-greeter.
@@ -393,3 +393,10 @@ audioshortcutsservice, индикатор рисует оболочка), раз
 ряд значков убран. plasma-integration от plasma-workspace не зависит —
 наоборот.
 
+**Удаление plasma-workspace, plasma-desktop и systemsettings — по частям.**
+Что из них работало у нас и чем заменено:
+
+- Экраны входа и блокировки: Caps Lock, раскладка, сон брались из модулей
+  QML plasma-workspace (keyboardindicator, keyboardlayout, sessions) —
+  теперь свой модуль `Sedmio.Login` (sedmio-login, app/): KModifierKeyInfo,
+  раскладки KWin по D-Bus, logind.
