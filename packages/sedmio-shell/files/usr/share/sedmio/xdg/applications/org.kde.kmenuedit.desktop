@@ -1,0 +1,11 @@
+# Редактор меню Plasma: наш поиск программ берёт их из .desktop сам, и
+# редактор меню к оболочке Sedmio отношения не имеет. Пакет kmenuedit
+# тянет plasma-desktop, поэтому только прячем из списка программ
+# (перекрывает /usr/share/applications: XDG_DATA_DIRS из environment.d).
+[Desktop Entry]
+Type=Application
+Name=Menu Editor
+Name[ru]=Редактор меню
+Exec=kmenuedit
+Icon=kmenuedit
+NoDisplay=true
