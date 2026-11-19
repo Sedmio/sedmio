@@ -33,7 +33,9 @@ public:
     QPixmap requestPixmap(const QString &id, QSize *size, const QSize &requested) override
     {
         const int side = qMax(requested.width(), requested.height()) > 0 ? qMax(requested.width(), requested.height()) : 64;
-        QIcon icon = QIcon::fromTheme(id);
+        // «имя?palette=N» → «имя»: счётчик палитры только для перезапроса (SIcon).
+        const qsizetype mark = id.lastIndexOf(QLatin1String("?palette="));
+        QIcon icon = QIcon::fromTheme(mark < 0 ? id : id.left(mark));
         if (icon.isNull())
             icon = QIcon::fromTheme(QStringLiteral("unknown"));
         const QPixmap pixmap = icon.pixmap(side, side);

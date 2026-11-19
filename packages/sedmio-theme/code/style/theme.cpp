@@ -2,11 +2,24 @@
 
 #include "themedata.h"
 
+#include <QCoreApplication>
+#include <QEvent>
+
 Theme::Theme(QObject *parent)
     : QQmlPropertyMap(this, parent)
 {
     connect(Sedmio::ThemeData::instance(), &Sedmio::ThemeData::changed, this, &Theme::update);
     update();
+    insert(QStringLiteral("paletteSerial"), m_paletteSerial);
+    if (QCoreApplication::instance())
+        QCoreApplication::instance()->installEventFilter(this);
+}
+
+bool Theme::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::ApplicationPaletteChange && watched == QCoreApplication::instance())
+        insert(QStringLiteral("paletteSerial"), ++m_paletteSerial);
+    return QQmlPropertyMap::eventFilter(watched, event);
 }
 
 void Theme::update()

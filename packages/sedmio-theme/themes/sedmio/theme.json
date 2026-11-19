@@ -21,6 +21,8 @@
 
         "terracotta": "#C8643B",
         "terracottaSoft": "#F0D8C8",
+        "success": "#3E8052",
+        "warning": "#B8801E",
 
         "shadow": "#1D2420"
     },

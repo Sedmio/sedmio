@@ -31,6 +31,13 @@ bool canPreview(const QString &mime)
     return ok;
 }
 
+// «имя?palette=N» → «имя»: счётчик палитры только для перезапроса (SIcon).
+static QString iconName(const QString &id)
+{
+    const qsizetype mark = id.lastIndexOf(QLatin1String("?palette="));
+    return mark < 0 ? id : id.left(mark);
+}
+
 IconProvider::IconProvider()
     : QQuickImageProvider(QQuickImageProvider::Pixmap)
 {
@@ -42,7 +49,8 @@ QPixmap IconProvider::requestPixmap(const QString &id, QSize *size, const QSize 
         ? qMax(requestedSize.width(), requestedSize.height())
         : 64;
 
-    QIcon icon = id.startsWith(QLatin1Char('/')) ? QIcon(id) : QIcon::fromTheme(id);
+    const QString name = iconName(id);
+    QIcon icon = name.startsWith(QLatin1Char('/')) ? QIcon(name) : QIcon::fromTheme(name);
     if (icon.isNull())
         icon = QIcon::fromTheme(QStringLiteral("unknown"));
 

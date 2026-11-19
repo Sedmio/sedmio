@@ -22,5 +22,6 @@ qt_add_resources(sedmio-themedata builtin_theme
 
 add_subdirectory(style)
 add_subdirectory(decoration)
+add_subdirectory(sync)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../themes/ DESTINATION share/sedmio/themes)

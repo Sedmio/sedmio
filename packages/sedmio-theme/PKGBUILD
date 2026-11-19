@@ -14,6 +14,12 @@
 # Тема по умолчанию вшита в модуль и в рамки: файла нет или он битый —
 # берётся она. Плагина рамок нет — KWin рисует Breeze.
 #
+# Служба sedmio-theme-sync (пользовательская, включена для всех) пишет из
+# темы цветовую схему KDE Sedmio в ~/.local/share/color-schemes и, если
+# выбрана она, применяет: чужие программы на Qt/KDE и через kde-gtk-config
+# GTK — в тех же цветах. Не запустилась — остаётся запасная схема Sedmio из
+# sedmio-settings.
+#
 # Исходники — code/ (common — чтение темы, style — QML-модуль, decoration —
 # рамки) и themes/ рядом с этим файлом (src/ занята makepkg).
 
@@ -29,6 +35,7 @@ depends=(
   'qt6-declarative'
   'kdecoration'
   'kcoreaddons'
+  'kconfig'
 )
 makedepends=(
   'cmake'
@@ -45,4 +52,6 @@ build() {
 
 package() {
   DESTDIR="$pkgdir" cmake --install build
+  install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
+  ln -s ../sedmio-theme-sync.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-theme-sync.service"
 }
