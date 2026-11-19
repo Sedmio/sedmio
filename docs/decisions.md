@@ -313,6 +313,8 @@ plasmashell → powerdevil своей сборкой без plasma-workspace →
 plasma-pa своей сборкой без апплетов → xdg-desktop-portal-kde своей
 сборкой без plasma-workspace (plasma-integration от неё не зависит) →
 удалить plasma-workspace, plasma-desktop, systemsettings.
+Сделано (2026-11-20): в ВМ все три пакета удалены (`pacman -Rs`), сеанс,
+блокировка, выход, питание, звук, сеть, порталы и «Параметры» работают.
 
 **Сеанс — пакет sedmio-session** вместо startplasma-wayland, ksmserver,
 plasma-shutdown и ksmserver-logout-greeter.
