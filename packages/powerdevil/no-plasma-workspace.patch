@@ -1,0 +1,24 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -55,7 +55,8 @@
+ find_package(Plasma ${PROJECT_DEP_VERSION} REQUIRED)
+ find_package(PlasmaActivities ${PROJECT_DEP_VERSION} REQUIRED)
+ find_package(KF6Screen CONFIG REQUIRED)
+-find_package(LibKWorkspace ${PROJECT_DEP_VERSION} REQUIRED)
++# Sedmio: без plasma-workspace — свой SessionManagement (PW::KWorkspace).
++add_subdirectory(sedmio-kworkspace)
+ 
+ find_package(UDev REQUIRED)
+ 
+@@ -91,10 +92,9 @@
+     KF 6.27.0
+ )
+ 
+-add_subdirectory(applets)
++# Sedmio: апплеты батареи и яркости — только для plasmashell.
+ add_subdirectory(daemon)
+ add_subdirectory(kcm)
+-add_subdirectory(kcm_mobile)
+ 
+ if(KF6DocTools_FOUND)
+     add_subdirectory(doc)

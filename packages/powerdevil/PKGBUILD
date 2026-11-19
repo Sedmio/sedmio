@@ -1,0 +1,79 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# powerdevil — питание (гашение экрана и сон по бездействию, «не спать,
+# пока идёт видео», кнопка питания и крышка, яркость, батарея) без
+# plasma-workspace: Plasma уходит из системы (docs/decisions.md, раздел 15),
+# а powerdevil из Arch тянет её за собой ради одного класса —
+# SessionManagement из libkworkspace. Вместо него — свой
+# (sedmio-kworkspace/): сон через logind, выход и выключение через
+# sedmio-session-manager. Апплеты батареи и яркости для plasmashell не
+# собираются.
+#
+# Основа — PKGBUILD из Arch (extra/powerdevil). [sedmio] стоит в
+# pacman.conf выше остальных, поэтому ставится этот пакет, а не пакет
+# Arch или CachyOS. Обновлять вместе с Plasma (KWin): версии совпадают.
+
+pkgname=powerdevil
+pkgver=6.8.3
+# Выше, чем у CachyOS (6.8.3-1.1): pacman -Syu не понижает версию, и
+# на установленной системе остался бы их пакет.
+pkgrel=2
+pkgdesc='Manages the power consumption settings (сборка Sedmio без plasma-workspace)'
+arch=(x86_64)
+url='https://invent.kde.org/plasma/powerdevil'
+license=(LGPL-2.0-or-later)
+depends=(ddcutil
+         glibc
+         plasma-activities
+         kauth
+         kcmutils
+         kconfig
+         kcoreaddons
+         kcrash
+         kdbusaddons
+         kglobalaccel
+         ki18n
+         kidletime
+         kirigami
+         kitemmodels
+         knotifications
+         kpackage
+         kservice
+         kxmlgui
+         libkscreen
+         libstdc++
+         qcoro
+         qt6-base
+         qt6-declarative
+         solid
+         systemd-libs
+         wayland)
+makedepends=(extra-cmake-modules
+             kdoctools
+             libplasma
+             plasma-wayland-protocols)
+optdepends=('power-profiles-daemon: power profiles support'
+            'tlp: alternative power profiles support')
+source=(https://download.kde.org/stable/plasma/$pkgver/$pkgname-$pkgver.tar.xz
+        no-plasma-workspace.patch)
+sha256sums=('c197615be2f1b203ed715ea038e0bafd09d88f7faf3e7cdb5423a519fcfdfe6e'
+            '6bd4872cea1a2e180ef25efa724c594b01f2071a60cea0cb02a9609032067680')
+
+prepare() {
+  cd $pkgname-$pkgver
+  # Без LibKWorkspace (свой SessionManagement), без апплетов plasmashell
+  # и мобильного раздела настроек.
+  patch -Np1 -i ../no-plasma-workspace.patch
+  cp -a "$startdir/sedmio-kworkspace" .
+}
+
+build() {
+  cmake -B build -S $pkgname-$pkgver \
+    -DKDE_INSTALL_LIBEXECDIR=lib \
+    -DBUILD_TESTING=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

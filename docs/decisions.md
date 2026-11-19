@@ -309,7 +309,8 @@ Plasma строки сверять). Программы KDE/Qt сами спра
 Остаются: KWin и то, без чего он не ставится (libplasma, kscreenlocker,
 krunner, milou, layer-shell-qt), фреймворки KDE (kded, kglobalaccel,
 kwallet). Порядок: сеанс → заставка → аварийный режим вместо запасного
-plasmashell → питание вместо powerdevil → сеть и звук без plasma-nm и plasma-pa →
+plasmashell → powerdevil своей сборкой без plasma-workspace → сеть и звук
+без plasma-nm и plasma-pa →
 plasma-integration и xdg-desktop-portal-kde своей сборкой без зависимости
 от plasma-workspace → удалить plasma-workspace, plasma-desktop,
 systemsettings.
@@ -366,4 +367,14 @@ plasma-shutdown и ksmserver-logout-greeter.
   «Перезапустить» сбрасывает счётчик падений и запускает оболочку;
   заработала — плашка уходит; «✕» прячет её до следующего падения.
   Плашка — простой Qt Quick без модулей оболочки и тем.
+
+**Питание — powerdevil своей сборкой** (пакет `powerdevil` в [sedmio]), а не
+своя служба: логика гашения экрана, сна, запретов сна от плееров,
+яркости (и DDC) и батареи отлажена, переписывать её — новые ошибки.
+Из plasma-workspace ему нужен был только класс SessionManagement
+(libkworkspace) — вместо него свой (`sedmio-kworkspace/`): сон и
+гибернация через logind, выход и выключение — sedmio-session-manager,
+блокировка — KWin. Апплеты батареи и яркости (только для plasmashell) не
+собираются. Версия — как у KWin; pkgrel выше, чем у CachyOS, иначе
+`pacman -Syu` оставил бы их пакет.
 
