@@ -1,11 +1,10 @@
 #!/bin/sh
 # Снимки экрана как в Windows 11 («Ножницы»). Снимок сразу в буфере обмена
-# и в папке «Изображения/Снимки экрана», в уведомлении — миниатюра и
-# кнопка «Изменить» (редактор Spectacle).
+# и в папке «Изображения/Снимки экрана», в уведомлении — миниатюра.
 #
 #   screenshot          PrtSc, Win+Shift+S: «Ножницы» оболочки — экран
 #                       замирает, выделить область мышью, сверху — режимы
-#                       (область, окно, весь экран, запись)
+#                       (область, окно, весь экран)
 #   screenshot screen   Win+PrtSc: все экраны сразу
 #   screenshot window   Alt+PrtSc: активное окно
 #
@@ -14,44 +13,19 @@
 #   screenshot pick-window                          окно, выбранное щелчком (KWin)
 #
 # Снимает /usr/lib/sedmio/sedmio-capture (пакет sedmio-screenshot) у KWin.
-# Нет его или оболочки — как раньше, Spectacle в фоне.
-# Папку для снимков можно сменить в Spectacle (Параметры → Сохранение).
+# Оболочка не отвечает — PrtSc снимает все экраны сразу.
 
 capture=/usr/lib/sedmio/sedmio-capture
 shell=/usr/share/sedmio/shell
 
-# «%XX» → байт: Spectacle хранит папку адресом (file:///…/50%25 → 50%).
-urldecode() {
-  printf '%s\n' "$1" | LC_ALL=C awk '{
-    out = ""
-    while (match($0, /%[0-9A-Fa-f][0-9A-Fa-f]/)) {
-      hex = tolower(substr($0, RSTART + 1, 2))
-      out = out substr($0, 1, RSTART - 1) \
-        sprintf("%c", (index("0123456789abcdef", substr(hex, 1, 1)) - 1) * 16 \
-                      + index("0123456789abcdef", substr(hex, 2, 1)) - 1)
-      $0 = substr($0, RSTART + 3)
-    }
-    print out $0
-  }'
-}
+[ -x "$capture" ] || exit 1
 
-savedir() {
-  dir=$(kreadconfig6 --file spectaclerc --group ImageSave --key imageSaveLocation 2>/dev/null)
-  case "$dir" in
-    file://*) dir=$(urldecode "${dir#file://}") ;;
-  esac
-  if [ -z "$dir" ]; then
-    pictures=$(xdg-user-dir PICTURES 2>/dev/null)
-    [ -n "$pictures" ] && [ "$pictures" != "$HOME" ] || pictures="$HOME/Изображения"
-    dir="$pictures/Снимки экрана"
-  fi
-  mkdir -p "$dir" 2>/dev/null || return 1
-  printf '%s\n' "$dir"
-}
-
-# Новое имя файла снимка.
+# Новое имя файла снимка в «Изображения/Снимки экрана».
 target() {
-  dir=$(savedir) || return 1
+  pictures=$(xdg-user-dir PICTURES 2>/dev/null)
+  [ -n "$pictures" ] && [ "$pictures" != "$HOME" ] || pictures="$HOME/Изображения"
+  dir="$pictures/Снимки экрана"
+  mkdir -p "$dir" || return 1
   name="Снимок экрана_$(date +%Y%m%d_%H%M%S)"
   file="$dir/$name.png"
   n=2
@@ -59,32 +33,23 @@ target() {
   printf '%s\n' "$file"
 }
 
-# Как раньше: Spectacle в фоне (gui — его окно, если и папки нет).
-spectacle_fallback() { # --region|--fullscreen|--activewindow  -r|-f|-a
-  file=$(target) || exec spectacle "$2"
-  exec spectacle --background "$1" --copy-image --output "$file"
-}
-
 run() { # программа в своей группе systemd (как из меню оболочки)
   if [ -x /usr/lib/sedmio/launch ]; then /usr/lib/sedmio/launch "" "$@"; else "$@"; fi
 }
 
-# Готовый снимок: в буфер обмена, уведомление с миниатюрой и кнопками.
+# Готовый снимок: в буфер обмена, уведомление с миниатюрой.
 done_shot() { # файл
   file=$1
-  if command -v wl-copy >/dev/null 2>&1; then
-    wl-copy --type image/png < "$file" >/dev/null 2>&1
-  fi
+  wl-copy --type image/png < "$file" >/dev/null 2>&1
   dir=$(dirname -- "$file")
   # Отдельно и без ожидания: уведомление висит, пока его не закроют.
   (
-    action=$(notify-send --app-name="Снимок экрана" --icon=org.kde.spectacle \
-      --hint="string:image-path:file://$file" --hint=string:desktop-entry:org.kde.spectacle \
-      --action=default=Открыть --action=edit=Изменить --action=folder="Открыть папку" --wait \
+    action=$(notify-send --app-name="Снимок экрана" --icon=accessories-screenshot-tool \
+      --hint="string:image-path:file://$file" --hint=string:desktop-entry:sedmio-capture \
+      --action=default=Открыть --action=folder="Открыть папку" --wait \
       "Снимок экрана сохранён" "Он в буфере обмена — можно вставить. Файл — в папке «$(basename -- "$dir")».")
     case "$action" in
       default) run xdg-open "$file" ;;
-      edit) run spectacle --edit-existing "$file" ;;
       folder) run xdg-open "$dir" ;;
     esac
   ) </dev/null >/dev/null 2>&1 &
@@ -97,24 +62,15 @@ shoot() { # команда sedmio-capture (workspace | active-window | window)
 }
 
 case "$1" in
-  screen)
-    [ -x "$capture" ] || spectacle_fallback --fullscreen -f
-    shoot workspace ;;
-  window)
-    [ -x "$capture" ] || spectacle_fallback --activewindow -a
-    shoot active-window ;;
-  pick-window)
-    shoot window ;;
+  screen) shoot workspace ;;
+  window) shoot active-window ;;
+  pick-window) shoot window ;;
   save)
     [ $# -eq 6 ] || exit 2
     file=$(target) || exit 1
     "$capture" crop "$2" "$3" "$4" "$5" "$6" "$file" >/dev/null || exit 1
     done_shot "$file" ;;
   *)
-    # «Ножницы» оболочки; оболочка не отвечает — Spectacle.
-    if [ -x "$capture" ] && quickshell ipc -p "$shell" call screenshot open >/dev/null 2>&1; then
-      exit 0
-    fi
-    spectacle_fallback --region -r ;;
+    quickshell ipc -p "$shell" call screenshot open >/dev/null 2>&1 || shoot workspace ;;
 esac
 exit 0

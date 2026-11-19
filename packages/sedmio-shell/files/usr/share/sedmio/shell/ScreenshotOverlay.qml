@@ -6,7 +6,7 @@ import Sedmio.Style
 // «Ножницы» на одном экране (ScreenshotState): замерший снимок экрана во
 // весь экран, затемнение, выделение мышью. Отпустили кнопку — снимок готов
 // (как в Windows 11). На экране, где была клавиатура, — полоска режимов:
-// область, окно, весь экран, запись, закрыть. Esc — закрыть.
+// область, окно, весь экран, закрыть. Esc — закрыть.
 PanelWindow {
     id: root
     required property var modelData
@@ -181,11 +181,6 @@ PanelWindow {
                 }
             }
             Rectangle { width: 1; height: 24; anchors.verticalCenter: parent.verticalCenter; color: Theme.line }
-            ToolButton {
-                icon: "media-record"
-                text: "Запись"
-                onClicked: ScreenshotState.record()
-            }
             ToolButton {
                 icon: "window-close"
                 text: ""

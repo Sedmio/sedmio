@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=19
+pkgrel=20
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -34,6 +34,7 @@ depends=(
   'xdg-desktop-portal-kde'
   'xdg-desktop-portal-gtk'  # портал уведомлений (и настройки для программ GTK)
   'plasma-integration'      # вид программ Qt и KDE: диалоги, цвета, значки
+  'qt6-imageformats'        # картинки WebP, TIFF, ICO в программах Qt (обои, «Файлы»; раньше тянул Spectacle)
   'qqc2-desktop-style'      # вид разделов KDE (kcmshell6) и программ на Kirigami
   'kde-cli-tools'           # типы файлов (kcm_filetypes), kde-open, kioclient
   'polkit-kde-agent'        # запасной агент паролей (sedmio-agents-fallback)
@@ -49,7 +50,6 @@ depends=(
   'sedmio-update'           # обновления и снимки системы btrfs («Параметры» → «Обновление»)
   'konsole'
   'ark'
-  'spectacle'
   'firefox'
   'firefox-i18n-ru'
 
@@ -79,8 +79,6 @@ depends=(
   # Явный выбор там, где у зависимости несколько поставщиков,
   # иначе pacstrap берёт первый по алфавиту:
   'qt6-multimedia-ffmpeg'   # qt6-multimedia-backend
-  'tesseract-data-rus'      # tessdata для распознавания текста
-  'tesseract-data-eng'      # в Spectacle (иначе — африкаанс)
 )
 
 # Переход с SDDM на greetd на уже установленной системе: см. sedmio-base.install

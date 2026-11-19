@@ -5,13 +5,14 @@
 # usr/share/applications/sedmio-capture.desktop) и вырезает область.
 # Вид — в оболочке (sedmio-shell: ScreenshotOverlay, ScreenshotState),
 # клавиши PrtSc, Win+Shift+S, Win+PrtSc, Alt+PrtSc — /usr/lib/sedmio/screenshot
-# (sedmio-settings). Редактор и запись экрана — пока Spectacle.
+# (sedmio-settings). Spectacle в системе нет: ни редактора снимков, ни
+# записи экрана пока нет.
 #
 # Исходники — app/ рядом с этим файлом (src/ занята makepkg).
 
 pkgname=sedmio-screenshot
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Sedmio: снимки экрана"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -21,7 +22,6 @@ depends=(
   'kwin'          # снимает он (ScreenShot2)
   'wl-clipboard'  # снимок — в буфер обмена (wl-copy)
   'libnotify'     # уведомление с кнопками (notify-send)
-  'spectacle'     # «Изменить» и запись экрана
 )
 makedepends=('cmake' 'ninja')
 

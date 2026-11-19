@@ -1,5 +1,0 @@
-# Spectacle (снимки экрана). Пакет sedmio-settings.
-[General]
-# Выделили область и отпустили кнопку — снимок готов, без Enter и
-# двойного щелчка (как «Ножницы» в Windows).
-useReleaseToCapture=true

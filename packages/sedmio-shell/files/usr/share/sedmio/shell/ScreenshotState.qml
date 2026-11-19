@@ -68,12 +68,6 @@ Singleton {
         Quickshell.execDetached(["/usr/lib/sedmio/screenshot", "pick-window"]);
     }
 
-    // Запись экрана — пока Spectacle: выделить область и записать.
-    function record() {
-        close();
-        ShellState.launch("org.kde.spectacle", ["spectacle", "--record", "region"]);
-    }
-
     Process {
         id: grab
         stdout: StdioCollector { id: grabOut }
@@ -86,9 +80,7 @@ Singleton {
                 shots = {};
             }
             if (Object.keys(shots).length === 0) {
-                // KWin не дал снимок — как раньше, Spectacle.
                 console.warn("screenshot: sedmio-capture не снял экраны, код", code);
-                Quickshell.execDetached(["spectacle", "--region"]);
                 return;
             }
             root.shots = shots;

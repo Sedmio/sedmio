@@ -8,7 +8,7 @@
 Type=Application
 Name=Screenshot of an area
 Name[ru]=Снимок области экрана
-Icon=org.kde.spectacle
+Icon=accessories-screenshot-tool
 Exec=/usr/lib/sedmio/screenshot
 X-KDE-Shortcuts=Print,Meta+Shift+S
 Actions=Screen;Window;

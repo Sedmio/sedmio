@@ -55,17 +55,14 @@ trap 'kill "$ticker" 2>/dev/null || true' EXIT
 #     и Sedmio добавляют в него пакеты *-keyring при установке.
 # Без -c: пакеты скачиваются в кэш на целевом диске. Live-система живёт
 # в оперативной памяти, и пара гигабайт пакетов туда не влезет.
-# Языки распознавания текста (Spectacle → tesseract → tessdata) указаны
-# здесь явно: поставщика виртуальной зависимости pacman выбирает только
-# среди явных целей, иначе ставит первый по алфавиту (африкаанс).
-# zlib-ng-compat — по той же причине: base тянет zlib из Arch, а CachyOS
+# zlib-ng-compat указан явно: поставщика виртуальной зависимости pacman
+# выбирает только среди явных целей. base тянет zlib из Arch, а CachyOS
 # заменяет его своим, и первый же pacman -Syu спрашивал «Заменить zlib?».
 # stdbuf: построчный вывод pacman, иначе он копится в буфере и ход
 # установки не виден.
 stdbuf -oL -eL pacstrap -K "$ROOT" \
   base linux-firmware sudo nano efibootmgr zlib-ng-compat \
   cachyos-keyring cachyos-mirrorlist cachyos-v4-mirrorlist \
-  tesseract-data-rus tesseract-data-eng \
   "$host"
 
 kill "$ticker" 2>/dev/null || true

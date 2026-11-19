@@ -6,7 +6,7 @@
 Type=Application
 Name=Sedmio screenshot capture
 Name[ru]=Снимки экрана Sedmio
-Icon=org.kde.spectacle
+Icon=accessories-screenshot-tool
 Exec=/usr/lib/sedmio/sedmio-capture
 NoDisplay=true
 X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
