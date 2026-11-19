@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=13
+pkgrel=14
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -19,6 +19,7 @@ depends=(
   'sedmio-theme'            # темы: цвета всех наших программ (модуль Sedmio.Style)
   'sedmio-shell'            # своя оболочка вместо plasmashell (тянет форк quickshell)
   'sedmio-login'            # экраны входа (greetd вместо SDDM) и блокировки
+  'sedmio-session'          # сеанс: запуск, выход, выключение (вместо startplasma и ksmserver)
 
   # Plasma: минимальный набор вместо группы plasma целиком
   'plasma-desktop'

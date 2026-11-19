@@ -1,11 +1,11 @@
 # Цвета чужих программ (схема KDE и через kde-gtk-config — GTK) по теме
 # Sedmio: при входе и на ходу, когда тема меняется. Включена для всех
-# пользователей ссылкой в plasma-core.target.wants (PKGBUILD). Не
+# пользователей ссылкой в sedmio-session.target.wants (PKGBUILD). Не
 # запустилась — остаются цвета запасной схемы Sedmio из sedmio-settings.
 [Unit]
 Description=Sedmio: цвета программ по теме
 PartOf=graphical-session.target
-After=plasma-core.target
+After=sedmio-session.target plasma-core.target
 
 [Service]
 ExecStart=/usr/bin/sedmio-theme-sync

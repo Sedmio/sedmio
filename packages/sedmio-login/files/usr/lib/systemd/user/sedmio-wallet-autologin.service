@@ -13,4 +13,4 @@ TimeoutStartSec=30
 Slice=session.slice
 
 [Install]
-WantedBy=plasma-core.target
+WantedBy=sedmio-session.target plasma-core.target

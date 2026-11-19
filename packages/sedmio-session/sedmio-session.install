@@ -1,0 +1,17 @@
+# Вход без пароля, записанный до sedmio-session (установщиком или
+# «Параметрами»), запускал сеанс Plasma — переводим на наш. Трогаем только
+# эту строку; файл без неё не меняется.
+migrate_autologin() {
+  local conf=/etc/greetd/sedmio.toml
+  [ -f "$conf" ] || return 0
+  grep -q 'startplasma-wayland' "$conf" || return 0
+  sed -i 's|^command = "/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"$|command = "/usr/bin/sedmio-session"|' "$conf"
+}
+
+post_install() {
+  migrate_autologin
+}
+
+post_upgrade() {
+  migrate_autologin
+}

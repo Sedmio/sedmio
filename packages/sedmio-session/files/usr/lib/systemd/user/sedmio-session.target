@@ -1,0 +1,17 @@
+# Сеанс Sedmio (вместо plasma-workspace.target): его запускает и ждёт
+# /usr/bin/sedmio-session. Свои службы сюда добавляют ссылкой в
+# sedmio-session.target.wants (наши пакеты) — как раньше в plasma-core.target.
+# Конец KWin — конец сеанса (BindsTo); остановка цели — выход.
+[Unit]
+Description=Sedmio session
+Requires=sedmio-kwin.service graphical-session.target
+BindsTo=sedmio-kwin.service graphical-session.target
+After=sedmio-kwin.service
+Before=graphical-session.target xdg-desktop-autostart.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target
+# Выход и выключение, служба настроек KDE (kded6: kconf_update, модули),
+# бумажник по паролю входа, питание — пока своё не готово.
+Wants=sedmio-session-manager.service plasma-kded6.service plasma-kwallet-pam.service plasma-powerdevil.service
+# Автозапуск программ (~/.config/autostart, /etc/xdg/autostart).
+Wants=xdg-desktop-autostart.target

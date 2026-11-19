@@ -1,10 +1,10 @@
 # Уведомление «Флешка подключена» с кнопками «Открыть» и «Извлечь»
 # (программа sedmio-devices из пакета sedmio-files). Включена для всех
-# пользователей ссылкой в plasma-core.target.wants (PKGBUILD).
+# пользователей ссылкой в sedmio-session.target.wants (PKGBUILD).
 [Unit]
 Description=Sedmio: уведомления о флешках и дисках
 PartOf=graphical-session.target
-After=plasma-core.target
+After=sedmio-session.target plasma-core.target
 
 [Service]
 ExecStart=/usr/bin/sedmio-devices

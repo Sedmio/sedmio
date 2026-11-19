@@ -136,7 +136,8 @@ Server = https://github.com/Sedmio/sedmio/releases/download/$arch
 
 - **Вход — greetd вместо SDDM.** greetd запускает от пользователя
   `greeter` KWin на весь экран, а в нём наш Quickshell; пароль проверяет
-  PAM через greetd, он же запускает сеанс Plasma. KWin — потому что на ПК
+  PAM через greetd, он же запускает сеанс Plasma (заменено: сеанс Sedmio,
+  раздел 15). KWin — потому что на ПК
   две видеокарты и выводить надо на мониторы любой из них (как раньше
   делал SDDM на Wayland). Тема SDDM была бы проще, но экран входа на
   Quickshell — тот же движок, что у оболочки, и без SDDM в системе.
@@ -148,7 +149,8 @@ Server = https://github.com/Sedmio/sedmio/releases/download/$arch
   переменной `PLASMA_DEFAULT_SHELL`.
 - **Выход и заставка — тоже свои.** Окно «Выключить / Перезагрузить /
   Выйти» (ksmserver-logout-greeter) берёт `logout/Logout.qml` из того же
-  `org.sedmio.shell`; заставку при входе (ksplashqml) — из пакета
+  `org.sedmio.shell` (заменено: экран выхода показывает
+  sedmio-session-manager, окно Plasma — запасное, раздел 15); заставку при входе (ksplashqml) — из пакета
   Plasma/LookAndFeel `org.sedmio.desktop`, выбран в `/etc/xdg/ksplashrc`.
 - **Бумажник KDE не спрашивает пароль.** При входе с паролем бумажник
   создаёт и открывает pam_kwallet5. При автовходе пароля нет, и первая
@@ -173,7 +175,8 @@ Server = https://github.com/Sedmio/sedmio/releases/download/$arch
 
 Видимые части Plasma заменены своими, но Plasma остаётся в системе как
 запасной вариант: любая наша часть может сломаться после обновления, а
-войти и работать должно получаться всегда.
+войти и работать должно получаться всегда. (Заменено разделом 15: Plasma
+уходит из системы, запасные пути становятся своими.)
 
 | Своё | Что будет, если сломается |
 |---|---|
@@ -294,3 +297,55 @@ Plasma строки сверять). Программы KDE/Qt сами спра
 `~/.local/share` перекрывают системные) — маленький рабочий стол в их
 цветах; щелчок пишет `~/.config/sedmio/theme`, остальное меняется само.
 Битый файл темы в список не попадает.
+
+## 15. Plasma уходит из системы: сначала свой сеанс
+
+Решено (2026-11-20): не только перестать запускать Plasma, но и убрать её
+пакеты. Чем раньше, тем раньше можно укреплять фундамент. Запасной путь
+каждой нашей части при этом должен стать своим, а не Plasma. Новых
+функций по пути не добавляем.
+
+Остаются: KWin и то, без чего он не ставится (libplasma, kscreenlocker,
+krunner, milou, layer-shell-qt), фреймворки KDE (kded, kglobalaccel,
+kwallet). Порядок: сеанс → заставка → запасная оболочка вместо plasmashell
+→ питание вместо powerdevil → сеть и звук без plasma-nm и plasma-pa →
+plasma-integration и xdg-desktop-portal-kde своей сборкой без зависимости
+от plasma-workspace → удалить plasma-workspace, plasma-desktop,
+systemsettings.
+
+**Сеанс — пакет sedmio-session** вместо startplasma-wayland, ksmserver,
+plasma-shutdown и ksmserver-logout-greeter.
+
+- greetd запускает `/usr/bin/sedmio-session`: язык (locale.conf, поверх —
+  `plasma-localerc`), переменные «это KDE» (без них программы на Qt и KDE
+  не берут свою тему), раскладка из localectl, всё окружение — в systemd и
+  D-Bus, затем `systemctl --user start --wait sedmio-session.target` и
+  ожидание его конца. Цель привязана к `sedmio-kwin.service` (конец KWin —
+  конец сеанса) и к graphical-session.target. Наши службы входят в цель
+  ссылками в `sedmio-session.target.wants`; ссылки в plasma-core.target
+  остаются, пока Plasma в системе.
+- Выход, выключение, перезагрузка — `sedmio-session-manager`, отдельная
+  служба, не оболочка: упадёт панель — выключить всё равно можно. Она
+  держит на шине имена Plasma `org.kde.LogoutPrompt` и `org.kde.Shutdown`
+  (их зовут программы KDE, powerdevil по кнопке питания, наше меню и
+  Alt+F4 на пустом столе) и показывает экран «Что сделать?» поверх всех
+  мониторов. Выход: KWin закрывает окна (программа может спросить
+  «сохранить?» и отменить), затем logind выключает или перезагружает, а
+  для выхода останавливается graphical-session.target.
+- Ctrl+Alt+Del — своё действие kglobalaccel (`sedmio-logout.desktop`);
+  у компонента ksmserver Plasma клавишу забирает kconf_update
+  `sedmio-sessionkeys`, только если она там по умолчанию.
+- Программы прошлого сеанса не открываются заново, как в Windows:
+  автозапуск Plasma `plasma-fallback-session-restore` в нашем сеансе
+  выключен условием (`DESKTOP_SESSION=sedmio`). Не запускаются и kaccess
+  (залипание клавиш KWin делает сам), xembedsniproxy (значки в трее
+  старых программ X11), gmenudbusmenuproxy (глобальное меню).
+- Заставка — пока ksplashqml: запускается вместе с KWin, этапы
+  «startPlasma» и «ksmserver» шлёт sedmio-session-manager, «desktop» —
+  оболочка.
+- Запасные пути: экран выхода не загрузился — простой встроенный (только
+  Qt Quick); служба не отвечает на Ctrl+Alt+Del — клавиша перезапускает
+  её; пока Plasma в системе, без нашей службы шина поднимает окно выхода
+  Plasma с нашим видом. Вход без пароля, записанный раньше (startplasma),
+  переводится на sedmio-session при обновлении пакета.
+

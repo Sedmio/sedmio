@@ -53,7 +53,7 @@
 | Ctrl+F4 (закрыть вкладку, документ) и Ctrl+F1…F3 доходят до программ | ✅ | KWin по умолчанию переходит по ним на рабочий стол 1…4; kconf_update `sedmio-windowkeys` оставляет этому переходу только Win+F1…F4, если сочетания стоят по умолчанию | 1 |
 | На панели только окна текущего рабочего стола | ✅ | Патч Quickshell `kde-virtual-desktops.patch`: рабочие столы KWin (org_kde_plasma_virtual_desktop_management), у окна — `inCurrentDesktop`; Win+1…9 — по тем же окнам | 5 |
 | Alt+F4 на пустом рабочем столе — «Завершение работы» | ✅ | Скрипт KWin `sedmio-windowkeys`: есть окно — закрывает его, нет — экран «Что сделать?» (без отсчёта). Клавишу у KWin забирает kconf_update `sedmio-windowkeys` | 4 |
-| Ctrl+Alt+Del — экран «Что сделать?»: заблокировать, выйти, выключить, диспетчер задач | ✅ | Наш экран выхода (sedmio-login); «Диспетчер задач» — если стоит sedmio-tasks | 4 |
+| Ctrl+Alt+Del — экран «Что сделать?»: заблокировать, выйти, выключить, диспетчер задач | ✅ | Наш экран выхода (sedmio-session-manager, пакет sedmio-session; клавиша — `sedmio-logout.desktop`); «Диспетчер задач» — если стоит sedmio-tasks | 4 |
 | Ctrl+Shift+Esc — диспетчер задач | ✅ | sedmio-tasks | 4 |
 | Win+L — блокировка | ✅ | Сочетание Plasma по умолчанию, экран блокировки наш | 1 |
 | Win+P — режим второго экрана | ✅ | Окно kscreen | 1 |

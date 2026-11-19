@@ -1,0 +1,56 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Сеанс Sedmio — вместо startplasma-wayland, ksmserver, plasma-shutdown и
+# окна выхода Plasma (ksmserver-logout-greeter).
+#
+# Вход: greetd запускает /usr/bin/sedmio-session — окружение сеанса,
+# передача его systemd и D-Bus, цель sedmio-session.target (KWin —
+# sedmio-kwin.service, наша оболочка и службы — ссылками в
+# sedmio-session.target.wants из своих пакетов). Сеанс идёт, пока жива цель.
+#
+# Выход, выключение, перезагрузка: sedmio-session-manager (app/) — службы
+# D-Bus org.kde.LogoutPrompt и org.kde.Shutdown, экран «Что сделать?»
+# (usr/share/sedmio/logout, вид общий с запасным окном Plasma) поверх всех
+# мониторов. KWin закрывает окна, logind выключает. Экран не загрузился —
+# простой встроенный (app/Fallback.qml).
+#
+# Сеанс не запоминает открытые программы (как Windows): вход — только
+# автозапуск.
+#
+# Исходники — app/ рядом с этим файлом (src/ занята makepkg).
+
+pkgname=sedmio-session
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: сеанс — запуск, выход, выключение"
+arch=('x86_64')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'qt6-base'
+  'qt6-declarative'
+  'layer-shell-qt'  # экран выхода поверх всего на каждом мониторе
+  'kwin'
+  'kconfig'         # kreadconfig6: язык из plasma-localerc, заставка
+  'dbus'            # dbus-update-activation-environment
+  'systemd'
+)
+makedepends=(
+  'cmake'
+  'ninja'
+)
+install=sedmio-session.install
+
+build() {
+  cmake -G Ninja -S "$startdir/app" -B build -W no-dev \
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+    -D CMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir/usr/share" "$pkgdir/usr/lib/systemd" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir/usr/bin/sedmio-session" "$pkgdir/usr/share/kconf_update/sedmio-sessionkeys.sh"
+}

@@ -1,0 +1,11 @@
+# Диспетчер окон KWin — основа сеанса Sedmio (sedmio-session.target).
+# Обёртка перезапускает упавший KWin сама, программы переподключаются
+# (QT_WAYLAND_RECONNECT); кончилась обёртка — кончился сеанс.
+[Unit]
+Description=Sedmio session: KWin
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/kwin_wayland_wrapper --xwayland
+BusName=org.kde.KWinWrapper
+Slice=session.slice

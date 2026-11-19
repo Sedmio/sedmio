@@ -12,7 +12,7 @@
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=40
+pkgrel=41
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -38,4 +38,8 @@ package() {
   install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
   ln -s ../sedmio-shell.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-shell.service"
   ln -s ../sedmio-agents.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-agents.service"
+  # Сеанс Sedmio (sedmio-session); plasma-core.target — пока Plasma запасная.
+  install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
+  ln -s ../sedmio-shell.service "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-shell.service"
+  ln -s ../sedmio-agents.service "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-agents.service"
 }

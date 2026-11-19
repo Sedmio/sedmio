@@ -27,7 +27,7 @@ if [[ -n $autologin_user ]]; then
 
 # Вход без пароля (выбран при установке). Убрать — удалить эту секцию.
 [initial_session]
-command = "/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"
+command = "/usr/bin/sedmio-session"
 user = "$autologin_user"
 TOML
 fi

@@ -113,8 +113,8 @@ ShellRoot {
         id: launchTimer
         interval: 320
         onTriggered: Greetd.launch(
-            ["/usr/lib/plasma-dbus-run-session-if-needed", "/usr/bin/startplasma-wayland"],
-            ["XDG_SESSION_TYPE=wayland", "XDG_SESSION_DESKTOP=KDE", "XDG_CURRENT_DESKTOP=KDE", "DESKTOP_SESSION=plasma"])
+            ["/usr/bin/sedmio-session"],
+            ["XDG_SESSION_TYPE=wayland", "XDG_SESSION_DESKTOP=KDE", "XDG_CURRENT_DESKTOP=KDE", "DESKTOP_SESSION=sedmio"])
     }
 
     Process { id: power }

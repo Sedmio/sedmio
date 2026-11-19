@@ -1,9 +1,12 @@
 import QtQuick
 
-// Экран «Выключить / перезагрузить / выйти» (ksmserver-logout-greeter:
-// кнопка питания, Ctrl+Alt+Del). Пакет выбран той же переменной
-// PLASMA_DEFAULT_SHELL, что и экран блокировки.
+// Экран «Выключить / перезагрузить / выйти» окна выхода Plasma
+// (ksmserver-logout-greeter). В сеансе Sedmio экран показывает
+// sedmio-session-manager; это — запасной путь, пока Plasma в системе:
+// шина поднимает окно Plasma, если нашей службы нет. Пакет выбран той же
+// переменной PLASMA_DEFAULT_SHELL, что и экран блокировки.
 //
+// Вид общий с sedmio-session-manager (/usr/share/sedmio/logout).
 // Защита от поломки: наш экран (SedmioLogout.qml) не загрузился —
 // показываем стандартный экран Plasma. Сигналы — те, что ждёт
 // ksmserver-logout-greeter; передаём их от загруженного экрана.
@@ -25,7 +28,7 @@ Item {
         id: screen
         anchors.fill: parent
         focus: true
-        source: "SedmioLogout.qml"
+        source: "file:///usr/share/sedmio/logout/SedmioLogout.qml"
         onStatusChanged: {
             if (status === Loader.Error && source.toString().indexOf("SedmioLogout") >= 0) {
                 console.warn("Sedmio: экран выхода не загрузился, показываю стандартный Plasma");

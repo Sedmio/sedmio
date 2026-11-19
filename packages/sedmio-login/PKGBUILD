@@ -4,7 +4,8 @@
 #
 # Вход: greetd вместо SDDM. greetd запускает от пользователя greeter
 # KWin на весь экран, внутри — наш Quickshell (usr/share/sedmio/greeter),
-# пароль проверяет PAM через greetd, он же запускает сеанс Plasma.
+# пароль проверяет PAM через greetd, он же запускает сеанс Sedmio
+# (/usr/bin/sedmio-session, пакет sedmio-session).
 # Настройки greetd — /etc/greetd/sedmio.toml (config.toml из пакета
 # greetd не используется). Служба включается пресетом из sedmio-base.
 #
@@ -23,7 +24,7 @@
 
 pkgname=sedmio-login
 pkgver=0.1.0
-pkgrel=12
+pkgrel=13
 pkgdesc="Sedmio: экраны входа (greetd) и блокировки"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -42,6 +43,7 @@ depends=(
   'sedmio-branding'     # шрифт Onest
   'sedmio-theme'        # цвета (модуль Sedmio.Style)
   'sedmio-settings'     # знак Sedmio, раскладки (/etc/xdg/kxkbrc)
+  'sedmio-session'      # сеанс после входа (/usr/bin/sedmio-session), вид экрана выхода
 )
 backup=('etc/greetd/sedmio.toml')
 
@@ -53,4 +55,7 @@ package() {
     "$pkgdir/usr/lib/sedmio/set-autologin"
   install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
   ln -s ../sedmio-wallet-autologin.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-wallet-autologin.service"
+  # Сеанс Sedmio (sedmio-session); plasma-core.target — пока Plasma запасная.
+  install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
+  ln -s ../sedmio-wallet-autologin.service "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-wallet-autologin.service"
 }

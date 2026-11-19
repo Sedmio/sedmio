@@ -20,7 +20,7 @@ import sys
 import tempfile
 
 CONFIG = "/etc/greetd/sedmio.toml"
-SESSION = "/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"
+SESSION = "/usr/bin/sedmio-session"
 SECTION = re.compile(r"^\s*\[([^\]]+)\]\s*(#.*)?$")
 VALUE = re.compile(r'^\s*(\w+)\s*=\s*"([^"]*)"\s*$')
 

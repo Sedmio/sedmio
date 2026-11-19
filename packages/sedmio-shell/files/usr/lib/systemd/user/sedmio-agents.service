@@ -4,7 +4,7 @@
 [Unit]
 Description=Sedmio password prompts: polkit, Wi-Fi and Bluetooth agents
 Documentation=https://github.com/Sedmio/sedmio
-After=plasma-kwin_wayland.service
+After=sedmio-kwin.service plasma-kwin_wayland.service
 PartOf=graphical-session.target
 # С plasmashell (touch ~/.config/sedmio/use-plasmashell) — агенты KDE.
 ConditionPathExists=!%h/.config/sedmio/use-plasmashell
@@ -24,4 +24,4 @@ Restart=on-failure
 Slice=session.slice
 
 [Install]
-WantedBy=plasma-core.target
+WantedBy=sedmio-session.target plasma-core.target

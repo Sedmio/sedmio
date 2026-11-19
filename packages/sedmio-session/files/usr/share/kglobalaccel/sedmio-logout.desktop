@@ -1,0 +1,12 @@
+# Глобальная клавиша экрана «Что сделать?» (Ctrl+Alt+Del, как в Windows).
+# kglobalaccel читает файлы из /usr/share/kglobalaccel при старте и по
+# нажатию выполняет Exec. Экран показывает sedmio-session-manager; не
+# отвечает — перезапустить его и спросить ещё раз. Клавишу у Plasma
+# (ksmserver «Log Out») забирает kconf_update sedmio-sessionkeys.
+[Desktop Entry]
+Type=Application
+Name=Sedmio logout screen
+Name[ru]=Экран выхода Sedmio
+Icon=system-shutdown
+Exec=sh -c "p() { busctl --user --timeout=5 call org.kde.LogoutPrompt /LogoutPrompt org.kde.LogoutPrompt promptAll; }; p || { systemctl --user restart sedmio-session-manager.service; p; }"
+X-KDE-Shortcuts=Ctrl+Alt+Del

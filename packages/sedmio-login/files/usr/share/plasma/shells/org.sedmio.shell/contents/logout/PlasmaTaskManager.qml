@@ -1,7 +1,8 @@
 import QtQuick
 import org.kde.plasma.plasma5support as P5Support
 
-// Запуск диспетчера задач с экрана выхода (Ctrl+Alt+Del, как в Windows).
+// Запуск диспетчера задач с экрана выхода в окне выхода Plasma (запасной
+// путь; см. Logout.qml и /usr/share/sedmio/logout/TaskManagerLauncher.qml).
 // Отдельным файлом: нет модуля plasma5support — пропадёт только кнопка,
 // а не весь экран. kstart запускает программу как из меню (своя служба
 // systemd) и сразу выходит, так что экран можно закрыть после него.

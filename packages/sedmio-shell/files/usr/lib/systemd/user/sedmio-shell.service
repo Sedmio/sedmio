@@ -1,7 +1,7 @@
 [Unit]
 Description=Sedmio shell: panel, screen frame and wallpaper
 Documentation=https://github.com/Sedmio/sedmio
-After=plasma-ksmserver.service plasma-kwin_wayland.service
+After=sedmio-kwin.service plasma-ksmserver.service plasma-kwin_wayland.service
 PartOf=graphical-session.target
 # Вернуться к plasmashell: touch ~/.config/sedmio/use-plasmashell
 ConditionPathExists=!%h/.config/sedmio/use-plasmashell
@@ -22,4 +22,4 @@ Restart=on-failure
 Slice=session.slice
 
 [Install]
-WantedBy=plasma-core.target
+WantedBy=sedmio-session.target plasma-core.target

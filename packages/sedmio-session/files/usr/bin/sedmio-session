@@ -1,0 +1,100 @@
+#!/bin/sh
+# Сеанс Sedmio — вместо startplasma-wayland. Его запускает greetd после
+# входа (экран входа, вход без пароля — /etc/greetd/sedmio.toml).
+#
+# 1. Окружение сеанса: язык, «это KDE» для программ на Qt и KDE.
+# 2. Передать его systemd и D-Bus — службы сеанса запускает systemd.
+# 3. Запустить sedmio-session.target (KWin, оболочка, службы) и ждать,
+#    пока он не остановится: выход из сеанса — остановка цели
+#    (sedmio-session-manager) или конец KWin.
+# 4. Убрать переменные сеанса из systemd, чтобы следующий вход начал с
+#    чистого листа.
+
+# Шина пользователя есть всегда (pam_systemd); на всякий случай — как
+# plasma-dbus-run-session-if-needed: нет её — своя на время сеанса.
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+  if [ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus"
+  else
+    exec dbus-run-session "$0" "$@"
+  fi
+fi
+
+# Переменные, которые живут только в одном сеансе: остаток прошлого
+# (DISPLAY, WAYLAND_DISPLAY) сломал бы KWin.
+session_vars="DISPLAY XAUTHORITY WAYLAND_DISPLAY WAYLAND_SOCKET
+  XDG_SESSION_ID XDG_SEAT XDG_VTNR XDG_SESSION_CLASS XDG_SESSION_TYPE
+  XDG_SESSION_DESKTOP XDG_CURRENT_DESKTOP XDG_MENU_PREFIX DESKTOP_SESSION
+  KDE_FULL_SESSION KDE_SESSION_VERSION KDE_SESSION_UID KDE_APPLICATIONS_AS_SCOPE
+  QT_WAYLAND_RECONNECT _JAVA_AWT_WM_NONREPARENTING SESSION_MANAGER ICEAUTHORITY"
+# shellcheck disable=SC2086
+systemctl --user unset-environment $session_vars 2>/dev/null
+
+# Язык: /etc/locale.conf уже в окружении; поверх — ~/.config/plasma-localerc
+# (его пишут live-образ и раздел языка KDE).
+lc() { kreadconfig6 --file plasma-localerc --group "$1" --key "$2" 2>/dev/null; }
+for var in LANG LC_ADDRESS LC_COLLATE LC_CTYPE LC_IDENTIFICATION LC_MONETARY \
+  LC_MESSAGES LC_MEASUREMENT LC_NAME LC_NUMERIC LC_PAPER LC_TELEPHONE LC_TIME LC_ALL; do
+  value=$(lc Formats "$var")
+  [ -n "$value" ] && export "$var=$value"
+done
+value=$(lc Translations LANGUAGE)
+[ -n "$value" ] && export LANGUAGE="$value"
+
+# Программы на Qt и KDE берут тему, диалоги и значки KDE только при
+# XDG_CURRENT_DESKTOP=KDE и KDE_FULL_SESSION — без них синие папки Breeze.
+export XDG_CURRENT_DESKTOP=KDE
+export XDG_SESSION_DESKTOP=KDE
+export XDG_SESSION_TYPE=wayland
+export DESKTOP_SESSION=sedmio
+export KDE_FULL_SESSION=true
+export KDE_SESSION_VERSION=6
+KDE_SESSION_UID=$(id -u)
+export KDE_SESSION_UID
+# Каждая программа — своя группа systemd (диспетчер задач их так и видит).
+export KDE_APPLICATIONS_AS_SCOPE=1
+# Меню программ для KDE (KService): файл из plasma-workspace.
+export XDG_MENU_PREFIX=plasma-
+# KWin перезапустился — программы переподключаются, а не падают.
+export QT_WAYLAND_RECONNECT=1
+# Java (через Xwayland) рисует пустые окна без этого.
+export _JAVA_AWT_WM_NONREPARENTING=1
+
+# Раскладка без ~/.config/kxkbrc — системная (localectl), как у Plasma.
+xkb() {
+  busctl get-property org.freedesktop.locale1 /org/freedesktop/locale1 \
+    org.freedesktop.locale1 "$1" 2>/dev/null | sed -n 's/^s "\(.*\)"$/\1/p'
+}
+for pair in MODEL:X11Model LAYOUT:X11Layout VARIANT:X11Variant OPTIONS:X11Options; do
+  value=$(xkb "${pair#*:}")
+  [ -n "$value" ] && export "XKB_DEFAULT_${pair%%:*}=$value"
+done
+
+# Всё окружение — systemd и D-Bus (без переменных оболочки).
+env -u _ -u SHLVL -u SHELL -u PWD -u OLDPWD dbus-update-activation-environment --systemd --all
+
+# Прошлый сеанс мог оставить упавшие службы с исчерпанным счётчиком
+# перезапусков (оболочка, агенты) — новый вход начинает заново. reload —
+# чтобы автозапуск (~/.config/autostart) подхватил новые файлы.
+systemctl --user reset-failed
+systemctl --user daemon-reload
+
+# Заставка (ksplashqml) — пока её не заменили своей. Ей нужен KWin:
+# After=sedmio-kwin.service (plasma-ksplash.service.d) действует, только
+# если KWin запускается тем же вызовом, — поэтому оба сразу.
+if [ "$(kreadconfig6 --file ksplashrc --group KSplash --key Engine --default KSplashQML)" = KSplashQML ] \
+  && systemctl --user cat plasma-ksplash.service >/dev/null 2>&1; then
+  systemctl --user start --no-block sedmio-kwin.service plasma-ksplash.service
+fi
+
+cleanup() {
+  trap - EXIT HUP INT TERM
+  systemctl --user stop sedmio-session.target 2>/dev/null
+  # shellcheck disable=SC2086
+  systemctl --user unset-environment $session_vars 2>/dev/null
+}
+trap cleanup EXIT
+trap 'exit 0' HUP INT TERM
+
+# --wait: вернётся, когда цель остановится (выход, конец KWin).
+systemctl --user start --wait sedmio-session.target

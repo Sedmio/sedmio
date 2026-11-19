@@ -15,7 +15,7 @@
 # сломанное обновление не оставило без входа. Следующий запуск (после
 # выхода из сеанса) снова пробует обычный экран.
 
-session="/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"
+session=/usr/bin/sedmio-session
 
 text_login() {
   echo "Экран входа Sedmio не запустился — вход в текстовом режиме."

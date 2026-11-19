@@ -8,7 +8,7 @@ vt = 1
 service = "sedmio-greetd"
 
 [initial_session]
-command = "/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"
+command = "/usr/bin/sedmio-session"
 user = "live"
 
 [default_session]

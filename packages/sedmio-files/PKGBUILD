@@ -19,7 +19,7 @@
 
 pkgname=sedmio-files
 pkgver=0.1.0
-pkgrel=11
+pkgrel=12
 pkgdesc="Sedmio: файловый менеджер «Файлы» на QML и KIO"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -60,6 +60,9 @@ package() {
   # Уведомления о флешках — в каждом сеансе, как оболочка Sedmio.
   install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
   ln -s ../sedmio-devices.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-devices.service"
+  # Сеанс Sedmio (sedmio-session); plasma-core.target — пока Plasma запасная.
+  install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
+  ln -s ../sedmio-devices.service "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-devices.service"
   # Meta+E: глобальное сочетание из X-KDE-Shortcuts в .desktop.
   install -dm755 "$pkgdir/usr/share/kglobalaccel"
   ln -s ../applications/sedmio-files.desktop "$pkgdir/usr/share/kglobalaccel/sedmio-files.desktop"
