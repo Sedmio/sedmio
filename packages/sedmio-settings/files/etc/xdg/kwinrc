@@ -11,6 +11,6 @@ EnablePrimarySelection=false
 # Alt+Tab — свой переключатель (пакет sedmio-shell,
 # usr/share/kwin/tabbox/org.sedmio.switcher). Нет пакета — KWin берёт свой.
 LayoutName=org.sedmio.switcher
-# Без «подсветки окна»: она гасит всё, кроме выбранного окна, включая
-# обои и панель оболочки (у них нет типа «рабочий стол») — экран чёрный.
+# Без «подсветки окна»: она гасит всё, кроме выбранного окна, и панель
+# оболочки тоже; в Windows Alt+Tab так не делает.
 HighlightWindows=false

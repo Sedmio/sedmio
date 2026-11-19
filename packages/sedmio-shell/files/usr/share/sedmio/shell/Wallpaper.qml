@@ -11,7 +11,10 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     color: Theme.paperDeep
     WlrLayershell.layer: WlrLayer.Background
-    WlrLayershell.namespace: "sedmio-wallpaper"
+    // «desktop» — KWin по этому имени считает слой рабочим столом (как
+    // обои plasmashell): обзор окон (Meta+W), «Показать рабочий стол» и
+    // эффекты рисуют наши обои, а не чёрный фон.
+    WlrLayershell.namespace: "desktop"
 
     Rectangle {
         anchors.fill: parent
