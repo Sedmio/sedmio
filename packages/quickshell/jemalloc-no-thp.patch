@@ -1,0 +1,17 @@
+--- a/src/main.cpp	2026-11-19 16:23:11.686266224 +0700
++++ b/src/main.cpp	2026-11-19 16:23:11.686855025 +0700
+@@ -1,3 +1,14 @@
+ #include "launch/main.hpp"
+ 
++// Sedmio: jemalloc без прозрачных огромных страниц. Ядро CachyOS включает
++// THP для всей памяти (always), и 2-мегабайтные участки jemalloc целиком
++// становятся огромными страницами: оболочка занимала ~1 ГБ вместо ~450 МБ.
++// Настройка вкомпилирована (а не MALLOC_CONF в службе), чтобы не уходить
++// в окружение программ, запущенных из оболочки. Без jemalloc — просто
++// неиспользуемая строка.
++extern "C" {
++// NOLINTNEXTLINE
++__attribute__((used, visibility("default"))) const char* malloc_conf = "thp:never";
++}
++
+ int main(int argc, char** argv) { return qs::launch::main(argc, argv); }
