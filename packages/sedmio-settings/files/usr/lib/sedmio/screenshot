@@ -1,9 +1,16 @@
 #!/bin/sh
-# PrtSc и Win+Shift+S — как в Windows 11: выделить область мышью (снимок —
-# когда отпустили кнопку), и он сразу в буфере обмена и в папке
-# «Изображения/Снимки экрана», а в уведомлении — кнопка правки. Окно
-# Spectacle не открывается. Снимает Spectacle в фоновом режиме.
+# Снимки экрана как в Windows 11; окно Spectacle не открывается, снимает
+# он же в фоновом режиме. Снимок сразу в буфере обмена и в папке
+# «Изображения/Снимки экрана», в уведомлении — кнопка правки.
+#   screenshot          PrtSc, Win+Shift+S: выделить область мышью
+#                       (снимок — когда отпустили кнопку);
+#   screenshot screen   Win+PrtSc: весь экран.
 # Папку для снимков можно сменить в Spectacle (Параметры → Сохранение).
+
+case "$1" in
+  screen) what=--fullscreen gui=-f ;;
+  *) what=--region gui=-r ;;
+esac
 
 dir=$(kreadconfig6 --file spectaclerc --group ImageSave --key imageSaveLocation 2>/dev/null)
 dir=${dir#file://}
@@ -14,7 +21,7 @@ if [ -z "$dir" ]; then
 fi
 
 # Нет папки и создать нельзя — пусть Spectacle сам решит, куда (обычное окно).
-mkdir -p "$dir" 2>/dev/null || exec spectacle -r
+mkdir -p "$dir" 2>/dev/null || exec spectacle "$gui"
 
-exec spectacle --background --region --copy-image \
+exec spectacle --background "$what" --copy-image \
   --output "$dir/Снимок экрана_$(date +%Y%m%d_%H%M%S).png"

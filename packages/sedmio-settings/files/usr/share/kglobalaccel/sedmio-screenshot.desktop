@@ -11,3 +11,10 @@ Name[ru]=Снимок области экрана
 Icon=org.kde.spectacle
 Exec=/usr/lib/sedmio/screenshot
 X-KDE-Shortcuts=Print,Meta+Shift+S
+Actions=Screen
+
+[Desktop Action Screen]
+Name=Screenshot of the whole screen
+Name[ru]=Снимок всего экрана
+Exec=/usr/lib/sedmio/screenshot screen
+X-KDE-Shortcuts=Meta+Print

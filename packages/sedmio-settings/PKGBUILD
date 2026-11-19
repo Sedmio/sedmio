@@ -9,7 +9,7 @@
 
 pkgname=sedmio-settings
 pkgver=0.1.0
-pkgrel=17
+pkgrel=18
 pkgdesc="Sedmio: название системы, настройки Plasma, раскладок, значков и приложений по умолчанию"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"

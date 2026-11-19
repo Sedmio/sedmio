@@ -1,6 +1,7 @@
-# PrtSc и Win+Shift+S как в Windows 11 для каждого пользователя — один раз
+# PrtSc, Win+Shift+S и Win+PrtSc как в Windows 11 для каждого пользователя — один раз
 # (kconf_update помнит Id в ~/.config/kconf_updaterc). Пакет sedmio-settings.
 Version=6
 
-Id=sedmio-screenshotkeys-1
+# -2: добавился Win+PrtSc; повтор безопасен — трогает только сочетания по умолчанию.
+Id=sedmio-screenshotkeys-2
 Script=sedmio-screenshotkeys.sh,sh
