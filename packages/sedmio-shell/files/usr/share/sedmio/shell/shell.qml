@@ -31,7 +31,8 @@ ShellRoot {
             Wallpaper { screen: perScreen.modelData }
             Exclusions { screen: perScreen.modelData }
             Frame { screen: perScreen.modelData }
-            FullscreenOsd { screen: perScreen.modelData }
+            FullscreenOsd { screen: perScreen.modelData; screenName: perScreen.modelData.name }
+            FullscreenNotifications { screen: perScreen.modelData; screenName: perScreen.modelData.name }
         }
     }
 

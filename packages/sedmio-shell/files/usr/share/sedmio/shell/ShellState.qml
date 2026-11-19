@@ -168,6 +168,13 @@ Singleton {
 
     // Экран, с которым сейчас работают: тот, где активное окно.
     // Для клавиш (Meta), у которых своего экрана нет.
+    // Активное окно во весь экран на этом экране (видео, игра): рамка
+    // оболочки под ним — то, что нельзя пропустить, показываем поверх.
+    function fullscreenOn(screenName) {
+        const active = ToplevelManager.activeToplevel;
+        return !!active && active.fullscreen && active.screens.some(s => s.name === screenName);
+    }
+
     function focusedScreen() {
         const active = ToplevelManager.activeToplevel;
         if (active && active.screens.length > 0) return active.screens[0].name;

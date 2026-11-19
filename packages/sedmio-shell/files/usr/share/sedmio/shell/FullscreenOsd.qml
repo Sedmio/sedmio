@@ -10,12 +10,11 @@ import Sedmio.Style
 PanelWindow {
     id: root
 
-    readonly property bool fullscreenHere: {
-        const active = ToplevelManager.activeToplevel;
-        return !!active && active.fullscreen && active.screens.some(s => s.name === root.screen.name);
-    }
+    // Имя экрана — снаружи: своё screen окно переставляет, когда
+    // показывается, и visible от него зациклилось бы.
+    required property string screenName
 
-    visible: fullscreenHere && OsdState.shown && OsdState.screenName === screen.name
+    visible: ShellState.fullscreenOn(screenName) && OsdState.shown && OsdState.screenName === screenName
     anchors.bottom: true
     margins.bottom: 56
     implicitWidth: osd.wantedWidth
