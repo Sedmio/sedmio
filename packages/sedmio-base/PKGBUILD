@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=20
+pkgrel=21
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -48,7 +48,7 @@ depends=(
   'sedmio-tasks'            # диспетчер задач (Ctrl+Shift+Esc)
   'sedmio-screenshot'       # снимки экрана («Ножницы»: PrtSc, Win+Shift+S)
   'sedmio-update'           # обновления и снимки системы btrfs («Параметры» → «Обновление»)
-  'konsole'
+  'ghostty'                 # терминал (настройки — /etc/skel/.config/ghostty, тема — sedmio-settings)
   'ark'
   'firefox'
   'firefox-i18n-ru'

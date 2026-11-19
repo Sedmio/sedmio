@@ -19,7 +19,7 @@ ContextMenu {
     readonly property var commands: ({
         wallpaper: ["/usr/lib/sedmio/open-settings", "wallpaper"],
         display: ["/usr/lib/sedmio/open-settings", "display", "kcm_kscreen"],
-        terminal: ["konsole"],
+        terminal: ["ghostty", "--gtk-single-instance=true"],
         settings: ["/usr/lib/sedmio/open-settings"],
     })
 

@@ -68,9 +68,9 @@ Singleton {
         counts[entry.id] = (counts[entry.id] || 0) + 1;
         launches = counts;
         save();
-        // Terminal=true (консольные программы) — в Konsole.
+        // Terminal=true (консольные программы) — в терминале Ghostty.
         const command = [];
-        if (entry.runInTerminal) command.push("konsole", "-e");
+        if (entry.runInTerminal) command.push("ghostty", "-e");
         for (let i = 0; i < entry.command.length; i++) command.push(entry.command[i]);
         ShellState.launch(entry.id, command, entry.workingDirectory);
     }
@@ -117,7 +117,7 @@ Singleton {
         const first = entry.text.split(/\s+/)[0].replace(/\/+$/, "");
         const id = /:\/\/|^www\./i.test(first) ? "xdg-open" : (first.split("/").pop() || "xdg-open");
         if (inTerminal && !entry.open) {
-            ShellState.launch(id, ["konsole", "--hold", "-e", "sh", "-c", entry.text], home);
+            ShellState.launch(id, ["ghostty", "--wait-after-command=true", "-e", "sh", "-c", entry.text], home);
             return;
         }
         let target = entry.text.replace(/^~(?=\/|$)/, home);

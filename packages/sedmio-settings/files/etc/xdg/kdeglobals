@@ -7,6 +7,10 @@ SingleClick=false
 # ~/.config/kdeglobals переносит sedmio-theme-sync (пакет sedmio-theme).
 # Его нет — цвета Breeze.
 ColorScheme=Sedmio
+# Терминал — Ghostty (вместо Konsole): им программы KDE открывают
+# «терминал здесь» и консольные программы.
+TerminalApplication=ghostty
+TerminalService=com.mitchellh.ghostty.desktop
 
 [Icons]
 # Breeze с белыми знаками на папках (usr/share/icons/sedmio, собирается из

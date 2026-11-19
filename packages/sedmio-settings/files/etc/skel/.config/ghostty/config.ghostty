@@ -1,0 +1,18 @@
+# Терминал Ghostty в Sedmio. Свои настройки — ниже, они главнее этих.
+# Все настройки с описанием: ghostty +show-config --default --docs
+
+# Тёмная тема из цветов Sedmio.
+theme = /usr/share/sedmio/ghostty/Sedmio
+
+# Поля вокруг текста.
+window-padding-x = 8
+window-padding-y = 4
+window-padding-balance = true
+
+# Рамка окна — общая для всех окон Sedmio (рисует KWin).
+window-decoration = server
+
+# Как в Windows Terminal: Ctrl+C копирует, если что-то выделено, иначе
+# прерывает программу; Ctrl+V вставляет. Ctrl+Shift+C/V тоже работают.
+keybind = performable:ctrl+c=copy_to_clipboard
+keybind = ctrl+v=paste_from_clipboard

@@ -1,0 +1,28 @@
+# Тёмная тема терминала Ghostty из цветов Sedmio («Седум»): фон — чернила,
+# текст — бумага, выделение — зелень седума. Как в Windows Terminal: окна
+# светлые, терминал тёмный. Подключена в ~/.config/ghostty/config.ghostty
+# (из /etc/skel) строкой theme = /usr/share/sedmio/ghostty/Sedmio.
+background = #1B251F
+foreground = #E3E8DE
+cursor-color = #9CCB9F
+cursor-text = #1B251F
+selection-background = #2F5D46
+selection-foreground = #F4F7F1
+split-divider-color = #4B5A50
+
+palette = 0=#26322B
+palette = 1=#D9734A
+palette = 2=#7DB085
+palette = 3=#D4A245
+palette = 4=#6F9BC4
+palette = 5=#B58BB8
+palette = 6=#6AAFA6
+palette = 7=#C9D1C4
+palette = 8=#7E8A81
+palette = 9=#E8936E
+palette = 10=#9CCB9F
+palette = 11=#E6BE6A
+palette = 12=#94B8DA
+palette = 13=#CDA8D0
+palette = 14=#8FCBC2
+palette = 15=#EEF1EA
