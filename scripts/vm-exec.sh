@@ -56,6 +56,14 @@ if mode == "push":
     for i in range(0, len(data), 48 * 1024):
         call("guest-file-write", handle=h, **{"buf-b64": base64.b64encode(data[i:i + 48 * 1024]).decode()})
     call("guest-file-close", handle=h)
+    # Новый файл агент создаёт с правами 666: ставим как у своего, но без
+    # записи для группы и остальных (пакеты ставят 644/755). Иначе systemd
+    # ругается на drop-in, а ВМ расходится с настоящей установкой.
+    import os
+    perm = os.stat(arg1).st_mode & 0o755
+    pid = call("guest-exec", path="/bin/chmod", arg=[format(perm, "o"), "--", arg2])["pid"]
+    while not call("guest-exec-status", pid=pid).get("exited"):
+        time.sleep(0.1)
     print(f"{arg1} → {arg2} ({len(data)} байт)")
     sys.exit(0)
 
