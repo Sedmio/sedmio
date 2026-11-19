@@ -20,6 +20,7 @@ ApplicationWindow {
         { id: "mouse", title: "Мышь и тачпад", icon: "preferences-desktop-mouse" },
         { id: "keyboard", title: "Клавиатура", icon: "preferences-desktop-keyboard" },
         { id: "sound", title: "Звук", icon: "preferences-desktop-sound" },
+        { id: "network", title: "Сеть", icon: "preferences-system-network" },
         { id: "bluetooth", title: "Bluetooth", icon: "preferences-system-bluetooth" },
         { id: "power", title: "Питание", icon: "preferences-system-power-management" },
         { id: "defaults", title: "Программы по умолчанию", icon: "preferences-desktop-default-applications" },
@@ -120,6 +121,7 @@ ApplicationWindow {
                        : App.page === "mouse" ? mousePage
                        : App.page === "keyboard" ? keyboardPage
                        : App.page === "sound" ? soundPage
+                       : App.page === "network" ? networkPage
                        : App.page === "bluetooth" ? bluetoothPage
                        : App.page === "power" ? powerPage
                        : App.page === "defaults" ? defaultsPage
@@ -134,6 +136,7 @@ ApplicationWindow {
     Component { id: mousePage; MousePage {} }
     Component { id: keyboardPage; KeyboardPage {} }
     Component { id: soundPage; SoundPage {} }
+    Component { id: networkPage; NetworkPage {} }
     Component { id: bluetoothPage; BluetoothPage {} }
     Component { id: powerPage; PowerPage {} }
     Component { id: defaultsPage; DefaultsPage {} }

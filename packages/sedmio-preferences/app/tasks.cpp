@@ -157,6 +157,8 @@ SystemPart systemPart(const QString &unit)
 
 Tasks::Tasks(QObject *parent)
     : QObject(parent)
+    , m_appModel(new KeyedModel(QStringLiteral("key"), this))
+    , m_systemModel(new KeyedModel(QStringLiteral("key"), this))
 {
     // Своя группа: 0::/user.slice/user-1000.slice/user@1000.service/app.slice/…
     const QString own = QString::fromUtf8(readFile(QStringLiteral("/proc/self/cgroup")));
@@ -341,6 +343,15 @@ void Tasks::readTotals(quint64 elapsedUs)
     m_memoryUsed = m_memoryTotal - qint64(field(meminfo, "MemAvailable")) * 1024;
 }
 
+void Tasks::setSortBy(const QString &sortBy)
+{
+    if (sortBy == m_sortBy)
+        return;
+    m_sortBy = sortBy;
+    Q_EMIT sortByChanged();
+    refresh();
+}
+
 void Tasks::refresh()
 {
     const quint64 nowUs = m_clock.nsecsElapsed() / 1000;
@@ -371,7 +382,12 @@ void Tasks::refresh()
     QCollator collator(QLocale(QLocale::Russian));
     collator.setCaseSensitivity(Qt::CaseInsensitive);
     QList<Group> apps = m_appGroups.values();
-    std::sort(apps.begin(), apps.end(), [&collator](const Group &a, const Group &b) {
+    const QString sortBy = m_sortBy;
+    std::sort(apps.begin(), apps.end(), [&collator, &sortBy](const Group &a, const Group &b) {
+        if (sortBy == QLatin1String("cpu") && qAbs(a.cpu - b.cpu) >= 0.05)
+            return a.cpu > b.cpu;
+        if (sortBy == QLatin1String("memory") && a.memory != b.memory)
+            return a.memory > b.memory;
         return collator.compare(a.name, b.name) < 0;
     });
     m_apps.clear();
@@ -424,6 +440,8 @@ void Tasks::refresh()
             {QStringLiteral("stopped"), true},
         });
     }
+    m_appModel->setItems(m_apps);
+    m_systemModel->setItems(m_system);
     Q_EMIT changed();
 }
 

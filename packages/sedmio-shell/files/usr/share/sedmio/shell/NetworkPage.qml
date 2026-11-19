@@ -207,6 +207,6 @@ ColumnLayout {
         Layout.fillWidth: true
         icon: "configure"
         title: "Параметры сети"
-        onClicked: page.openExternal(["systemsettings", "kcm_networkmanagement"])
+        onClicked: page.openExternal(["/usr/lib/sedmio/open-settings", "network", "kcm_networkmanagement"])
     }
 }

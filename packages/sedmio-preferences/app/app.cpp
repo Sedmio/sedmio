@@ -11,7 +11,7 @@ namespace
 const QString service = QStringLiteral("org.sedmio.Preferences");
 const QString path = QStringLiteral("/org/sedmio/Preferences");
 const QStringList pages = {QStringLiteral("display"), QStringLiteral("wallpaper"), QStringLiteral("mouse"), QStringLiteral("keyboard"),
-                           QStringLiteral("sound"), QStringLiteral("bluetooth"), QStringLiteral("power"), QStringLiteral("defaults"), QStringLiteral("account"), QStringLiteral("datetime"), QStringLiteral("about")};
+                           QStringLiteral("sound"), QStringLiteral("network"), QStringLiteral("bluetooth"), QStringLiteral("power"), QStringLiteral("defaults"), QStringLiteral("account"), QStringLiteral("datetime"), QStringLiteral("about")};
 } // namespace
 
 App::App(QObject *parent)
@@ -33,6 +33,8 @@ QString App::normalizePage(const QString &page)
         {QStringLiteral("kcm_pulseaudio"), QStringLiteral("sound")},
         {QStringLiteral("audio"), QStringLiteral("sound")},
         {QStringLiteral("kcm_bluetooth"), QStringLiteral("bluetooth")},
+        {QStringLiteral("kcm_networkmanagement"), QStringLiteral("network")},
+        {QStringLiteral("wifi"), QStringLiteral("network")},
         {QStringLiteral("kcm_powerdevilprofilesconfig"), QStringLiteral("power")},
         {QStringLiteral("kcm_componentchooser"), QStringLiteral("defaults")},
         {QStringLiteral("kcm_users"), QStringLiteral("account")},

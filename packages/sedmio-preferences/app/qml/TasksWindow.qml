@@ -19,14 +19,6 @@ ApplicationWindow {
         running: win.visible && win.visibility !== Window.Minimized
     }
 
-    // Сортировка программ: "name" | "cpu" | "memory".
-    property string sortBy: "name"
-    readonly property var apps: {
-        const list = tasks.apps.slice();
-        if (sortBy === "cpu") list.sort((a, b) => b.cpu - a.cpu);
-        else if (sortBy === "memory") list.sort((a, b) => b.memory - a.memory);
-        return list;
-    }
     // Что спросили «Завершить?» — ждём второго нажатия.
     property string confirmEnd
     // Оболочку перезапускают — поднимается несколько секунд.
@@ -110,12 +102,13 @@ ApplicationWindow {
                 visible: tasks.available
                 HeaderRow {}
                 Repeater {
-                    model: win.apps
+                    model: tasks.appModel
                     TaskRow {
-                        required property var modelData
+                        required property var entry
                         required property int index
-                        item: modelData
-                        last: index === win.apps.length - 1
+                        readonly property var modelData: entry
+                        item: entry
+                        last: index === tasks.appModel.count - 1
                         detail: modelData.hung ? "Не отвечает"
                               : modelData.ending ? "Завершается…"
                               : modelData.processes > 1 ? modelData.processes + " " + win.processWord(modelData.processes) : ""
@@ -142,7 +135,7 @@ ApplicationWindow {
                     }
                 }
                 SText {
-                    visible: win.apps.length === 0
+                    visible: tasks.appModel.count === 0
                     width: parent.width
                     padding: 16
                     text: "Открытых программ нет."
@@ -154,12 +147,13 @@ ApplicationWindow {
                 title: "Система"
                 visible: tasks.available
                 Repeater {
-                    model: tasks.system
+                    model: tasks.systemModel
                     TaskRow {
-                        required property var modelData
+                        required property var entry
                         required property int index
-                        item: modelData
-                        last: index === tasks.system.length - 1
+                        readonly property var modelData: entry
+                        item: entry
+                        last: index === tasks.systemModel.count - 1
                         detail: modelData.stopped ? "Не запущена — панели и меню нет" : ""
                         detailIsError: modelData.stopped
                         SButton {
@@ -215,13 +209,13 @@ ApplicationWindow {
     component SortLabel: SText {
         property string key
         size: Theme.fontSmall
-        weight: win.sortBy === key ? 650 : 500
-        color: win.sortBy === key ? Theme.ink : Theme.inkMuted
+        weight: tasks.sortBy === key ? 650 : 500
+        color: tasks.sortBy === key ? Theme.ink : Theme.inkMuted
         MouseArea {
             anchors.fill: parent
             anchors.margins: -6
             cursorShape: Qt.PointingHandCursor
-            onClicked: win.sortBy = parent.key
+            onClicked: tasks.sortBy = parent.key
         }
     }
 

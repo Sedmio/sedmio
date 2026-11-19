@@ -10,6 +10,8 @@
 #include <QTimer>
 #include <QVariantList>
 
+#include "keyedmodel.h"
+
 // «Диспетчер задач» (Ctrl+Shift+Esc): что работает и сколько берёт, и
 // кнопка «Завершить» для зависшего.
 //
@@ -31,6 +33,11 @@ class Tasks : public QObject
     Q_PROPERTY(QVariantList apps READ apps NOTIFY changed)
     // [{key, name, icon, cpu, memory, memoryText, restartable}]
     Q_PROPERTY(QVariantList system READ system NOTIFY changed)
+    // Те же списки моделью (строки не пересоздаются раз в 2 с).
+    Q_PROPERTY(KeyedModel *appModel READ appModel CONSTANT)
+    Q_PROPERTY(KeyedModel *systemModel READ systemModel CONSTANT)
+    // Порядок программ: "name" | "cpu" | "memory".
+    Q_PROPERTY(QString sortBy READ sortBy WRITE setSortBy NOTIFY sortByChanged)
     // Процессор всего, %.
     Q_PROPERTY(double cpu READ cpu NOTIFY changed)
     Q_PROPERTY(qint64 memoryUsed READ memoryUsed NOTIFY changed)
@@ -47,6 +54,10 @@ public:
 
     QVariantList apps() const { return m_apps; }
     QVariantList system() const { return m_system; }
+    KeyedModel *appModel() const { return m_appModel; }
+    KeyedModel *systemModel() const { return m_systemModel; }
+    QString sortBy() const { return m_sortBy; }
+    void setSortBy(const QString &sortBy);
     double cpu() const { return m_cpu; }
     qint64 memoryUsed() const { return m_memoryUsed; }
     qint64 memoryTotal() const { return m_memoryTotal; }
@@ -66,6 +77,7 @@ public:
 Q_SIGNALS:
     void changed();
     void runningChanged();
+    void sortByChanged();
 
 private:
     struct Unit {
@@ -105,6 +117,9 @@ private:
 
     QVariantList m_apps;
     QVariantList m_system;
+    KeyedModel *m_appModel;
+    KeyedModel *m_systemModel;
+    QString m_sortBy = QStringLiteral("name");
     double m_cpu = 0;
     qint64 m_memoryUsed = 0;
     qint64 m_memoryTotal = 0;

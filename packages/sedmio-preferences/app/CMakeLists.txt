@@ -14,6 +14,8 @@ find_package(KF6Screen 6.3 REQUIRED)
 find_package(LayerShellQt 6.3 REQUIRED)
 # «Звук»: устройства и громкость через PulseAudio API (pipewire-pulse).
 find_package(KF6PulseAudioQt 1.5 REQUIRED)
+# «Сеть»: сохранённые сети и их настройки — NetworkManager.
+find_package(KF6NetworkManagerQt 6.10 REQUIRED)
 # Русские названия городов в часовых поясах.
 find_package(ICU REQUIRED COMPONENTS i18n uc)
 # Названия раскладок клавиатуры.
@@ -44,6 +46,8 @@ qt_add_qml_module(sedmio-preferences
         account.cpp account.h
         nightlight.cpp nightlight.h
         tasks.cpp tasks.h
+        network.cpp network.h
+        keyedmodel.cpp keyedmodel.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -64,6 +68,7 @@ qt_add_qml_module(sedmio-preferences
         qml/PowerPage.qml
         qml/SoundPage.qml
         qml/BluetoothPage.qml
+        qml/NetworkPage.qml
         qml/AccountPage.qml
         qml/DisplaySwitcher.qml
         qml/SSlider.qml
@@ -85,6 +90,7 @@ target_link_libraries(sedmio-preferences PRIVATE
     KF6::Service
     LayerShellQt::Interface
     KF6::PulseAudioQt
+    KF6::NetworkManagerQt
     PkgConfig::PULSE
     crypt  # хэш нового пароля (libxcrypt)
     PkgConfig::XKBREGISTRY
