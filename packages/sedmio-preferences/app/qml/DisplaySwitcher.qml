@@ -95,7 +95,7 @@ Window {
                     width: Math.max(96, Math.min(148, Math.floor((Switcher.screenWidth - 2 * win.shadowPad - 32 - 24 - 24) / 4)))
                     height: 132
                     radius: 12
-                    color: isSelected ? Theme.greenWash : (area.containsMouse ? Theme.surface : "transparent")
+                    color: isSelected ? Theme.greenWash : (area.containsMouse ? Theme.surface : Qt.alpha(Theme.surface, 0))
                     border.width: isSelected ? 2 : 0
                     border.color: Theme.green
                     Behavior on color { ColorAnimation { duration: Theme.animFast } }
@@ -167,7 +167,7 @@ Window {
             width: parent.width
             height: 30
             radius: 4
-            color: screen.on ? Theme.green : "transparent"
+            color: screen.on ? Theme.green : Qt.alpha(Theme.green, 0)
             border.width: screen.on ? 0 : 1.5
             border.color: Theme.lineStrong
             Rectangle {

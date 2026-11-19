@@ -72,7 +72,7 @@ Rectangle {
             radius: 9
             color: current ? Theme.greenWash
                  : drop.containsDrag ? Theme.greenSelect
-                 : mouse.containsMouse ? Theme.paperDeep : "transparent"
+                 : mouse.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
 
             SIcon {
                 id: icon
@@ -109,7 +109,7 @@ Rectangle {
                 height: 26
                 radius: 8
                 visible: row.ejectable && !row.setupNeeded
-                color: ejectArea.containsMouse ? Theme.paper : "transparent"
+                color: ejectArea.containsMouse ? Theme.paper : Qt.alpha(Theme.paper, 0)
                 SIcon {
                     anchors.centerIn: parent
                     name: "media-eject"

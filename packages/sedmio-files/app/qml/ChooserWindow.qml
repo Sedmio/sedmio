@@ -555,7 +555,7 @@ ApplicationWindow {
             }
             background: Rectangle {
                 radius: 8
-                color: highlighted ? Theme.greenWash : "transparent"
+                color: highlighted ? Theme.greenWash : Qt.alpha(Theme.greenWash, 0)
             }
         }
     }

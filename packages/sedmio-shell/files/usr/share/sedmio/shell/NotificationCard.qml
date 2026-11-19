@@ -120,7 +120,7 @@ Rectangle {
                 implicitWidth: 22
                 implicitHeight: 22
                 radius: 11
-                color: closeArea.containsMouse ? Theme.paperDeep : "transparent"
+                color: closeArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                 SText {
                     anchors.centerIn: parent
                     text: "✕"

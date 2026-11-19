@@ -356,7 +356,7 @@ Window {
                             height: 44
                             radius: 8
                             color: view.selected === modelData.id ? Theme.greenSelect
-                                 : area.containsMouse ? Theme.paper : "transparent"
+                                 : area.containsMouse ? Theme.paper : Qt.alpha(Theme.paper, 0)
 
                             SIcon {
                                 id: icon

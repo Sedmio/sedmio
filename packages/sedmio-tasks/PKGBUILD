@@ -17,7 +17,7 @@
 
 pkgname=sedmio-tasks
 pkgver=0.1.0
-pkgrel=4
+pkgrel=5
 pkgdesc="Sedmio: диспетчер задач"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

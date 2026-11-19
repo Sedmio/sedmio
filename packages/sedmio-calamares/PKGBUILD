@@ -9,7 +9,7 @@
 
 pkgname=sedmio-calamares
 pkgver=0.1.0
-pkgrel=10
+pkgrel=11
 pkgdesc="Sedmio: установщик (настройки и QML-страницы Calamares)"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"

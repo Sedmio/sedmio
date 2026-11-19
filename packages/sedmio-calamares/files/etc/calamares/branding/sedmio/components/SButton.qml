@@ -56,7 +56,7 @@ T.Button {
                 return control.hovered ? Theme.greenHover : Theme.green
             }
             return control.down ? Theme.line
-                 : control.hovered ? Theme.paperDeep : "transparent"
+                 : control.hovered ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
         }
         border.width: control.visualFocus ? 2 : 0
         border.color: Theme.terracotta

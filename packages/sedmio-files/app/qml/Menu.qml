@@ -85,7 +85,7 @@ Popup {
 
             height: 34
             radius: 8
-            color: area.containsMouse && enabled_ ? Theme.greenWash : "transparent"
+            color: area.containsMouse && enabled_ ? Theme.greenWash : Qt.alpha(Theme.greenWash, 0)
             opacity: enabled_ ? 1 : 0.4
 
             SIcon {

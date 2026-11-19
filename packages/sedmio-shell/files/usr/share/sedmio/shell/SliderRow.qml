@@ -23,7 +23,7 @@ RowLayout {
         implicitWidth: 36
         implicitHeight: 36
         radius: 11
-        color: root.iconClickable && iconArea.containsMouse ? Theme.paperDeep : "transparent"
+        color: root.iconClickable && iconArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
         SIcon { anchors.centerIn: parent; name: root.icon }
         MouseArea {
             id: iconArea
@@ -71,7 +71,7 @@ RowLayout {
         implicitWidth: 30
         implicitHeight: 30
         radius: 10
-        color: detailsArea.containsMouse ? Theme.paperDeep : "transparent"
+        color: detailsArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
         SIcon { anchors.centerIn: parent; implicitSize: 16; name: "go-next" }
         MouseArea {
             id: detailsArea

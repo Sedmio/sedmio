@@ -65,7 +65,7 @@ ColumnLayout {
                 implicitWidth: 30
                 implicitHeight: 30
                 radius: 10
-                color: arrowArea.containsMouse ? Theme.paperDeep : "transparent"
+                color: arrowArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                 SIcon { anchors.centerIn: parent; implicitSize: 16; name: parent.modelData.icon }
                 MouseArea {
                     id: arrowArea
@@ -118,7 +118,7 @@ ColumnLayout {
                     width: 32
                     height: 32
                     radius: 16
-                    color: cell.isToday ? Theme.green : "transparent"
+                    color: cell.isToday ? Theme.green : Qt.alpha(Theme.green, 0)
                 }
                 SText {
                     anchors.centerIn: parent

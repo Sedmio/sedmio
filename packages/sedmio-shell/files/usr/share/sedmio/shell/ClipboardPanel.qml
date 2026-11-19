@@ -254,7 +254,7 @@ Item {
                     height: 30
                     radius: 9
                     visible: row.entry.starred || row.hovered || list.currentIndex === row.index
-                    color: starArea.containsMouse ? Theme.paper : "transparent"
+                    color: starArea.containsMouse ? Theme.paper : Qt.alpha(Theme.paper, 0)
                     SIcon {
                         anchors.centerIn: parent
                         implicitSize: 16
@@ -274,7 +274,7 @@ Item {
                     height: 30
                     radius: 9
                     visible: row.hovered || list.currentIndex === row.index
-                    color: removeArea.containsMouse ? Theme.paper : "transparent"
+                    color: removeArea.containsMouse ? Theme.paper : Qt.alpha(Theme.paper, 0)
                     SIcon {
                         anchors.centerIn: parent
                         implicitSize: 16

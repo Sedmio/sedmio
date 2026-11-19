@@ -95,7 +95,7 @@ Page {
                     height: 32
                     radius: 8
                     color: current ? Theme.greenWash
-                         : (zoneArea.containsMouse || (zoneList.activeFocus && zoneList.currentIndex === index)) ? Theme.paperDeep : "transparent"
+                         : (zoneArea.containsMouse || (zoneList.activeFocus && zoneList.currentIndex === index)) ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                     SText {
                         anchors { left: parent.left; leftMargin: 10; right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
                         text: parent.modelData.label

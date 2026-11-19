@@ -103,7 +103,7 @@ Column {
         width: 30
         height: 30
         radius: 15
-        color: arrowArea.containsMouse ? Theme.surface : "transparent"
+        color: arrowArea.containsMouse ? Theme.surface : Qt.alpha(Theme.surface, 0)
         border.width: arrowArea.containsMouse ? 1 : 0
         border.color: Theme.line
         Behavior on color { ColorAnimation { duration: Theme.animFast } }

@@ -577,7 +577,7 @@ ApplicationWindow {
         radius: 9
         color: current ? Theme.paperDeep
              : tabDrop.containsDrag ? Theme.greenWash
-             : chipArea.containsMouse ? Theme.paper : "transparent"
+             : chipArea.containsMouse ? Theme.paper : Qt.alpha(Theme.paper, 0)
         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
         SIcon {
@@ -611,7 +611,7 @@ ApplicationWindow {
             height: 20
             radius: 6
             visible: chip.current || chipArea.containsMouse || closeArea.containsMouse
-            color: closeArea.containsMouse ? Theme.line : "transparent"
+            color: closeArea.containsMouse ? Theme.line : Qt.alpha(Theme.line, 0)
             SText {
                 anchors.centerIn: parent
                 text: "✕"

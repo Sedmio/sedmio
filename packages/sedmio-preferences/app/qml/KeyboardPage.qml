@@ -102,7 +102,7 @@ Page {
                     width: list.width
                     height: 32
                     radius: 8
-                    color: addArea.containsMouse ? Theme.paperDeep : "transparent"
+                    color: addArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                     SText {
                         anchors { left: parent.left; leftMargin: 10; right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
                         text: parent.modelData.name

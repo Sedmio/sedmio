@@ -160,7 +160,7 @@ ApplicationWindow {
                         required property int index
                         width: runList.width
                         height: 48
-                        color: runList.currentIndex === index ? Theme.paper : "transparent"
+                        color: runList.currentIndex === index ? Theme.paper : Qt.alpha(Theme.paper, 0)
                         Rectangle {
                             anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: 16; rightMargin: 16 }
                             height: 1

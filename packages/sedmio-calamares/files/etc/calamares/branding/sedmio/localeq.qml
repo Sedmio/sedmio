@@ -94,7 +94,7 @@ SPage {
                     radius: height / 2
                     color: selected ? Theme.green
                          : regionMouse.containsMouse ? Theme.paperDeep
-                         : "transparent"
+                         : Qt.alpha(Theme.paperDeep, 0)
                     Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                     Text {
@@ -164,7 +164,7 @@ SPage {
                         radius: 12
                         color: selected ? Theme.greenWash
                              : zoneMouse.containsMouse ? Theme.paper
-                             : "transparent"
+                             : Qt.alpha(Theme.paper, 0)
                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                         Text {

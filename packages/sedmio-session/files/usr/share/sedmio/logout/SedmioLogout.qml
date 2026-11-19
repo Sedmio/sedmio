@@ -163,7 +163,7 @@ Item {
             width: cancelText.implicitWidth + 36
             height: 38
             radius: 19
-            color: cancelArea.containsMouse ? Theme.surface : "transparent"
+            color: cancelArea.containsMouse ? Theme.surface : Qt.alpha(Theme.surface, 0)
             border.width: activeFocus ? 2 : 1
             border.color: activeFocus ? Theme.green : cancelArea.containsMouse ? Theme.lineStrong : Theme.line
             Behavior on color { ColorAnimation { duration: Theme.animFast } }

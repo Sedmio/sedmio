@@ -413,7 +413,7 @@ FocusScope {
                     radius: 10
                     color: cell.selected ? Theme.greenSelect
                          : dropHere.containsDrag ? Theme.greenWash
-                         : area.containsMouse ? Theme.paperDeep : "transparent"
+                         : area.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                     border.width: grid.currentIndex === cell.index && root.activeFocus && !cell.selected ? 1 : 0
                     border.color: Theme.lineStrong
                 }
@@ -582,7 +582,7 @@ FocusScope {
                     radius: 8
                     color: line.selected ? Theme.greenSelect
                          : dropHere.containsDrag ? Theme.greenWash
-                         : area.containsMouse ? Theme.paperDeep : "transparent"
+                         : area.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                     border.width: list.currentIndex === line.index && root.activeFocus && !line.selected ? 1 : 0
                     border.color: Theme.lineStrong
                 }

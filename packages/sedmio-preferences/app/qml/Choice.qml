@@ -83,7 +83,7 @@ Rectangle {
                 height: 32
                 radius: 8
                 color: index === root.currentIndex ? Theme.greenWash
-                     : rowArea.containsMouse ? Theme.paperDeep : "transparent"
+                     : rowArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                 SText {
                     anchors { left: parent.left; leftMargin: 10; right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
                     text: parent.modelData

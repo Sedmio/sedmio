@@ -37,7 +37,7 @@ Page {
             height: 32
             radius: 9
             anchors.verticalCenter: parent.verticalCenter
-            color: muteArea.containsMouse ? Theme.paperDeep : "transparent"
+            color: muteArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
             SIcon {
                 anchors.centerIn: parent
                 size: 22

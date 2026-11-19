@@ -24,7 +24,7 @@
 
 pkgname=sedmio-login
 pkgver=0.1.0
-pkgrel=16
+pkgrel=17
 pkgdesc="Sedmio: экраны входа (greetd) и блокировки"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

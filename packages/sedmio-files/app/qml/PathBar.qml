@@ -77,7 +77,7 @@ Rectangle {
                         width: last ? Math.min(crumb.implicitWidth + 16, flick.width) : crumb.implicitWidth + 16
                         height: 26
                         radius: 7
-                        color: crumbArea.containsMouse ? Theme.paperDeep : "transparent"
+                        color: crumbArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
 
                         SText {
                             id: crumb

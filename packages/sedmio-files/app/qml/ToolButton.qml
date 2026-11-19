@@ -14,7 +14,7 @@ Rectangle {
     implicitHeight: 34
     radius: 10
     opacity: enabled_ ? 1 : 0.4
-    color: checked ? Theme.greenWash : (area.containsMouse && enabled_ ? Theme.paperDeep : "transparent")
+    color: checked ? Theme.greenWash : (area.containsMouse && enabled_ ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0))
     Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
     SIcon {

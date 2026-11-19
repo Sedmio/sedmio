@@ -69,7 +69,7 @@ ApplicationWindow {
                     width: parent.width
                     height: 36
                     radius: 9
-                    color: current ? Theme.greenWash : navArea.containsMouse ? Theme.paper : "transparent"
+                    color: current ? Theme.greenWash : navArea.containsMouse ? Theme.paper : Qt.alpha(Theme.paper, 0)
                     SIcon {
                         id: navIcon
                         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }

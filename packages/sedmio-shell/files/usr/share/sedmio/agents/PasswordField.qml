@@ -51,7 +51,7 @@ Rectangle {
         width: root.allowReveal ? 32 : 0
         height: 32
         radius: 9
-        color: eyeArea.containsMouse ? Theme.paperDeep : "transparent"
+        color: eyeArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
         SIcon {
             anchors.centerIn: parent
             implicitSize: 18
