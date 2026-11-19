@@ -1,16 +1,37 @@
 diff -ru a/src/window/proxywindow.cpp b/src/window/proxywindow.cpp
---- a/src/window/proxywindow.cpp	2026-11-19 22:24:55.548372217 +0700
-+++ b/src/window/proxywindow.cpp	2026-11-19 22:24:55.558703681 +0700
-@@ -222,7 +222,15 @@
+--- a/src/window/proxywindow.cpp	2026-11-19 22:53:41.331115651 +0700
++++ b/src/window/proxywindow.cpp	2026-11-19 22:53:41.331662701 +0700
+@@ -66,6 +66,19 @@
+ 
+ void ProxyWindowBase::onReload(QObject* oldInstance) {
+ 	if (this->mVisible) this->window = this->retrieveWindow(oldInstance);
++
++	// The old window is on another screen, and windows that are recreated whenever
++	// hidden (layershell, popups) can't be moved: hiding counts as closing. Drop it
++	// and make a fresh one on the right screen, as on first load.
++	if (this->window != nullptr && this->deleteOnInvisible() && this->mScreen != nullptr
++	    && this->window->screen() != this->mScreen)
++	{
++		auto* old = this->window;
++		this->window = nullptr;
++		old->setVisible(false);
++		old->deleteLater();
++	}
++
+ 	auto wasVisible = this->window != nullptr && this->window->isVisible();
+ 
+ 	if (this->mVisible) this->ensureQWindow();
+@@ -222,7 +235,16 @@
  
  void ProxyWindowBase::completeWindow() {
  	if (this->mScreen != nullptr && this->window->screen() != this->mScreen) {
 -		if (this->window->isVisible()) this->window->setVisible(false);
 +		if (this->window->isVisible()) {
 +			// Hiding only to move the window to another screen (reload) is not a close:
-+			// onVisibleChanged would drop mVisible and the window would stay hidden.
-+			// Popups (deleteOnInvisible) do close: hiding deletes the window.
-+			this->mMovingScreen = !this->deleteOnInvisible();
++			// onVisibleChanged would drop mVisible and the window would stay hidden
++			// (or, for windows recreated when hidden, be deleted under us — those are
++			// replaced in onReload instead and never get here visible).
++			this->mMovingScreen = true;
 +			this->window->setVisible(false);
 +			this->mMovingScreen = false;
 +			if (this->window == nullptr) return;
@@ -18,7 +39,7 @@ diff -ru a/src/window/proxywindow.cpp b/src/window/proxywindow.cpp
  		this->window->setScreen(this->mScreen);
  	}
  
-@@ -264,6 +272,8 @@
+@@ -264,6 +286,8 @@
  }
  
  void ProxyWindowBase::onVisibleChanged() {
@@ -28,8 +49,8 @@ diff -ru a/src/window/proxywindow.cpp b/src/window/proxywindow.cpp
  		this->mVisible = false;
  		this->setVisibleDirect(false);
 diff -ru a/src/window/proxywindow.hpp b/src/window/proxywindow.hpp
---- a/src/window/proxywindow.hpp	2026-11-19 22:24:55.548413736 +0700
-+++ b/src/window/proxywindow.hpp	2026-11-19 22:24:55.558740551 +0700
+--- a/src/window/proxywindow.hpp	2026-11-19 22:53:41.331138114 +0700
++++ b/src/window/proxywindow.hpp	2026-11-19 22:53:41.331693139 +0700
 @@ -197,6 +197,7 @@
  	bool reloadComplete = false;
  	bool ranLints = false;

@@ -13,7 +13,7 @@
 
 pkgname=quickshell
 pkgver=0.3.2
-pkgrel=14
+pkgrel=15
 pkgdesc='Flexible toolkit for making desktop shells with QtQuick (сборка Sedmio)'
 arch=('x86_64')
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
@@ -63,7 +63,7 @@ sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             '2606f101c23909951f1fdbb4e66cb6e480d7911d1d36d9d50cf9b33ecbed7c90'
             'cd458aea95fe672f17ffb0690bb5acf02c4f335add5da50201dab169ca8c4253'
             'b782b6b4b3b76e814055bf259b5b354b69efc2389dc103f3e7ff68f9f1b66662'
-            '1f337d57ca52a7101d6da66dcf3868c18d0913ce8f7d667f4bfd025bd787ce7c')
+            'b85c82a621ffd23b7672a21ddc6330fb1caaf150477dbb776c09f492d55a76b7')
 
 prepare() {
   cd "$pkgname"
@@ -101,8 +101,9 @@ prepare() {
   patch -Np1 -i ../polkit-agent.patch
   # Перезагрузка QML на ходу (обновление пакета): окно, которое надо
   # перенести на другой экран, скрывалось, и это считалось закрытием —
-  # всплывающее окно удалялось, а следом шло обращение к нему (падение
-  # оболочки), обычное оставалось скрытым.
+  # окно слоя (панель, рамка, обои) удалялось, а следом шло обращение к
+  # нему (падение оболочки), обычное оставалось скрытым. Теперь окно слоя
+  # создаётся заново на нужном экране, обычное переезжает.
   patch -Np1 -i ../reload-screen.patch
 }
 
