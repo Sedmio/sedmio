@@ -3,25 +3,28 @@ import Quickshell
 import Quickshell.Widgets
 import Sedmio.Style
 
-// Программа на панели: все её окна в одной кнопке.
-// Одно окно: клик — показать, по активному — свернуть, средняя кнопка —
-// закрыть. Несколько: под значком точки по числу окон, клик — список
-// окон рядом с панелью, в нём выбрать или закрыть.
+// Программа на панели: все её окна в одной кнопке, как в Windows.
+// Закреплённая и не запущенная — клик запускает. Одно окно: клик —
+// показать, по активному — свернуть. Несколько: под значком точки по числу
+// окон, клик — список окон рядом с панелью, в нём выбрать или закрыть.
+// Средняя кнопка — ещё одно окно программы. Правая — меню: запустить,
+// закрепить или открепить, закрыть окна.
 // Закрытое окно исчезает раньше кнопки, отсюда ?. везде.
 Item {
     id: root
-    required property var windows
+    required property var group
     required property var window
     required property Item tooltip
 
+    readonly property var windows: group ? group.windows : []
     readonly property var first: windows.length > 0 ? windows[0] : null
+    readonly property bool running: windows.length > 0
     readonly property bool single: windows.length === 1
     readonly property bool anyActive: windows.some(w => w?.activated)
     readonly property bool allMinimized: windows.length > 0 && windows.every(w => w?.minimized)
 
-    // .desktop-файлы Quickshell читает в фоне: пересчитать, когда дочитал.
-    readonly property var entry: DesktopEntries.applications.values.length >= 0
-        ? DesktopEntries.heuristicLookup(first?.appId ?? "") : null
+    readonly property var entry: group ? group.entry : null
+    readonly property bool pinned: !!entry && PinnedApps.isPinned(entry.id)
     readonly property string iconName: entry ? entry.icon : (first?.appId ?? "")
     readonly property string iconSource: Icons.path(iconName, true) || Icons.path("application-x-executable")
 
@@ -30,6 +33,11 @@ Item {
         if (n10 === 1 && n100 !== 11) return one;
         if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
         return many;
+    }
+
+    function launch() {
+        if (root.tooltip) root.tooltip.hide();
+        ShellState.launchGroup(group);
     }
 
     height: Theme.buttonSize + 4
@@ -48,24 +56,31 @@ Item {
     BarButton {
         id: button
         anchors.centerIn: parent
-        active: root.anyActive || popup.visible
-        tooltip: popup.visible ? null : root.tooltip
-        hint: root.single ? (root.first?.title ?? "")
+        active: root.anyActive || popup.visible || menu.visible
+        tooltip: popup.visible || menu.visible ? null : root.tooltip
+        hint: !root.running ? (root.entry?.name ?? "")
+            : root.single ? (root.first?.title ?? "")
             : (root.entry?.name ?? root.first?.appId ?? "") + " · " + root.windows.length + " "
               + root.plural(root.windows.length, "окно", "окна", "окон")
 
         onClicked: event => {
-            if (!root.first) return;
-            if (!root.single) {
-                if (event.button === Qt.LeftButton) {
-                    if (root.tooltip) root.tooltip.hide();
-                    popup.visible = !popup.visible;
-                }
+            if (event.button === Qt.RightButton) {
+                if (root.tooltip) root.tooltip.hide();
+                popup.visible = false;
+                menu.visible = !menu.visible;
                 return;
             }
-            if (event.button === Qt.MiddleButton) {
-                root.first.close();
-            } else if (root.first.activated) {
+            if (event.button === Qt.MiddleButton || !root.running) {
+                root.launch();
+                return;
+            }
+            if (!root.single) {
+                if (root.tooltip) root.tooltip.hide();
+                menu.visible = false;
+                popup.visible = !popup.visible;
+                return;
+            }
+            if (root.first.activated) {
                 root.updateRectangle();
                 root.first.minimized = true;
             } else {
@@ -197,6 +212,38 @@ Item {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Правый щелчок: запустить ещё окно, закрепить или открепить, закрыть.
+    ContextMenu {
+        id: menu
+        anchor.item: button
+        anchor.rect.width: button.width + 14
+        anchor.rect.height: button.height
+        anchor.edges: Edges.Right
+        anchor.gravity: Edges.Right
+        items: {
+            const list = [];
+            if (root.entry) {
+                list.push({ icon: root.entry.icon, text: root.entry.name, action: "launch" });
+                list.push(root.pinned
+                    ? { icon: "window-unpin", text: "Открепить от панели", action: "unpin" }
+                    : { icon: "window-pin", text: "Закрепить на панели", action: "pin" });
+            }
+            if (root.running) {
+                if (list.length > 0) list.push({ separator: true });
+                list.push({ icon: "window-close", text: root.single ? "Закрыть окно" : "Закрыть все окна", action: "close" });
+            }
+            return list;
+        }
+        onTriggered: action => {
+            switch (action) {
+            case "launch": root.launch(); break;
+            case "pin": PinnedApps.pin(root.entry.id); break;
+            case "unpin": PinnedApps.unpin(root.entry.id); break;
+            case "close": for (const w of root.windows.slice()) w?.close(); break;
             }
         }
     }

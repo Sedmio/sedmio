@@ -154,20 +154,32 @@ Singleton {
         }
     }
 
-    // Программы на панели: [{key, windows: [toplevel…]}] в порядке
-    // появления, окна одной программы — вместе. Диалоги (у окна есть
-    // родитель) не считаем — они поднимаются вместе со своим окном.
-    // Окна других рабочих столов тоже, как в Windows (inCurrentDesktop —
-    // из нашего патча Quickshell; без него undefined — окно показываем).
+    // Программы на панели: [{key, entry, pinned, windows: [toplevel…]}].
+    // Сначала закреплённые (PinnedApps) в своём порядке, даже без окон,
+    // потом остальные запущенные в порядке появления; окна одной
+    // программы — вместе. key — имя .desktop-файла, а если программа его не
+    // назвала — её appId. Диалоги (у окна есть родитель) не считаем — они
+    // поднимаются вместе со своим окном. Окна других рабочих столов тоже,
+    // как в Windows (inCurrentDesktop — из нашего патча Quickshell; без него
+    // undefined — окно показываем).
     // Здесь, а не в панели: по этому же порядку работают Meta+1…9.
     readonly property var windowGroups: {
+        // .desktop-файлы Quickshell читает в фоне: пересчитать, когда дочитал.
+        if (DesktopEntries.applications.values.length < 0) return [];
         const byKey = {};
         const result = [];
+        for (const id of PinnedApps.ids) {
+            const entry = DesktopEntries.byId(id);
+            if (!entry || byKey[entry.id]) continue;   // не установлена
+            byKey[entry.id] = { key: entry.id, entry: entry, pinned: true, windows: [] };
+            result.push(byKey[entry.id]);
+        }
         for (const t of ToplevelManager.toplevels.values) {
             if (t.parent || t.inCurrentDesktop === false) continue;
-            const key = t.appId || t.title;
+            const entry = t.appId ? DesktopEntries.heuristicLookup(t.appId) : null;
+            const key = entry ? entry.id : (t.appId || t.title);
             if (!byKey[key]) {
-                byKey[key] = { key: key, windows: [] };
+                byKey[key] = { key: key, entry: entry, pinned: false, windows: [] };
                 result.push(byKey[key]);
             }
             byKey[key].windows.push(t);
@@ -175,14 +187,26 @@ Singleton {
         return result;
     }
 
+    // Запустить программу с панели (закреплённую или ещё одно окно).
+    function launchGroup(group) {
+        if (!group || !group.entry) return;
+        if (anythingOpen) closeAll(false);
+        AppSearch.launch(group.entry, false);
+    }
+
     // Meta+1…9 (usr/share/kglobalaccel/sedmio-windows.desktop): показать
-    // программу с этим номером на панели, как в Windows. Она уже активна:
-    // одно окно — свернуть, несколько — показать следующее.
+    // программу с этим номером на панели, как в Windows. Не запущена
+    // (закреплённая) — запустить. Уже активна: одно окно — свернуть,
+    // несколько — показать следующее.
     function activateGroup(index) {
         const group = windowGroups[index];
         if (!group) return;
         if (anythingOpen) closeAll(false);
         const windows = group.windows;
+        if (windows.length === 0) {
+            launchGroup(group);
+            return;
+        }
         const current = windows.findIndex(w => w.activated);
         if (current < 0) windows[0].activate();
         else if (windows.length === 1) windows[0].minimized = true;

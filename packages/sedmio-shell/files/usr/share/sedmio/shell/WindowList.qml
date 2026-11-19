@@ -1,8 +1,8 @@
 import QtQuick
 import Sedmio.Style
 
-// Открытые окна, по кнопке на программу: окна одной программы — в одной
-// кнопке. Диалоги («Свойства», «Сохранить как») не показываем — они всегда
+// Закреплённые программы и открытые окна, по кнопке на программу: окна
+// одной программы — в одной кнопке. Диалоги («Свойства», «Сохранить как») не показываем — они всегда
 // над своим окном и поднимаются вместе с ним. Список даёт ToplevelManager —
 // в нашей сборке Quickshell он работает и под KWin
 // (org_kde_plasma_window_management).
@@ -14,9 +14,8 @@ ListView {
     // Программы и их окна — в ShellState (по ним же работают Meta+1…9).
     readonly property var groups: ShellState.windowGroups
 
-    function windowsOf(key) {
-        const group = groups.find(g => g.key === key);
-        return group ? group.windows : [];
+    function groupOf(key) {
+        return groups.find(g => g.key === key) || null;
     }
 
     // Модель — только ключи программ, и меняется она точечно: так кнопки
@@ -47,7 +46,7 @@ ListView {
 
     delegate: WindowButton {
         required property string key
-        windows: list.windowsOf(key)
+        group: list.groupOf(key)
         window: list.window
         tooltip: list.tooltip
         width: ListView.view.width
