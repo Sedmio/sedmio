@@ -21,21 +21,30 @@ PanelWindow {
     // Ошибка ввода: карточка вздрагивает.
     function shake() { shakeAnimation.restart(); }
 
-    // Экран, где окно, с которым сейчас работают.
-    screen: {
+    // Экран — тот, где окно, с которым сейчас работают, — выбираем один
+    // раз, при открытии. Не привязкой: открывшись, мы забираем клавиатуру,
+    // активного окна не остаётся, и окно уезжало на первый экран, там
+    // активное возвращалось — и обратно, каждый раз новым окном (затемнение
+    // густело, ввести пароль было нельзя).
+    property var targetScreen: null
+    function focusedScreen() {
         const active = ToplevelManager.activeToplevel;
         const name = active && active.screens.length > 0 ? (active.screens[0]?.name ?? "") : "";
         return Quickshell.screens.find(s => s.name === name) ?? Quickshell.screens[0];
     }
+    // Открыто: active, но после того, как выбран экран.
+    property bool opened: false
+
+    screen: targetScreen ?? Quickshell.screens[0]
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
-    visible: active || shown > 0
+    visible: opened || shown > 0
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: active ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // 0 — спрятано, 1 — показано
-    property real shown: active ? 1 : 0
+    property real shown: opened ? 1 : 0
     Behavior on shown { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
 
     // KWin не возвращает клавиатуру окну сам, когда оболочка её отпускает.
@@ -44,7 +53,10 @@ PanelWindow {
         if (active) {
             Agents.closeShellPopups();
             windowBefore = ToplevelManager.activeToplevel;
+            if (shown === 0) targetScreen = focusedScreen();
+            opened = true;
         } else {
+            opened = false;
             if (windowBefore) windowBefore.activate();
             windowBefore = null;
         }
