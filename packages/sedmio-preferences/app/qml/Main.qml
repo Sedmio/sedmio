@@ -29,6 +29,7 @@ ApplicationWindow {
         { id: "autostart", title: "Автозапуск", icon: "system-run" },
         { id: "account", title: "Учётная запись", icon: "system-users" },
         { id: "datetime", title: "Дата и время", icon: "preferences-system-time" },
+        { id: "updates", title: "Обновление", icon: "system-software-update" },
         { id: "about", title: "О системе", icon: "help-about" }
     ]
     readonly property string currentTitle: {
@@ -108,6 +109,7 @@ ApplicationWindow {
                        : App.page === "autostart" ? autostartPage
                        : App.page === "account" ? accountPage
                        : App.page === "datetime" ? dateTimePage
+                       : App.page === "updates" ? updatesPage
                        : App.page === "about" ? aboutPage
                        : displayPage
     }
@@ -125,5 +127,6 @@ ApplicationWindow {
     Component { id: autostartPage; AutostartPage {} }
     Component { id: accountPage; AccountPage {} }
     Component { id: dateTimePage; DateTimePage {} }
+    Component { id: updatesPage; UpdatesPage {} }
     Component { id: aboutPage; AboutPage {} }
 }

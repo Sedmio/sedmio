@@ -11,7 +11,7 @@ namespace
 const QString service = QStringLiteral("org.sedmio.Preferences");
 const QString path = QStringLiteral("/org/sedmio/Preferences");
 const QStringList pages = {QStringLiteral("display"), QStringLiteral("theme"), QStringLiteral("wallpaper"), QStringLiteral("mouse"), QStringLiteral("keyboard"),
-                           QStringLiteral("sound"), QStringLiteral("network"), QStringLiteral("bluetooth"), QStringLiteral("power"), QStringLiteral("defaults"), QStringLiteral("autostart"), QStringLiteral("account"), QStringLiteral("datetime"), QStringLiteral("about")};
+                           QStringLiteral("sound"), QStringLiteral("network"), QStringLiteral("bluetooth"), QStringLiteral("power"), QStringLiteral("defaults"), QStringLiteral("autostart"), QStringLiteral("account"), QStringLiteral("datetime"), QStringLiteral("updates"), QStringLiteral("about")};
 } // namespace
 
 App::App(QObject *parent)
@@ -43,6 +43,8 @@ QString App::normalizePage(const QString &page)
         {QStringLiteral("kcm_users"), QStringLiteral("account")},
         {QStringLiteral("user"), QStringLiteral("account")},
         {QStringLiteral("kcm_clock"), QStringLiteral("datetime")},
+        {QStringLiteral("update"), QStringLiteral("updates")},
+        {QStringLiteral("snapshots"), QStringLiteral("updates")},
         {QStringLiteral("kcm_about-distro"), QStringLiteral("about")},
     };
     const QString lower = page.toLower();

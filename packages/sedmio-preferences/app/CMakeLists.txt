@@ -47,6 +47,7 @@ qt_add_qml_module(sedmio-preferences
         network.cpp network.h
         keyedmodel.cpp keyedmodel.h
         autostart.cpp autostart.h
+        updates.cpp updates.h
     QML_FILES
         qml/Main.qml
         qml/SText.qml
@@ -73,6 +74,7 @@ qt_add_qml_module(sedmio-preferences
         qml/DisplaySwitcher.qml
         qml/SSlider.qml
         qml/DateTimePage.qml
+        qml/UpdatesPage.qml
         qml/AboutPage.qml
 )
 

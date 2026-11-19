@@ -1,0 +1,110 @@
+#!/usr/bin/python3 -I
+# Есть ли обновления — от пользователя, без пароля: checkupdates
+# (pacman-contrib) скачивает списки пакетов во временную базу, система не
+# меняется. Результат — ~/.local/state/sedmio/updates.json, его показывают
+# «Параметры» → «Обновление».
+#
+#   update-check            проверить сейчас («Проверить» в «Параметрах»)
+#   update-check --notify   по таймеру sedmio-update-check.timer: не чаще
+#                           раза в 20 часов; нашлись обновления — уведомить,
+#                           но не чаще раза в неделю. Ставить — только кнопкой.
+
+import json
+import os
+import subprocess
+import sys
+import time
+
+STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "sedmio")
+STATE = os.path.join(STATE_DIR, "updates.json")
+RECHECK = 20 * 3600
+RENOTIFY = 7 * 24 * 3600
+
+
+def load():
+    try:
+        with open(STATE) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save(state):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    tmp = STATE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(state, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, STATE)
+
+
+def plural(n, one, few, many):
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+def check():
+    """([{name, old, new}], ошибка или "")."""
+    try:
+        proc = subprocess.run(["checkupdates", "--nocolor"], capture_output=True, text=True, timeout=600,
+                              env=dict(os.environ, LC_ALL="C"))
+    except FileNotFoundError:
+        return [], "Нет checkupdates (pacman-contrib)."
+    except subprocess.TimeoutExpired:
+        return [], "Сервер обновлений не ответил."
+    if proc.returncode == 2:
+        return [], ""
+    if proc.returncode != 0:
+        text = (proc.stderr or proc.stdout).strip()
+        return [], "Не получилось проверить: нет интернета или сервер недоступен." if "fail" in text.lower() or not text \
+            else f"Не получилось проверить: {text.splitlines()[-1]}"
+    updates = []
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 4 and parts[2] == "->":
+            updates.append({"name": parts[0], "old": parts[1], "new": parts[3]})
+    return updates, ""
+
+
+def notify(count):
+    def open_page():
+        subprocess.Popen(["/usr/lib/sedmio/launch", "sedmio-preferences", "sedmio-preferences", "updates"]
+                         if os.access("/usr/lib/sedmio/launch", os.X_OK) else ["sedmio-preferences", "updates"],
+                         start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    word = plural(count, "обновление", "обновления", "обновлений")
+    try:
+        out = subprocess.run(["notify-send", "--app-name=Sedmio", "--icon=system-software-update",
+                              "--action=open=Открыть", "--wait",
+                              "Доступны обновления",
+                              f"{count} {word}. Перед установкой система сохранит снимок — "
+                              "если что-то сломается, можно будет вернуться."],
+                             capture_output=True, text=True, timeout=24 * 3600).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return
+    if out == "open":
+        open_page()
+
+
+def main():
+    timer = "--notify" in sys.argv[1:]
+    state = load()
+    now = int(time.time())
+    if timer and now - int(state.get("checked", 0)) < RECHECK:
+        return 0
+    updates, error = check()
+    state.update({"checked": now, "error": error})
+    if not error:
+        state["updates"] = updates
+    save(state)
+    if timer and not error and updates and now - int(state.get("notified", 0)) >= RENOTIFY:
+        state["notified"] = now
+        save(state)
+        notify(len(updates))
+    return 1 if error else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

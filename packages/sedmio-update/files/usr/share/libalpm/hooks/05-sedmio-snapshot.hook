@@ -1,0 +1,15 @@
+# Снимок системы перед каждой установкой, обновлением и удалением пакетов
+# (/usr/lib/sedmio/update-helper). Не получился — pacman идёт дальше.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Сохраняем снимок системы...
+When = PreTransaction
+Exec = /usr/lib/sedmio/update-helper pre-transaction
+Depends = btrfs-progs
+NeedsTargets

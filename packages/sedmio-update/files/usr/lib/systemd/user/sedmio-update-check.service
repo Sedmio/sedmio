@@ -1,0 +1,10 @@
+# Есть ли обновления: /usr/lib/sedmio/update-check, по sedmio-update-check.timer.
+[Unit]
+Description=Sedmio session: check for updates
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/sedmio/update-check --notify
+Slice=background.slice
+Nice=10

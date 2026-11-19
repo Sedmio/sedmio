@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Центр обновлений в «Параметрах»: обновить систему, сделать, удалить
+     снимок, вернуть систему к снимку — с паролем (update-helper);
+     посмотреть снимки — без него (update-snapshots). -->
+<policyconfig>
+  <vendor>Sedmio</vendor>
+  <vendor_url>https://github.com/Sedmio/sedmio</vendor_url>
+
+  <action id="org.sedmio.update.manage">
+    <description>Update the system and manage snapshots</description>
+    <description xml:lang="ru">Обновить систему или изменить снимки</description>
+    <message>Authentication is required to update the system or change snapshots</message>
+    <message xml:lang="ru">Чтобы обновить систему или изменить снимки, введите пароль</message>
+    <icon_name>system-software-update</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/sedmio/update-helper</annotate>
+  </action>
+
+  <action id="org.sedmio.update.list">
+    <description>List system snapshots</description>
+    <description xml:lang="ru">Посмотреть снимки системы</description>
+    <message>Authentication is required to list system snapshots</message>
+    <message xml:lang="ru">Чтобы посмотреть снимки системы, введите пароль</message>
+    <icon_name>system-software-update</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/sedmio/update-snapshots</annotate>
+  </action>
+</policyconfig>

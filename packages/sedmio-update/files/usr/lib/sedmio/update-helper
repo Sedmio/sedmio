@@ -1,0 +1,691 @@
+#!/usr/bin/python3 -I
+# Центр обновлений: снимки системы btrfs и обновление. От root — через
+# pkexec из «Параметров» (org.sedmio.update.policy) и из pacman-хука.
+#
+#   update-helper list               снимки и состояние, JSON (без пароля:
+#                                    update-snapshots)
+#   update-helper create [заметка]   снимок вручную
+#   update-helper delete <id>        удалить снимок
+#   update-helper restore <id>       вернуть систему к снимку (после перезагрузки)
+#   update-helper upgrade            начать обновление (служба sedmio-upgrade)
+#   update-helper pre-transaction    из 05-sedmio-snapshot.hook: снимок перед
+#                                    установкой, обновлением, удалением пакетов
+#   update-helper run-upgrade        сама служба sedmio-upgrade: pacman -Syu
+#
+# Устройство диска (установщик, packages/sedmio-calamares): btrfs, система
+# в подтоме @, личные файлы — @home, кэш — @cache, журналы — @log. Снимок —
+# копия только @ (программы и настройки системы; личные файлы не меняются)
+# в верхнем уровне: @snapshots/<id>, рядом <id>.json — когда и зачем.
+# Снимок изменяемый: из меню загрузки в него можно загрузиться, для этого
+# в его etc/fstab корень — сам снимок.
+#
+# Меню загрузки (systemd-boot): ядра лежат на разделе EFI (/boot), вне
+# снимков. Чтобы загрузиться в снимок, перед каждым снимком копия ядра и
+# initramfs основного пункта — в /boot/sedmio-prev/, пункт
+# loader/entries/sedmio-prev.conf с корнем в этом снимке. Пункт один — к
+# последнему снимку.
+#
+# Возврат: @ → @snapshots/<сейчас> (снимок «перед возвратом»), снимок → @,
+# ядра из него — в /boot, initramfs заново (mkinitcpio в chroot нового @).
+# Работающая система ещё на старом @, новый — после перезагрузки.
+#
+# Хранится: автоматических снимков (перед pacman и перед возвратом) — 5
+# последних, сделанных вручную — пока их не удалят.
+
+import contextlib
+import datetime
+import fcntl
+import filecmp
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+RUN = "/run/sedmio-update"
+TOP = RUN + "/top"
+SNAPS = TOP + "/@snapshots"
+MAIN = "@"
+LOCK = RUN + "/lock"
+RESTORED = RUN + "/restored.json"
+UPGRADE_STATE = RUN + "/upgrade.json"
+UPGRADE_LOG = RUN + "/upgrade.log"
+
+ESP = "/boot"
+ENTRIES = ESP + "/loader/entries"
+PREV_DIR = ESP + "/sedmio-prev"
+PREV_ENTRY = ENTRIES + "/sedmio-prev.conf"
+
+KEEP_AUTO = 5
+ID_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(-\d+)?$")
+
+# После обновления этих пакетов — перезагрузить (и после нового ядра).
+REBOOT_PACKAGES = {
+    "systemd", "systemd-libs", "glibc", "linux-firmware", "amd-ucode", "intel-ucode",
+    "mesa", "nvidia-utils", "nvidia-open", "nvidia-open-lts", "nvidia-dkms",
+    "qt6-base", "qt6-declarative", "kwin", "quickshell", "dbus", "dbus-broker",
+    "sedmio-shell", "sedmio-session", "sedmio-login", "sedmio-theme",
+}
+
+
+class Fail(Exception):
+    """Ошибка для человека: текст показывают «Параметры»."""
+
+
+def run(*args, **kwargs):
+    kwargs.setdefault("check", True)
+    kwargs.setdefault("capture_output", True)
+    kwargs.setdefault("text", True)
+    try:
+        return subprocess.run(list(args), **kwargs)
+    except subprocess.CalledProcessError as e:
+        raise Fail(f"{' '.join(args[:3])}: {(e.stderr or e.stdout or '').strip()}") from e
+
+
+def now_id():
+    return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def new_id():
+    """Свободное имя снимка: время, при совпадении — с номером."""
+    base = now_id()
+    snap_id, n = base, 1
+    while os.path.lexists(os.path.join(SNAPS, snap_id)):
+        n += 1
+        snap_id = f"{base}-{n}"
+    return snap_id
+
+
+def write_json(path, data, mode=0o644):
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+
+def read_json(path, default=None):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return default
+
+
+def prepare_run():
+    os.makedirs(RUN, exist_ok=True)
+    os.chmod(RUN, 0o755)
+    os.makedirs(TOP, exist_ok=True)
+    os.chmod(TOP, 0o700)
+
+
+@contextlib.contextmanager
+def locked():
+    prepare_run()
+    with open(LOCK, "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        yield
+
+
+# ---- Диск
+
+def in_chroot():
+    """pacman в chroot (установщик, pacstrap) — снимки не наши."""
+    try:
+        here, init = os.stat("/"), os.stat("/proc/1/root/")
+    except OSError:
+        return True
+    return (here.st_dev, here.st_ino) != (init.st_dev, init.st_ino)
+
+
+def root_mount():
+    """(тип, UUID, путь подтома) корня."""
+    out = run("findmnt", "-n", "-o", "FSTYPE,UUID,FSROOT", "/", check=False).stdout.split()
+    if len(out) != 3:
+        return None, None, None
+    return out[0], out[1], out[2].lstrip("/")
+
+
+def unsupported_reason():
+    fstype, uuid, fsroot = root_mount()
+    if fstype != "btrfs":
+        return "Снимки работают, когда система на btrfs, а здесь другая файловая система."
+    if fsroot != MAIN and not fsroot.startswith("@snapshots/"):
+        return f"Система в подтоме «{fsroot}», а снимки умеют только подтом @."
+    if not shutil.which("btrfs"):
+        return "Нет btrfs-progs."
+    return None
+
+
+@contextlib.contextmanager
+def top_level():
+    """Верхний уровень btrfs (subvolid=5) в /run/sedmio-update/top."""
+    reason = unsupported_reason()
+    if reason:
+        raise Fail(reason)
+    _, uuid, _ = root_mount()
+    prepare_run()
+    if os.path.ismount(TOP):
+        yield
+        return
+    run("mount", "-t", "btrfs", "-o", "subvolid=5", f"UUID={uuid}", TOP)
+    try:
+        if not os.path.isdir(os.path.join(TOP, MAIN)):
+            raise Fail("На диске нет подтома @.")
+        os.makedirs(SNAPS, mode=0o700, exist_ok=True)
+        yield
+    finally:
+        subprocess.run(["umount", TOP], capture_output=True)
+        if os.path.ismount(TOP):
+            subprocess.run(["umount", "-l", TOP], capture_output=True)
+
+
+def subvolume_ids():
+    """{путь подтома: ID} в верхнем уровне."""
+    ids = {}
+    for line in run("btrfs", "subvolume", "list", TOP).stdout.splitlines():
+        m = re.match(r"ID (\d+) .* path (.+)$", line)
+        if m:
+            ids[m.group(2)] = int(m.group(1))
+    return ids
+
+
+def booted_subvolume():
+    """Путь подтома, из которого загружена система: @ или @snapshots/<id>."""
+    return root_mount()[2]
+
+
+def booted_snapshot():
+    path = booted_subvolume() or ""
+    return path.split("/", 1)[1] if path.startswith("@snapshots/") else None
+
+
+def snapshot_path(snap_id):
+    if not ID_RE.match(snap_id or ""):
+        raise Fail("Неверный снимок.")
+    return os.path.join(SNAPS, snap_id)
+
+
+def fix_fstab(root, subvol):
+    """В <root>/etc/fstab корень — подтом subvol."""
+    path = os.path.join(root, "etc/fstab")
+    try:
+        with open(path) as f:
+            lines = f.read().split("\n")
+    except OSError:
+        return
+    out = []
+    for line in lines:
+        fields = line.split()
+        if len(fields) >= 4 and not line.lstrip().startswith("#") and fields[1] == "/" and fields[2] == "btrfs":
+            options = [o for o in fields[3].split(",") if not o.startswith("subvol=") and not o.startswith("subvolid=")]
+            options.insert(0, f"subvol=/{subvol}")
+            line = re.sub(r"^(\s*\S+\s+\S+\s+\S+\s+)\S+", lambda m: m.group(1) + ",".join(options), line, count=1)
+        out.append(line)
+    with open(path + ".sedmio-tmp", "w") as f:
+        f.write("\n".join(out))
+    shutil.copymode(path, path + ".sedmio-tmp")
+    os.replace(path + ".sedmio-tmp", path)
+
+
+# ---- Снимки
+
+def meta_path(snap_id):
+    return os.path.join(SNAPS, snap_id + ".json")
+
+
+def all_snapshots():
+    snaps = []
+    ids = subvolume_ids()
+    for name in sorted(os.listdir(SNAPS)):
+        if not ID_RE.match(name) or f"@snapshots/{name}" not in ids:
+            continue
+        meta = read_json(meta_path(name), {}) or {}
+        meta["id"] = name
+        meta.setdefault("kind", "auto")
+        meta.setdefault("date", datetime.datetime.strptime(name[:19], "%Y-%m-%d_%H-%M-%S").isoformat())
+        snaps.append(meta)
+    return snaps
+
+
+def take_snapshot(kind, reason, packages=(), note="", source=None):
+    """Снимок подтома source (по умолчанию — из которого загружена система)."""
+    source = source or booted_subvolume()
+    snap_id = new_id()
+    path = snapshot_path(snap_id)
+    run("btrfs", "subvolume", "snapshot", os.path.join(TOP, source), path)
+    # Снимок перед pacman сделан посреди его работы: замок базы — в снимке,
+    # и pacman в вернувшейся системе считал бы, что занят.
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(os.path.join(path, "var/lib/pacman/db.lck"))
+    fix_fstab(path, f"@snapshots/{snap_id}")
+    meta = {
+        "date": datetime.datetime.now().isoformat(timespec="seconds"),
+        "kind": kind,
+        "reason": reason,
+        "note": note,
+        "packages": sorted(set(packages)),
+        "kernel": kernel_version(path),
+    }
+    write_json(meta_path(snap_id), meta, 0o600)
+    return snap_id
+
+
+def kernel_version(root):
+    """Версия ядра основного пункта меню в системе root."""
+    base = default_kernel_pkgbase()
+    for d in sorted(os.listdir(os.path.join(root, "usr/lib/modules")) if os.path.isdir(os.path.join(root, "usr/lib/modules")) else []):
+        try:
+            with open(os.path.join(root, "usr/lib/modules", d, "pkgbase")) as f:
+                if f.read().strip() == base:
+                    return d
+        except OSError:
+            continue
+    return ""
+
+
+def delete_snapshot(snap_id):
+    path = snapshot_path(snap_id)
+    if snap_id == booted_snapshot():
+        raise Fail("Система сейчас загружена из этого снимка — его нельзя удалить.")
+    if os.path.isdir(path):
+        run("btrfs", "subvolume", "delete", path)
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(meta_path(snap_id))
+    if prev_entry_snapshot() == snap_id:
+        remove_boot_entry()
+
+
+def prune():
+    """Автоматических — KEEP_AUTO последних."""
+    keep = {booted_snapshot(), prev_entry_snapshot()}
+    pending = read_json(RESTORED, {}) or {}
+    keep.add(pending.get("before"))
+    auto = [s for s in all_snapshots() if s["kind"] != "manual"]
+    for snap in auto[:-KEEP_AUTO] if len(auto) > KEEP_AUTO else []:
+        if snap["id"] not in keep:
+            with contextlib.suppress(Fail):
+                delete_snapshot(snap["id"])
+
+
+# ---- Меню загрузки
+
+def read_entry(path):
+    entry = {"initrd": []}
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    m = re.match(r"#\s*sedmio-snapshot\s+(\S+)", line)
+                    if m:
+                        entry["snapshot"] = m.group(1)
+                    continue
+                key, _, value = line.partition(" ")
+                if key == "initrd":
+                    entry["initrd"].append(value.strip())
+                else:
+                    entry[key] = value.strip()
+    except OSError:
+        return None
+    return entry
+
+
+def default_entry():
+    loader = read_entry(ESP + "/loader/loader.conf") or {}
+    name = loader.get("default", "sedmio.conf")
+    if "*" in name or not name.endswith(".conf"):
+        name = "sedmio.conf"
+    return read_entry(os.path.join(ENTRIES, name))
+
+
+def default_kernel_pkgbase():
+    entry = default_entry() or {}
+    m = re.match(r"^/vmlinuz-(.+)$", entry.get("linux", ""))
+    return m.group(1) if m else "linux-cachyos"
+
+
+def prev_entry_snapshot():
+    entry = read_entry(PREV_ENTRY)
+    return entry.get("snapshot") if entry else None
+
+
+def remove_boot_entry():
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(PREV_ENTRY)
+    shutil.rmtree(PREV_DIR, ignore_errors=True)
+
+
+def copy_if_changed(src, dst):
+    if os.path.exists(dst) and filecmp.cmp(src, dst, shallow=True):
+        return
+    tmp = dst + ".new"
+    shutil.copyfile(src, tmp)
+    st = os.stat(src)
+    os.utime(tmp, ns=(st.st_atime_ns, st.st_mtime_ns))
+    os.replace(tmp, dst)
+
+
+def update_boot_entry(snap_id):
+    """Пункт меню «Sedmio Linux (snapshot …)» — загрузиться в снимок snap_id."""
+    entry = default_entry()
+    if not entry or not os.path.isdir(ENTRIES):
+        return False
+    base = default_kernel_pkgbase()
+    root = snapshot_path(snap_id)
+    version = kernel_version(root)
+    kernel = os.path.join(root, "usr/lib/modules", version, "vmlinuz") if version else ""
+    initramfs = [i for i in entry["initrd"] if os.path.basename(i).startswith("initramfs-")]
+    others = [i for i in entry["initrd"] if i not in initramfs]
+    if not os.path.isfile(kernel) or len(initramfs) != 1 or not os.path.isfile(ESP + initramfs[0]):
+        remove_boot_entry()
+        return False
+    # initramfs в /boot — от того же ядра, что в снимке (снимок — до pacman).
+    if f"/vmlinuz-{base}" != entry.get("linux") or not filecmp.cmp(kernel, ESP + entry["linux"], shallow=False):
+        remove_boot_entry()
+        return False
+
+    # Место: новые файлы вместо старых и запас.
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(PREV_ENTRY)
+    old = sum(os.path.getsize(os.path.join(PREV_DIR, f)) for f in os.listdir(PREV_DIR)) if os.path.isdir(PREV_DIR) else 0
+    need = os.path.getsize(kernel) + os.path.getsize(ESP + initramfs[0])
+    if shutil.disk_usage(ESP).free + old < need + 32 * 1024 ** 2:
+        remove_boot_entry()
+        return False
+    os.makedirs(PREV_DIR, exist_ok=True)
+    try:
+        copy_if_changed(kernel, PREV_DIR + "/vmlinuz")
+        copy_if_changed(ESP + initramfs[0], PREV_DIR + "/initramfs.img")
+    except OSError:
+        remove_boot_entry()
+        return False
+
+    options = re.sub(r"(rootflags=(?:\S*,)?)subvol=/?@(?=[,\s]|$)", rf"\1subvol=/@snapshots/{snap_id}",
+                     entry.get("options", ""))
+    if f"subvol=/@snapshots/{snap_id}" not in options:
+        options = f"{options} rootflags=subvol=/@snapshots/{snap_id}".strip()
+    # Меню systemd-boot показывает средствами прошивки — латиницей.
+    when = datetime.datetime.strptime(snap_id[:19], "%Y-%m-%d_%H-%M-%S").strftime("%Y-%m-%d %H:%M")
+    lines = [f"# sedmio-snapshot {snap_id}",
+             f"title    Sedmio Linux (snapshot {when})",
+             "sort-key sedmio-9",
+             "linux    /sedmio-prev/vmlinuz"]
+    lines += [f"initrd   {i}" for i in others]
+    lines += ["initrd   /sedmio-prev/initramfs.img", f"options  {options}", ""]
+    with open(PREV_ENTRY + ".new", "w") as f:
+        f.write("\n".join(lines))
+    os.replace(PREV_ENTRY + ".new", PREV_ENTRY)
+    return True
+
+
+# ---- Возврат
+
+def upgrade_running():
+    state = read_json(UPGRADE_STATE, {}) or {}
+    if state.get("state") != "running":
+        return False
+    return run("systemctl", "is-active", "--quiet", "sedmio-upgrade.service", check=False).returncode == 0
+
+
+def check_idle():
+    if read_json(RESTORED):
+        raise Fail("Система уже возвращена к снимку — перезагрузите компьютер.")
+    if upgrade_running():
+        raise Fail("Идёт обновление — дождитесь конца.")
+    if os.path.exists("/var/lib/pacman/db.lck"):
+        raise Fail("Сейчас устанавливаются программы — дождитесь конца.")
+
+
+@contextlib.contextmanager
+def chroot_mounts(root):
+    mounted = []
+    try:
+        # Корень — точка монтирования (как в arch-chroot): иначе autodetect
+        # в mkinitcpio не узнаёт файловую систему корня и кладёт в initramfs
+        # модули всех.
+        run("mount", "--bind", root, root)
+        mounted.append(root)
+        for src, opts in (("/proc", ["--rbind"]), ("/sys", ["--rbind"]), ("/dev", ["--rbind"]),
+                          ("/run", ["--bind"]), (ESP, ["--bind"])):
+            dst = root + src
+            os.makedirs(dst, exist_ok=True)
+            run("mount", *opts, src, dst)
+            mounted.append(dst)
+        yield
+    finally:
+        for dst in reversed(mounted):
+            if subprocess.run(["umount", "-R", dst], capture_output=True).returncode:
+                subprocess.run(["umount", "-R", "-l", dst], capture_output=True)
+
+
+def install_kernels(root):
+    """Ядра системы root — в /boot, initramfs заново."""
+    for d in os.listdir(os.path.join(root, "usr/lib/modules")):
+        base_file = os.path.join(root, "usr/lib/modules", d, "pkgbase")
+        kernel = os.path.join(root, "usr/lib/modules", d, "vmlinuz")
+        if os.path.isfile(base_file) and os.path.isfile(kernel):
+            with open(base_file) as f:
+                base = f.read().strip()
+            if re.match(r"^[A-Za-z0-9._+-]+$", base):
+                copy_if_changed(kernel, f"{ESP}/vmlinuz-{base}")
+    with chroot_mounts(root):
+        proc = subprocess.run(["chroot", root, "mkinitcpio", "-P"], capture_output=True, text=True)
+    with contextlib.suppress(OSError), open(RUN + "/mkinitcpio.log", "w") as log:
+        log.write(proc.stdout + proc.stderr)
+    if proc.returncode != 0:
+        tail = "\n".join((proc.stdout + proc.stderr).strip().splitlines()[-5:])
+        raise Fail(f"Не получилось собрать initramfs:\n{tail}")
+
+
+def restore(snap_id):
+    check_idle()
+    source = snapshot_path(snap_id)
+    if not os.path.isdir(source):
+        raise Fail("Такого снимка нет.")
+    main = os.path.join(TOP, MAIN)
+    before = None
+    replaced = False
+    try:
+        # Нынешняя @ — снимком «перед возвратом».
+        before = new_id()
+        os.rename(main, snapshot_path(before))
+        fix_fstab(snapshot_path(before), f"@snapshots/{before}")
+        target = read_json(meta_path(snap_id), {}) or {}
+        write_json(meta_path(before), {
+            "date": datetime.datetime.now().isoformat(timespec="seconds"),
+            "kind": "restore", "reason": "restore", "note": "",
+            "packages": [], "target": snap_id, "targetDate": target.get("date", ""),
+            "kernel": kernel_version(snapshot_path(before)),
+        }, 0o600)
+        run("btrfs", "subvolume", "snapshot", source, main)
+        replaced = True
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(os.path.join(main, "var/lib/pacman/db.lck"))
+        fix_fstab(main, MAIN)
+        install_kernels(main)
+    except Exception:
+        # Как было: прежняя @ на место, её ядра.
+        if before and os.path.isdir(snapshot_path(before)):
+            if replaced:
+                subprocess.run(["btrfs", "subvolume", "delete", main], capture_output=True)
+            if not os.path.exists(main):
+                os.rename(snapshot_path(before), main)
+                fix_fstab(main, MAIN)
+                with contextlib.suppress(FileNotFoundError):
+                    os.unlink(meta_path(before))
+                if replaced:
+                    with contextlib.suppress(Exception):
+                        install_kernels(main)
+        raise
+    target = read_json(meta_path(snap_id), {}) or {}
+    write_json(RESTORED, {"id": snap_id, "date": target.get("date", ""), "before": before})
+    return before
+
+
+# ---- Обновление
+
+def start_upgrade():
+    check_idle()
+    if booted_snapshot():
+        raise Fail("Система загружена из снимка. Сначала оставьте эту версию и перезагрузитесь.")
+    prepare_run()
+    write_json(UPGRADE_STATE, {"state": "running", "started": int(time.time())})
+    with open(UPGRADE_LOG, "w"):
+        os.chmod(UPGRADE_LOG, 0o644)
+    # Отдельной службой: закрыли «Параметры» — обновление идёт дальше.
+    proc = subprocess.run(["systemd-run", "--unit=sedmio-upgrade", "--collect", "--quiet",
+                           "--service-type=exec", "--description=Sedmio: обновление системы",
+                           "-p", "KillMode=process",
+                           "/usr/lib/sedmio/update-helper", "run-upgrade"],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        write_json(UPGRADE_STATE, {"state": "failed", "code": -1, "finished": int(time.time())})
+        raise Fail("Не получилось начать обновление: " + proc.stderr.strip())
+
+
+def pacman_log_changes(offset):
+    changed = []
+    try:
+        with open("/var/log/pacman.log", errors="replace") as f:
+            f.seek(offset)
+            for line in f:
+                m = re.search(r"\[ALPM\] (upgraded|installed|removed|downgraded) (\S+) \((.*)\)", line)
+                if m:
+                    changed.append({"action": m.group(1), "name": m.group(2), "version": m.group(3)})
+    except OSError:
+        pass
+    return changed
+
+
+def run_upgrade():
+    try:
+        offset = os.path.getsize("/var/log/pacman.log")
+    except OSError:
+        offset = 0
+    env = dict(os.environ, SEDMIO_SNAPSHOT_REASON="upgrade", LANG="ru_RU.UTF-8", LC_ALL="ru_RU.UTF-8")
+    code = -1
+    with open(UPGRADE_LOG, "a", buffering=1) as log:
+        try:
+            proc = subprocess.Popen(["pacman", "-Syu", "--noconfirm", "--noprogressbar"],
+                                    stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=env)
+            code = proc.wait()
+        except OSError as e:
+            log.write(f"{e}\n")
+    changed = pacman_log_changes(offset)
+    names = {c["name"] for c in changed}
+    kernel_gone = not os.path.isdir(f"/usr/lib/modules/{os.uname().release}")
+    write_json(UPGRADE_STATE, {
+        "state": "done" if code == 0 else "failed",
+        "code": code,
+        "finished": int(time.time()),
+        "changed": len(changed),
+        "reboot": bool(kernel_gone or names & REBOOT_PACKAGES or any(n.startswith("sedmio-") for n in names)),
+    })
+
+
+# ---- Хук pacman
+
+def pre_transaction():
+    """Снимок перед транзакцией pacman. Ошибка снимка pacman не останавливает."""
+    if in_chroot() or unsupported_reason() or os.environ.get("SEDMIO_SNAPSHOT_SKIP"):
+        return
+    targets = [t.strip() for t in sys.stdin.read().split() if t.strip()]
+    reason = "upgrade" if os.environ.get("SEDMIO_SNAPSHOT_REASON") == "upgrade" else "packages"
+    with locked(), top_level():
+        snap_id = take_snapshot("auto", reason, targets)
+        if not booted_snapshot():
+            update_boot_entry(snap_id)
+        prune()
+    print(f"Снимок системы: {snap_id}")
+
+
+# ---- Команды
+
+def cmd_list():
+    reason = unsupported_reason()
+    result = {
+        "supported": reason is None,
+        "reason": reason or "",
+        "booted": booted_snapshot(),
+        "restored": read_json(RESTORED),
+        "upgrading": upgrade_running(),
+        "snapshots": [],
+    }
+    if reason is None:
+        with locked(), top_level():
+            prev = prev_entry_snapshot()
+            for snap in reversed(all_snapshots()):
+                packages = snap.get("packages") or []
+                result["snapshots"].append({
+                    "id": snap["id"],
+                    "date": snap.get("date", ""),
+                    "kind": snap.get("kind", "auto"),
+                    "reason": snap.get("reason", ""),
+                    "note": snap.get("note", ""),
+                    "packages": packages[:12],
+                    "count": len(packages),
+                    "targetDate": snap.get("targetDate", ""),
+                    "kernel": snap.get("kernel", ""),
+                    "bootMenu": snap["id"] == prev,
+                })
+    print(json.dumps(result, ensure_ascii=False))
+
+
+def detach(args):
+    """Изменить снимки — отдельной службой: «Параметры» закрыли или ушли со
+    страницы (pkexec убит) — возврат к снимку всё равно доделается."""
+    if os.environ.get("INVOCATION_ID"):
+        return
+    os.execvp("systemd-run", ["systemd-run", "--wait", "--pipe", "--quiet", "--collect",
+                              "--service-type=exec", "-p", "KillMode=process",
+                              "--description=Sedmio: снимки системы",
+                              "/usr/lib/sedmio/update-helper", *args])
+
+
+def main():
+    args = sys.argv[1:]
+    command = args[0] if args else ""
+    if command in ("create", "delete", "restore"):
+        detach(args)
+    try:
+        if command == "list":
+            cmd_list()
+        elif command == "create":
+            note = " ".join(args[1:])[:200]
+            with locked(), top_level():
+                check_idle()
+                snap_id = take_snapshot("manual", "manual", note=note)
+                if not booted_snapshot():
+                    update_boot_entry(snap_id)
+            print(snap_id)
+        elif command == "delete" and len(args) == 2:
+            with locked(), top_level():
+                delete_snapshot(args[1])
+        elif command == "restore" and len(args) == 2:
+            with locked(), top_level():
+                restore(args[1])
+                prune()
+        elif command == "upgrade":
+            with locked():
+                start_upgrade()
+        elif command == "run-upgrade":
+            run_upgrade()
+        elif command == "pre-transaction":
+            try:
+                pre_transaction()
+            except Exception as e:  # noqa: BLE001 — pacman продолжает и без снимка
+                print(f"Снимок системы не сделан: {e}", file=sys.stderr)
+        else:
+            print("update-helper list | create [заметка] | delete <id> | restore <id> | upgrade", file=sys.stderr)
+            return 2
+    except Fail as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

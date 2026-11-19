@@ -1,0 +1,13 @@
+# Проверка обновлений раз в день, пока идёт сеанс Sedmio. Уведомление —
+# не чаще раза в неделю (update-check), ставить — кнопкой в «Параметрах».
+[Unit]
+Description=Sedmio session: daily update check
+PartOf=graphical-session.target
+
+[Timer]
+OnActiveSec=10min
+OnUnitActiveSec=1d
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=sedmio-session.target

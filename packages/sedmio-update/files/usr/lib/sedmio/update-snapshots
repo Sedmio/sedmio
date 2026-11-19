@@ -1,0 +1,4 @@
+#!/bin/sh
+# Список снимков для «Параметров» без пароля (org.sedmio.update.list):
+# смотреть верхний уровень btrfs может только root.
+exec /usr/lib/sedmio/update-helper list

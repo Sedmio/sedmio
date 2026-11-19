@@ -1,0 +1,46 @@
+# Maintainer: Sedmio <https://github.com/Sedmio/sedmio>
+#
+# Центр обновлений: снимки системы btrfs и обновление по кнопке. Вид —
+# «Параметры» → «Обновление» (sedmio-preferences), здесь — работа:
+#
+#   usr/lib/sedmio/update-helper     от root (pkexec, polkit — org.sedmio.update.policy):
+#                                    снимки, возврат к снимку, pacman -Syu
+#                                    отдельной службой sedmio-upgrade, пункт
+#                                    меню загрузки «snapshot …»
+#   usr/lib/sedmio/update-snapshots  список снимков без пароля
+#   usr/share/libalpm/hooks/05-sedmio-snapshot.hook
+#                                    снимок перед каждой работой pacman
+#   usr/lib/sedmio/update-check      раз в день (sedmio-update-check.timer в
+#                                    сеансе): есть ли обновления; уведомление —
+#                                    не чаще раза в неделю
+#
+# Подробно — в начале update-helper.
+
+pkgname=sedmio-update
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: обновления и снимки системы"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'python'
+  'btrfs-progs'     # снимки
+  'util-linux'      # findmnt, mount
+  'polkit'          # pkexec из «Параметров»
+  'mkinitcpio'      # initramfs после возврата к снимку
+  'pacman-contrib'  # checkupdates
+  'fakeroot'        # нужен checkupdates
+  'libnotify'       # notify-send: «Доступны обновления»
+)
+
+package() {
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir/usr/lib/sedmio/update-helper" "$pkgdir/usr/lib/sedmio/update-snapshots" \
+    "$pkgdir/usr/lib/sedmio/update-check"
+  install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
+  ln -s ../sedmio-update-check.timer \
+    "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-update-check.timer"
+}
