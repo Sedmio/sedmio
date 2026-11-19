@@ -15,9 +15,11 @@ Singleton {
     property string controlScreen: ""
     property string notificationsScreen: ""
     property string clipboardScreen: ""
+    // Меню быстрых ссылок (Win+X, QuickMenu.qml).
+    property string quickMenuScreen: ""
 
     readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
-        || notificationsScreen !== "" || clipboardScreen !== ""
+        || notificationsScreen !== "" || clipboardScreen !== "" || quickMenuScreen !== ""
 
     // Окно, активное до открытия. Пока открыт запуск или панель, клавиатура
     // у оболочки; отпустив её, KWin сам фокус не возвращает — возвращаем.
@@ -44,6 +46,7 @@ Singleton {
 
     function openLauncher(screenName) {
         rememberFocus();
+        quickMenuScreen = "";
         controlScreen = "";
         notificationsScreen = "";
         clipboardScreen = "";
@@ -57,6 +60,7 @@ Singleton {
 
     function openControl(screenName) {
         rememberFocus();
+        quickMenuScreen = "";
         launcherScreen = "";
         notificationsScreen = "";
         clipboardScreen = "";
@@ -70,6 +74,7 @@ Singleton {
 
     function openNotifications(screenName) {
         rememberFocus();
+        quickMenuScreen = "";
         launcherScreen = "";
         controlScreen = "";
         clipboardScreen = "";
@@ -84,10 +89,25 @@ Singleton {
 
     function openClipboard(screenName) {
         rememberFocus();
+        quickMenuScreen = "";
         launcherScreen = "";
         controlScreen = "";
         notificationsScreen = "";
         clipboardScreen = screenName;
+    }
+
+    function toggleQuickMenu(screenName) {
+        if (quickMenuScreen === screenName) closeAll();
+        else openQuickMenu(screenName);
+    }
+
+    function openQuickMenu(screenName) {
+        rememberFocus();
+        launcherScreen = "";
+        controlScreen = "";
+        notificationsScreen = "";
+        clipboardScreen = "";
+        quickMenuScreen = screenName;
     }
 
     // restoreFocus: false — когда запустили программу, фокус получит она.
@@ -97,6 +117,7 @@ Singleton {
         controlScreen = "";
         notificationsScreen = "";
         clipboardScreen = "";
+        quickMenuScreen = "";
         if (restoreFocus !== false && windowBefore) windowBefore.activate();
         windowBefore = null;
     }

@@ -1,0 +1,10 @@
+# Глобальная клавиша меню быстрых ссылок Sedmio (Win+X в Windows).
+# Как устроено — в sedmio-launcher.desktop рядом. Оболочка не запущена —
+# клавиша открывает хотя бы «Параметры».
+[Desktop Entry]
+Type=Application
+Name=Sedmio quick links
+Name[ru]=Быстрые ссылки Sedmio
+Icon=preferences-system
+Exec=sh -c "quickshell ipc -p /usr/share/sedmio/shell call quickmenu toggle || exec /usr/lib/sedmio/open-settings"
+X-KDE-Shortcuts=Meta+X

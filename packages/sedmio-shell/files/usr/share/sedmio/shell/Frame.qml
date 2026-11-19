@@ -27,7 +27,8 @@ PanelWindow {
     readonly property bool controlOpen: ShellState.controlScreen === screen.name
     readonly property bool historyOpen: ShellState.notificationsScreen === screen.name
     readonly property bool clipboardOpen: ShellState.clipboardScreen === screen.name
-    readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen || clipboardOpen
+    readonly property bool quickMenuOpen: ShellState.quickMenuScreen === screen.name
+    readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen || clipboardOpen || quickMenuOpen
 
     // 0 — запуск спрятан в рамке, 1 — выехал полностью.
     property real launcherProgress: launcherOpen ? 1 : 0
@@ -146,6 +147,13 @@ PanelWindow {
             y: Theme.border
             width: frame.clipboardWidth
             height: frame.clipboardHeight
+        }
+        MouseArea {
+            visible: frame.quickMenuOpen
+            x: quickMenu.x
+            y: quickMenu.y
+            width: quickMenu.width
+            height: quickMenu.height
         }
         MouseArea {
             visible: frame.historyOpen
@@ -348,6 +356,25 @@ PanelWindow {
             y: frame.height - Theme.border - 54 * frame.osdProgress
             opacity: Math.max(0, frame.osdProgress * 2 - 1)
             visible: frame.osdProgress > 0
+        }
+
+        // Меню Win+X — карточкой у знака Sedmio, поверх рамки.
+        QuickMenu {
+            id: quickMenu
+            open: frame.quickMenuOpen
+            screenName: frame.screen.name
+            x: Theme.barWidth + 6
+            y: Theme.border + 2
+            width: implicitWidth
+            height: implicitHeight
+            opacity: frame.quickMenuOpen ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
+            transform: Translate {
+                x: frame.quickMenuOpen ? 0 : -8
+                Behavior on x { NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutCubic } }
+            }
+            onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
         }
 
         Bar {

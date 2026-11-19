@@ -4,16 +4,19 @@ import Quickshell.Widgets
 
 // Знак Sedmio вверху панели: открывает и закрывает запуск программ.
 // То же делают Meta и Alt+F1 (usr/share/kglobalaccel/sedmio-launcher.desktop).
+// Правый клик — меню быстрых ссылок (QuickMenu.qml), как Win+X.
 BarButton {
     id: root
     required property string screenName
     readonly property bool open: ShellState.launcherScreen === screenName
+        || ShellState.quickMenuScreen === screenName
 
     active: open
     hint: open ? "" : "Программы"
-    onClicked: {
+    onClicked: mouse => {
         if (tooltip) tooltip.hide();
-        ShellState.toggleLauncher(screenName);
+        if (mouse.button === Qt.RightButton) ShellState.toggleQuickMenu(screenName);
+        else ShellState.toggleLauncher(screenName);
     }
 
     IconImage {
