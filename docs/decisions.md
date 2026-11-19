@@ -339,7 +339,8 @@ plasma-shutdown и ksmserver-logout-greeter.
   автозапуск Plasma `plasma-fallback-session-restore` в нашем сеансе
   выключен условием (`DESKTOP_SESSION=sedmio`). Не запускаются и kaccess
   (залипание клавиш KWin делает сам), xembedsniproxy (значки в трее
-  старых программ X11), gmenudbusmenuproxy (глобальное меню).
+  старых программ X11 — своё взамен в дорожной карте, README),
+  gmenudbusmenuproxy (глобальное меню).
 - Заставка — пока ksplashqml: запускается вместе с KWin, этапы
   «startPlasma» и «ksmserver» шлёт sedmio-session-manager, «desktop» —
   оболочка.
