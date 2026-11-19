@@ -80,8 +80,12 @@ Column {
     SText {
         anchors.horizontalCenter: parent.horizontalCenter
         width: parent.width
-        height: 20
+        // Две строки места всегда: длинное сообщение не сдвигает карточку.
+        height: 36
         horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignTop
+        wrapMode: Text.WordWrap
+        maximumLineCount: 2
         elide: Text.ElideRight
         size: 13
         weight: root.messageIsError ? 550 : 400

@@ -45,6 +45,8 @@ ShellRoot {
     // Пароль ждёт, пока PAM о нём спросит (он может быть и пустым).
     property string pending
     property bool hasPending: false
+    // pam_faillock (см. Faillock.qml): до какого момента вход закрыт.
+    property double lockedUntil: 0
 
     function login(password) {
         busy = true;
@@ -86,11 +88,15 @@ ShellRoot {
                 root.pending = "";
                 root.hasPending = false;
             } else if (text) {
-                root.message = text;
-                root.messageIsError = error;
+                const locked = Faillock.duration(text);
+                if (locked > 0) root.lockedUntil = Math.max(root.lockedUntil, Date.now() + locked);
+                root.message = locked > 0 ? Faillock.notice(root.lockedUntil) : text;
+                root.messageIsError = error || locked > 0;
             }
         }
-        function onAuthFailure(text) { root.reject("Неверный пароль"); }
+        function onAuthFailure(text) {
+            root.reject(Date.now() < root.lockedUntil ? Faillock.notice(root.lockedUntil) : "Неверный пароль");
+        }
         // После отказа greetd присылает ещё ошибку отменённого разговора — её не показываем.
         function onError(text) { if (root.busy) root.reject("Не удалось войти: " + text); }
         function onReadyToLaunch() {

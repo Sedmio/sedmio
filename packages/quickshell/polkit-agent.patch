@@ -1,0 +1,218 @@
+--- a/src/services/polkit/listener.cpp
++++ b/src/services/polkit/listener.cpp
+@@ -11,8 +11,13 @@
+ #include <polkit/polkit.h>
+ #include <polkit/polkittypes.h>
+ #include <polkitagent/polkitagent.h>
++#include <libintl.h>
++#include <qdir.h>
++#include <qfile.h>
+ #include <qlogging.h>
+ #include <qloggingcategory.h>
++#include <qregularexpression.h>
++#include <qxmlstream.h>
+ #include <unistd.h>
+ 
+ #include "../../core/logcat.hpp"
+@@ -39,6 +44,61 @@
+ 
+ G_DEFINE_TYPE(QsPolkitAgent, qs_polkit_agent, POLKIT_AGENT_TYPE_LISTENER)
+ 
++// polkitd (по крайней мере до 128) после первого же запроса пароля
++// оставляет у себя LANGUAGE=C, и сообщения, переведённые через gettext
++// (gettext-domain в .policy — так у всего systemd), дальше приходят
++// непереведёнными. Переводим сами, в локали оболочки. Не вышло — как есть.
++static QString localize_message(const gchar* actionId, const gchar* message, PolkitDetails* details) {
++	const auto original = QString::fromUtf8(message);
++	auto translate = [](const QByteArray& domain, const QByteArray& text) {
++		return QString::fromUtf8(dgettext(domain.constData(), text.constData()));
++	};
++
++	// Сообщение из подробностей запроса (systemd: «запустить $(unit)»).
++	if (details != nullptr) {
++		const auto* domain = polkit_details_lookup(details, "polkit.gettext_domain");
++		const auto* raw = polkit_details_lookup(details, "polkit.message");
++		if (domain != nullptr && raw != nullptr) {
++			auto text = translate(domain, raw);
++			if (text == QString::fromUtf8(raw)) return original;
++			static const QRegularExpression property(QStringLiteral("\\$\\(([^)]*)\\)"));
++			QString result;
++			qsizetype last = 0;
++			for (auto it = property.globalMatch(text); it.hasNext();) {
++				const auto match = it.next();
++				const auto* value = polkit_details_lookup(details, match.captured(1).toUtf8().constData());
++				if (value == nullptr) return original;
++				result += text.mid(last, match.capturedStart() - last) + QString::fromUtf8(value);
++				last = match.capturedEnd();
++			}
++			return result + text.mid(last);
++		}
++	}
++
++	// Сообщение действия: <message gettext-domain="...">.
++	const auto id = QString::fromUtf8(actionId);
++	const QDir actions(QStringLiteral("/usr/share/polkit-1/actions"));
++	for (const auto& name: actions.entryList({QStringLiteral("*.policy")}, QDir::Files)) {
++		QFile file(actions.filePath(name));
++		if (!file.open(QIODevice::ReadOnly)) continue;
++		QXmlStreamReader xml(&file);
++		bool inside = false;
++		while (!xml.atEnd()) {
++			xml.readNext();
++			if (xml.isStartElement() && xml.name() == QLatin1String("action")) {
++				inside = xml.attributes().value(QLatin1String("id")) == id;
++			} else if (xml.isEndElement() && xml.name() == QLatin1String("action")) {
++				if (inside) return original;
++			} else if (inside && xml.isStartElement() && xml.name() == QLatin1String("message")) {
++				const auto domain = xml.attributes().value(QLatin1String("gettext-domain")).toUtf8();
++				const auto text = xml.readElementText().trimmed();
++				if (!domain.isEmpty() && text == original) return translate(domain, text.toUtf8());
++			}
++		}
++	}
++	return original;
++}
++
+ static void initiate_authentication(
+     PolkitAgentListener* listener,
+     const gchar* actionId,
+@@ -149,7 +209,7 @@
+     const gchar* actionId,
+     const gchar* message,
+     const gchar* iconName,
+-    PolkitDetails* /*unused*/,
++    PolkitDetails* details,
+     const gchar* cookie,
+     GList* identities,
+     GCancellable* cancellable,
+@@ -178,7 +238,7 @@
+ 	// copy them into QStrings.
+ 	auto* request = new qs::service::polkit::AuthRequest {
+ 	    .actionId = QString::fromUtf8(actionId),
+-	    .message = QString::fromUtf8(message),
++	    .message = localize_message(actionId, message, details),
+ 	    .iconName = QString::fromUtf8(iconName),
+ 	    .cookie = QString::fromUtf8(cookie),
+ 	    .identities = std::move(identityVector),
+--- a/src/services/polkit/flow.hpp
++++ b/src/services/polkit/flow.hpp
+@@ -158,8 +158,17 @@
+ private:
+ 	/// Start a session for the currently selected identity and the current request.
+ 	void setupSession();
++	/// Actually start the PAM conversation (deferred until the first submit).
++	void startSession();
++	/// Finish a request that never started a session as cancelled.
++	void cancelDeferred(const char* reason);
+ 
+ 	Session* currentSession = nullptr;
++	// Sedmio: PAM is not started until the user submits a password, so that
++	// cancelling the dialog is not counted by pam_faillock as a failed login.
++	bool mDeferred = false;
++	bool mHasPending = false;
++	QString mPending;
+ 	AuthRequest* mRequest = nullptr;
+ 	QList<Identity*> mIdentities;
+ 
+--- a/src/services/polkit/flow.cpp
++++ b/src/services/polkit/flow.cpp
+@@ -45,11 +45,16 @@
+ 		return;
+ 	}
+ 	this->bSelectedIdentity = identity;
+-	this->currentSession->cancel();
++	if (this->currentSession) this->currentSession->cancel();
+ 	this->setupSession();
+ }
+ 
+ void AuthFlow::cancelFromAgent() {
++	if (this->mDeferred) {
++		this->cancelDeferred("Authentication request cancelled by agent.");
++		emit this->authenticationRequestCancelled();
++		return;
++	}
+ 	if (!this->currentSession) return;
+ 
+ 	qCDebug(logPolkitState) << "cancelling authentication request from agent";
+@@ -67,6 +72,18 @@
+ }
+ 
+ void AuthFlow::submit(const QString& value) {
++	if (this->mDeferred) {
++		qCDebug(logPolkitState) << "starting deferred session with the submitted response";
++		this->mPending = value;
++		this->mHasPending = true;
++		Qt::beginPropertyUpdateGroup();
++		this->bIsResponseRequired = false;
++		this->bInputPrompt = QString();
++		this->bResponseVisible = false;
++		Qt::endPropertyUpdateGroup();
++		this->startSession();
++		return;
++	}
+ 	if (!this->currentSession) return;
+ 
+ 	qCDebug(logPolkitState) << "submitting response to authentication request";
+@@ -81,6 +98,10 @@
+ }
+ 
+ void AuthFlow::cancelAuthenticationRequest() {
++	if (this->mDeferred) {
++		this->cancelDeferred("Authentication request cancelled by user.");
++		return;
++	}
+ 	if (!this->currentSession) return;
+ 
+ 	qCDebug(logPolkitState) << "cancelling authentication request by user request";
+@@ -97,6 +118,34 @@
+ 
+ void AuthFlow::setupSession() {
+ 	delete this->currentSession;
++	this->currentSession = nullptr;
++	this->mHasPending = false;
++	this->mPending.clear();
++
++	// Ask for the password first; PAM starts on submit (see mDeferred).
++	this->mDeferred = true;
++	Qt::beginPropertyUpdateGroup();
++	this->bIsResponseRequired = true;
++	this->bInputPrompt = QStringLiteral("Password: ");
++	this->bResponseVisible = false;
++	Qt::endPropertyUpdateGroup();
++}
++
++void AuthFlow::cancelDeferred(const char* reason) {
++	qCDebug(logPolkitState) << "cancelling authentication request before a session was started";
++	this->mDeferred = false;
++	Qt::beginPropertyUpdateGroup();
++	this->bIsCancelled = true;
++	this->bIsResponseRequired = false;
++	this->bIsCompleted = true;
++	this->bIsSuccessful = false;
++	Qt::endPropertyUpdateGroup();
++	this->mRequest->cancel(reason);
++}
++
++void AuthFlow::startSession() {
++	this->mDeferred = false;
++	delete this->currentSession;
+ 
+ 	qCDebug(logPolkitState) << "setting up session for identity"
+ 	                        << this->bSelectedIdentity.value()->name();
+@@ -114,6 +163,16 @@
+ }
+ 
+ void AuthFlow::request(const QString& message, bool echo) {
++	// The password typed before the session started answers the first
++	// hidden prompt. Anything else (e.g. a visible OTP prompt) goes to the user.
++	if (this->mHasPending) {
++		this->mHasPending = false;
++		const auto pending = std::exchange(this->mPending, QString());
++		if (!echo) {
++			this->currentSession->respond(pending);
++			return;
++		}
++	}
+ 	Qt::beginPropertyUpdateGroup();
+ 	this->bIsResponseRequired = true;
+ 	this->bInputPrompt = message;

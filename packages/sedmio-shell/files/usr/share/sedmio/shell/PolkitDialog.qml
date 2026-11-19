@@ -14,18 +14,25 @@ ModalWindow {
     active: agent.isActive && flow !== null
     WlrLayershell.namespace: "sedmio-polkit"
     iconName: flow && flow.iconName !== "" ? flow.iconName : "system-lock-screen"
-    title: "Нужен пароль администратора"
-    subtitle: {
+    // Чей пароль спрашиваем. Обычно свой (мы администратор) — тогда без
+    // пугающего «администратора».
+    readonly property var who: {
         const ids = flow ? flow.identities : [];
-        const who = flow && flow.selectedIdentity ? flow.selectedIdentity : (ids.length > 0 ? ids[0] : null);
-        return who ? "Пароль пользователя " + (who.displayName || who.string) : "";
+        return flow && flow.selectedIdentity ? flow.selectedIdentity : (ids.length > 0 ? ids[0] : null);
     }
+    readonly property bool own: who !== null && !who.isGroup && who.string === Quickshell.env("USER")
+    title: own ? "Подтвердите действие" : "Нужен пароль администратора"
+    subtitle: !who ? "" : own ? "Введите пароль своей учётной записи" : "Пароль пользователя " + (who.displayName || who.string)
 
     property string error: ""
+    // Учётка временно заблокирована после неверных попыток (pam_faillock).
+    // Помощник polkit работает без локали — его сообщения по-английски.
+    property string lockNotice: ""
 
     function submit() {
         if (!flow || !flow.isResponseRequired) return;
         error = "";
+        lockNotice = "";
         flow.submit(password.text);
         password.clear();
     }
@@ -37,14 +44,23 @@ ModalWindow {
     onActiveChanged: {
         if (!active) return;
         error = "";
+        lockNotice = "";
         password.clear();
         password.focusInput();
     }
 
     Connections {
         target: root.flow
+        function onSupplementaryMessageChanged() {
+            const text = root.flow.supplementaryMessage;
+            const minutes = text.match(/\((\d+) minutes? left to unlock\)/);
+            if (minutes)
+                root.lockNotice = "Слишком много неверных попыток. Попробуйте снова через " + minutes[1] + "\u00a0мин.";
+            else if (/account is locked/i.test(text))
+                root.lockNotice = "Слишком много неверных попыток. Вход временно заблокирован.";
+        }
         function onAuthenticationFailed() {
-            root.error = "Неверный пароль, попробуйте ещё раз";
+            root.error = root.lockNotice !== "" ? root.lockNotice : "Неверный пароль, попробуйте ещё раз";
             root.shake();
             password.focusInput();
         }
@@ -96,6 +112,7 @@ ModalWindow {
         Layout.fillWidth: true
         visible: text !== ""
         text: root.error !== "" ? root.error
+            : root.lockNotice !== "" ? root.lockNotice
             : root.flow && root.flow.supplementaryMessage !== "" ? root.flow.supplementaryMessage : ""
         color: root.error !== "" || (root.flow && root.flow.supplementaryIsError) ? Theme.terracotta : Theme.inkMuted
         size: 13

@@ -10,3 +10,4 @@ PasswordBox 1.0 PasswordBox.qml
 LoginCard 1.0 LoginCard.qml
 RoundButton 1.0 RoundButton.qml
 LayoutChip 1.0 LayoutChip.qml
+singleton Faillock 1.0 Faillock.qml
