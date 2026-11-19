@@ -8,6 +8,7 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS Core DBus Gui Widgets OpenGL Quick Quic
 find_package(KF6CoreAddons 6.10 REQUIRED)
 find_package(KF6WindowSystem 6.10 REQUIRED)
 find_package(KF6Config 6.10 REQUIRED)
+find_package(KF6Service 6.10 REQUIRED)
 find_package(KF6Screen 6.3 REQUIRED)
 # Русские названия городов в часовых поясах.
 find_package(ICU REQUIRED COMPONENTS i18n uc)
@@ -30,6 +31,7 @@ qt_add_qml_module(sedmio-preferences
         wallpapers.cpp wallpapers.h
         keyboard.cpp keyboard.h
         pointers.cpp pointers.h
+        defaults.cpp defaults.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -46,6 +48,7 @@ qt_add_qml_module(sedmio-preferences
         qml/WallpaperPage.qml
         qml/KeyboardPage.qml
         qml/MousePage.qml
+        qml/DefaultsPage.qml
         qml/SSlider.qml
         qml/DateTimePage.qml
         qml/AboutPage.qml
@@ -61,6 +64,7 @@ target_link_libraries(sedmio-preferences PRIVATE
     KF6::WindowSystem
     KF6::Screen
     KF6::ConfigCore
+    KF6::Service
     PkgConfig::XKBREGISTRY
     ICU::i18n
     ICU::uc

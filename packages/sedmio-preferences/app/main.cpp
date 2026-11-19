@@ -2,7 +2,7 @@
 // QML в стиле оболочки, работа — движки KDE и systemd (libkscreen,
 // timedated, hostnamed). Чего у нас пока нет, открывается в параметрах KDE.
 //
-//   sedmio-preferences [раздел]   display | wallpaper | mouse | keyboard | datetime | about
+//   sedmio-preferences [раздел]   display | wallpaper | mouse | keyboard | defaults | datetime | about
 
 #include "app.h"
 

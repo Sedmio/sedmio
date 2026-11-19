@@ -8,7 +8,7 @@ ApplicationWindow {
     id: win
     width: 980
     height: 660
-    minimumWidth: 760
+    minimumWidth: 780
     minimumHeight: 480
     visible: true
     color: Theme.paper
@@ -19,6 +19,7 @@ ApplicationWindow {
         { id: "wallpaper", title: "Обои", icon: "preferences-desktop-wallpaper" },
         { id: "mouse", title: "Мышь и тачпад", icon: "preferences-desktop-mouse" },
         { id: "keyboard", title: "Клавиатура", icon: "preferences-desktop-keyboard" },
+        { id: "defaults", title: "Программы по умолчанию", icon: "preferences-desktop-default-applications" },
         { id: "datetime", title: "Дата и время", icon: "preferences-system-time" },
         { id: "about", title: "О системе", icon: "help-about" }
     ]
@@ -37,7 +38,7 @@ ApplicationWindow {
     Rectangle {
         id: sidebar
         anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-        width: 230
+        width: 262
         color: Theme.paperDeep
 
         Column {
@@ -68,9 +69,10 @@ ApplicationWindow {
                         size: 22
                     }
                     SText {
-                        anchors { left: navIcon.right; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                        anchors { left: navIcon.right; leftMargin: 10; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
                         text: parent.modelData.title
                         weight: parent.current ? 600 : 400
+                        elide: Text.ElideRight
                     }
                     MouseArea {
                         id: navArea
@@ -113,6 +115,7 @@ ApplicationWindow {
         sourceComponent: App.page === "wallpaper" ? wallpaperPage
                        : App.page === "mouse" ? mousePage
                        : App.page === "keyboard" ? keyboardPage
+                       : App.page === "defaults" ? defaultsPage
                        : App.page === "datetime" ? dateTimePage
                        : App.page === "about" ? aboutPage
                        : displayPage
@@ -122,6 +125,7 @@ ApplicationWindow {
     Component { id: wallpaperPage; WallpaperPage {} }
     Component { id: mousePage; MousePage {} }
     Component { id: keyboardPage; KeyboardPage {} }
+    Component { id: defaultsPage; DefaultsPage {} }
     Component { id: dateTimePage; DateTimePage {} }
     Component { id: aboutPage; AboutPage {} }
 }
