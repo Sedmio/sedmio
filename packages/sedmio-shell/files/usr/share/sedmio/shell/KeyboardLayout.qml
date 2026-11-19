@@ -2,12 +2,20 @@ import QtQuick
 import Quickshell.Services.Kde
 import Sedmio.Style
 
-// Текущая раскладка (RU, US...) из KWin. Клик — следующая.
+// Текущая раскладка из KWin — как в Windows: ENG, РУС. Клик — следующая.
 // Видна, только если раскладок больше одной.
 BarButton {
     id: root
     readonly property var layout: KeyboardLayouts.current
-    readonly property string label: (layout.displayName || layout.shortName || "").toUpperCase()
+    // Подписи языков, как на панели Windows; остальные — кодом раскладки (DE).
+    readonly property var windowsLabels: ({
+        "us": "ENG", "gb": "ENG", "au": "ENG", "ie": "ENG",
+        "ru": "РУС", "ua": "УКР", "by": "БЕЛ", "kz": "КАЗ"
+    })
+    // Свою подпись (kxkbrc, DisplayNames) пользователь задал сам — она главнее.
+    readonly property string label: layout.displayName
+        || windowsLabels[layout.shortName || ""]
+        || (layout.shortName || "").toUpperCase()
 
     visible: KeyboardLayouts.layouts.length > 1
     implicitHeight: 30

@@ -120,6 +120,18 @@ bool setLayoutShortcut(int key)
     return now && std::any_of(now->cbegin(), now->cend(), [key](const KeySequence &s) { return s.keys.value(0) == key; });
 }
 
+// Подпись раскладки, как на панели Windows (и нашей, KeyboardLayout.qml).
+QString shortLabel(const QString &layout)
+{
+    static const QHash<QString, QString> labels = {
+        {QStringLiteral("us"), QStringLiteral("ENG")}, {QStringLiteral("gb"), QStringLiteral("ENG")},
+        {QStringLiteral("au"), QStringLiteral("ENG")}, {QStringLiteral("ie"), QStringLiteral("ENG")},
+        {QStringLiteral("ru"), QStringLiteral("РУС")}, {QStringLiteral("ua"), QStringLiteral("УКР")},
+        {QStringLiteral("by"), QStringLiteral("БЕЛ")}, {QStringLiteral("kz"), QStringLiteral("КАЗ")},
+    };
+    return labels.value(layout, layout.toUpper());
+}
+
 QString translate(const char *text)
 {
     if (!text)
@@ -267,8 +279,8 @@ QVariantList Keyboard::layouts() const
             {QStringLiteral("layout"), layout.layout},
             {QStringLiteral("variant"), layout.variant},
             {QStringLiteral("name"), info.name.isEmpty() ? key : info.name},
-            // Как на панели: код раскладки (US, RU).
-            {QStringLiteral("short"), layout.layout.toUpper()},
+            // Как на панели (и в Windows): ENG, РУС; остальные — кодом (DE).
+            {QStringLiteral("short"), shortLabel(layout.layout)},
         });
     }
     return list;

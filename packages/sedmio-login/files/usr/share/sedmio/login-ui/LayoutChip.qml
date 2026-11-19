@@ -2,7 +2,7 @@ import QtQuick
 import org.kde.plasma.workspace.keyboardlayout as Keyboard
 import Sedmio.Style
 
-// Текущая раскладка (её держит KWin); клик — следующая.
+// Текущая раскладка (её держит KWin), как в Windows: ENG, РУС; клик — следующая.
 Item {
     id: root
     implicitWidth: 44
@@ -10,6 +10,17 @@ Item {
     visible: layouts.layoutsList.length > 1
 
     Keyboard.KeyboardLayout { id: layouts }
+
+    // Как на панели (sedmio-shell, KeyboardLayout.qml): подписи языков из
+    // Windows, остальные — кодом раскладки; своя подпись из kxkbrc главнее.
+    readonly property var current: layouts.layoutsList[layouts.layout]
+    readonly property var windowsLabels: ({
+        "us": "ENG", "gb": "ENG", "au": "ENG", "ie": "ENG",
+        "ru": "РУС", "ua": "УКР", "by": "БЕЛ", "kz": "КАЗ"
+    })
+    readonly property string label: current?.displayName
+        || windowsLabels[current?.shortName ?? ""]
+        || (current?.shortName ?? "").toUpperCase()
 
     Rectangle {
         anchors.fill: parent
@@ -21,7 +32,7 @@ Item {
 
         SText {
             anchors.centerIn: parent
-            text: (layouts.layoutsList[layouts.layout]?.shortName ?? "").toUpperCase()
+            text: root.label
             size: 13
             weight: 600
             color: Theme.inkSoft
