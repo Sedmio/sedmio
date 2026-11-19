@@ -1,0 +1,42 @@
+#!/bin/sh
+# Настройки для программ X11 (через Xwayland) — вместо
+# /usr/lib/plasma-setup-xwayland из plasma-workspace. KWin запускает все
+# файлы этого каталога, когда поднимает Xwayland (DISPLAY уже задан).
+# Как у Plasma: тема и размер курсора (kcminputrc), DPI по масштабу
+# Xwayland (kwinrc [Xwayland] Scale — его пишет KWin), сглаживание и
+# хинтинг шрифтов (kdeglobals) — в ресурсы X (xrdb), и курсор корневого
+# окна для программ, которые свой не ставят. Масштаб поменяли — программы
+# X11 увидят новый DPI после перезахода (KWin перезапускает только
+# скрипт Plasma).
+
+read_key() { # файл группа ключ умолчание
+  value=$(kreadconfig6 --file "$1" --group "$2" --key "$3" 2>/dev/null)
+  echo "${value:-$4}"
+}
+
+theme=$(read_key kcminputrc Mouse cursorTheme breeze_cursors)
+size=$(read_key kcminputrc Mouse cursorSize 24)
+scale=$(read_key kwinrc Xwayland Scale 1)
+antialias=$(read_key kdeglobals General XftAntialias true)
+hintstyle=$(read_key kdeglobals General XftHintStyle hintslight)
+subpixel=$(read_key kdeglobals General XftSubPixel rgb)
+
+# Целые, как у Plasma (отбрасывая дробную часть).
+size=$(awk -v s="$size" -v k="$scale" 'BEGIN { printf "%d", s * k }')
+dpi=$(awk -v k="$scale" 'BEGIN { printf "%d", k * 96 }')
+case $antialias in false|0) antialias=0 ;; *) antialias=1 ;; esac
+case $hintstyle in hintnone) hinting=0 ;; *) hinting=1 ;; esac
+
+{
+  echo "Xcursor.theme: $theme"
+  echo "Xcursor.size: $size"
+  echo "Xft.dpi: $dpi"
+  echo "Xft.antialias: $antialias"
+  echo "Xft.hinting: $hinting"
+  echo "Xft.hintstyle: $hintstyle"
+  [ -z "$subpixel" ] || echo "Xft.rgba: $subpixel"
+} | xrdb -quiet -merge -nocpp -
+
+# Курсор корневого окна — из темы, заданной выше.
+command -v xsetroot >/dev/null 2>&1 && xsetroot -cursor_name left_ptr
+exit 0

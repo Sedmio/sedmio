@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=15
+pkgrel=16
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -32,12 +32,12 @@ depends=(
   'kde-gtk-config'
   'breeze-gtk'
   'xdg-desktop-portal-kde'
+  'xdg-desktop-portal-gtk'  # портал уведомлений (и настройки для программ GTK)
   'plasma-integration'      # вид программ Qt и KDE: диалоги, цвета, значки
   'qqc2-desktop-style'      # вид разделов KDE (kcmshell6) и программ на Kirigami
   'kde-cli-tools'           # типы файлов (kcm_filetypes), kde-open, kioclient
   'polkit-kde-agent'        # запасной агент паролей (sedmio-agents-fallback)
   'xorg-xwayland'           # программы и игры для X11
-  'xorg-xrdb'               # KWin передаёт им масштаб (Xft.dpi) через xrdb
   'xdg-user-dirs'           # «Документы», «Загрузки» и т. п. на русском
   'ocean-sound-theme'       # звуки уведомлений и «Проверить звук»
 

@@ -440,3 +440,10 @@ audioshortcutsservice, индикатор рисует оболочка), раз
   kmenuedit, ksystemstats, baloo и прочее уходят. На уже установленной
   системе пакеты Plasma сами не удалятся: `pacman -Rs plasma-workspace
   plasma-desktop systemsettings`.
+- Программы X11 (Xwayland): тему и размер курсора, DPI по масштабу и
+  сглаживание шрифтов передавал `/usr/lib/plasma-setup-xwayland` из
+  plasma-workspace — теперь свой скрипт в
+  `/etc/xdg/Xwayland-session.d` (KWin запускает его вместе с Xwayland;
+  xrdb, xsetroot). Новый масштаб программы X11 видят после перезахода.
+- Портал уведомлений (plasmanotify жил в plasmashell) — портал GTK: он
+  передаёт уведомления оболочке через org.freedesktop.Notifications.
