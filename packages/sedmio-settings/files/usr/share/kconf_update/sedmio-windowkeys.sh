@@ -4,7 +4,9 @@
 # обзору окон и рабочих столов, как «Представление задач» в Windows (был
 # вторым Alt+Tab; Alt+Tab остаётся переключателем окон). Alt+F4 — действию
 # скрипта: закрывает окно, как раньше, а на пустом рабочем столе открывает
-# «Что сделать?». Сочетания
+# «Что сделать?». Ctrl+F1…F4 — программам (Ctrl+F4 закрывает вкладку или
+# документ), а не переходу на рабочий стол 1…4: у него остаются Win+F1…F4.
+# Сочетания
 # KWin живут только в ~/.config/kglobalshortcutsrc, а пока сеанс идёт, файл
 # держит kglobalaccel — поэтому меняем через него по D-Bus.
 # Трогаем клавишу, только если она стоит по умолчанию и скрипт загружен:
@@ -84,6 +86,19 @@ run() {
       retry=1
     fi
   fi
+  # Ctrl+F1…F4 и Win+F1…F4 у «перейти на рабочий стол N» по умолчанию —
+  # оставить только Win+F1…F4. Снять клавишу не может «наполовину» — откат
+  # не нужен; не ответил kglobalaccel — повторим.
+  n=1
+  while [ $n -le 4 ]; do
+    ctrl=$((83886127 + n))   # Qt::CTRL | Qt::Key_F1…F4
+    meta=$((285212719 + n))  # Qt::META | Qt::Key_F1…F4
+    if has kwin "Switch to Desktop $n" "2 4 $ctrl 0 0 0 4 $meta 0 0 0"; then
+      call setForeignShortcutKeys "asa(ai)" 4 kwin "Switch to Desktop $n" "" "" 1 4 $meta 0 0 0 >/dev/null
+      has kwin "Switch to Desktop $n" "1 4 $meta 0 0 0" || retry=1
+    fi
+    n=$((n + 1))
+  done
   # Повторить при следующем входе: снять отметку kconf_update.
   [ -z "$retry" ] || kwriteconfig6 --file kconf_updaterc --group sedmio-windowkeys.upd --key done --delete
 }
