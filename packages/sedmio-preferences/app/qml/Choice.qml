@@ -47,6 +47,8 @@ Rectangle {
         width: root.width
         height: Math.min(list.contentHeight + 12, 320)
         padding: 6
+        // У нижнего края окна — сдвинуть вверх, а не обрезать.
+        margins: 8
         focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 

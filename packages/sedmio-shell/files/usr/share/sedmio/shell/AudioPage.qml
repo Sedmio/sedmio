@@ -96,6 +96,6 @@ ColumnLayout {
         Layout.fillWidth: true
         icon: "configure"
         title: "Параметры звука"
-        onClicked: page.openExternal(["systemsettings", "kcm_pulseaudio"])
+        onClicked: page.openExternal(["/usr/lib/sedmio/open-settings", "sound", "kcm_pulseaudio"])
     }
 }

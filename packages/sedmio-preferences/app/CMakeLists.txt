@@ -12,11 +12,15 @@ find_package(KF6Service 6.10 REQUIRED)
 find_package(KF6Screen 6.3 REQUIRED)
 # Окно выбора режима экранов — слой поверх всего (как у kscreen).
 find_package(LayerShellQt 6.3 REQUIRED)
+# «Звук»: устройства и громкость через PulseAudio API (pipewire-pulse).
+find_package(KF6PulseAudioQt 1.5 REQUIRED)
 # Русские названия городов в часовых поясах.
 find_package(ICU REQUIRED COMPONENTS i18n uc)
 # Названия раскладок клавиатуры.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(XKBREGISTRY REQUIRED IMPORTED_TARGET xkbregistry)
+# Уровень микрофона — поток записи напрямую через libpulse.
+pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -36,6 +40,7 @@ qt_add_qml_module(sedmio-preferences
         defaults.cpp defaults.h
         power.cpp power.h
         displayswitcher.cpp displayswitcher.h
+        sound.cpp sound.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -54,6 +59,7 @@ qt_add_qml_module(sedmio-preferences
         qml/MousePage.qml
         qml/DefaultsPage.qml
         qml/PowerPage.qml
+        qml/SoundPage.qml
         qml/DisplaySwitcher.qml
         qml/SSlider.qml
         qml/DateTimePage.qml
@@ -72,6 +78,8 @@ target_link_libraries(sedmio-preferences PRIVATE
     KF6::ConfigCore
     KF6::Service
     LayerShellQt::Interface
+    KF6::PulseAudioQt
+    PkgConfig::PULSE
     PkgConfig::XKBREGISTRY
     ICU::i18n
     ICU::uc

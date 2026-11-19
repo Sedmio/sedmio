@@ -2,7 +2,7 @@
 // QML в стиле оболочки, работа — движки KDE и systemd (libkscreen,
 // timedated, hostnamed). Чего у нас пока нет, открывается в параметрах KDE.
 //
-//   sedmio-preferences [раздел]   display | wallpaper | mouse | keyboard | power | defaults | datetime | about
+//   sedmio-preferences [раздел]   display | wallpaper | mouse | keyboard | sound | power | defaults | datetime | about
 //   sedmio-preferences --display-switcher   выбор режима экранов (Meta+P) вместо
 //                                           kscreen_osd_service, см. displayswitcher.h
 

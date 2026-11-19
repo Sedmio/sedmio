@@ -19,6 +19,7 @@ ApplicationWindow {
         { id: "wallpaper", title: "Обои", icon: "preferences-desktop-wallpaper" },
         { id: "mouse", title: "Мышь и тачпад", icon: "preferences-desktop-mouse" },
         { id: "keyboard", title: "Клавиатура", icon: "preferences-desktop-keyboard" },
+        { id: "sound", title: "Звук", icon: "preferences-desktop-sound" },
         { id: "power", title: "Питание", icon: "preferences-system-power-management" },
         { id: "defaults", title: "Программы по умолчанию", icon: "preferences-desktop-default-applications" },
         { id: "datetime", title: "Дата и время", icon: "preferences-system-time" },
@@ -116,6 +117,7 @@ ApplicationWindow {
         sourceComponent: App.page === "wallpaper" ? wallpaperPage
                        : App.page === "mouse" ? mousePage
                        : App.page === "keyboard" ? keyboardPage
+                       : App.page === "sound" ? soundPage
                        : App.page === "power" ? powerPage
                        : App.page === "defaults" ? defaultsPage
                        : App.page === "datetime" ? dateTimePage
@@ -127,6 +129,7 @@ ApplicationWindow {
     Component { id: wallpaperPage; WallpaperPage {} }
     Component { id: mousePage; MousePage {} }
     Component { id: keyboardPage; KeyboardPage {} }
+    Component { id: soundPage; SoundPage {} }
     Component { id: powerPage; PowerPage {} }
     Component { id: defaultsPage; DefaultsPage {} }
     Component { id: dateTimePage; DateTimePage {} }

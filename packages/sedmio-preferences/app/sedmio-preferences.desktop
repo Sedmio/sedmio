@@ -10,8 +10,8 @@ Icon=preferences-system
 Exec=sedmio-preferences %u
 Terminal=false
 Categories=Qt;KDE;Settings;
-Keywords=settings;preferences;display;screen;resolution;wallpaper;mouse;touchpad;keyboard;layout;power;sleep;default applications;browser;time;timezone;hostname;
-Keywords[ru]=параметры;настройки;экран;монитор;разрешение;масштаб;обои;фон;мышь;тачпад;клавиатура;раскладка;язык ввода;питание;сон;спящий режим;программы по умолчанию;браузер;время;дата;часовой пояс;имя компьютера;о системе;
+Keywords=settings;preferences;display;screen;resolution;wallpaper;mouse;touchpad;keyboard;layout;sound;volume;audio;microphone;power;sleep;default applications;browser;time;timezone;hostname;
+Keywords[ru]=параметры;настройки;экран;монитор;разрешение;масштаб;обои;фон;мышь;тачпад;клавиатура;раскладка;язык ввода;звук;громкость;динамики;наушники;микрофон;питание;сон;спящий режим;программы по умолчанию;браузер;время;дата;часовой пояс;имя компьютера;о системе;
 StartupNotify=true
 # Как Win+I в Windows (раньше эти клавиши были у параметров KDE).
 X-KDE-Shortcuts=Meta+I
