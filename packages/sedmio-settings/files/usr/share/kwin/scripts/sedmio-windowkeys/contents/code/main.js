@@ -169,9 +169,23 @@ registerShortcut("Sedmio New Desktop", "Создать рабочий стол (
         workspace.currentDesktop = workspace.desktops[workspace.desktops.length - 1];
 });
 registerShortcut("Sedmio Close Desktop", "Закрыть рабочий стол (как Win+Ctrl+F4 в Windows)", "Meta+Ctrl+F4", function () {
-    if (workspace.desktops.length <= 1)
+    const desks = workspace.desktops;
+    if (desks.length <= 1)
         return;
-    workspace.removeDesktop(workspace.currentDesktop);
+    // Как в Windows — на стол слева (первый закрыли — на следующий), и окна
+    // закрытого туда же. KWin сам увёл бы и то и другое направо.
+    const cur = workspace.currentDesktop;
+    const i = desks.indexOf(cur);
+    const target = i > 0 ? desks[i - 1] : desks[1];
+    if (i >= 0 && target) {
+        workspace.stackingOrder.forEach(function (w) {
+            if (w.onAllDesktops || w.desktops.length !== 1 || w.desktops[0] !== cur)
+                return;
+            w.desktops = [target];
+        });
+        workspace.currentDesktop = target;
+    }
+    workspace.removeDesktop(cur);
     // Фокус — верхнему окну стола, на который перешли: иначе он ни у кого,
     // и набранное с клавиатуры пропадает.
     if (workspace.activeWindow)
