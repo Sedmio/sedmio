@@ -48,7 +48,8 @@ ShellRoot {
         function close(): void { ShellState.closeAll(); }
     }
 
-    // Панель управления: клавиши Meta+A (usr/share/kglobalaccel/sedmio-control.desktop) —
+    // Быстрые настройки (раздел "settings" панели управления): клавиши Meta+A
+    // (usr/share/kglobalaccel/sedmio-control.desktop) —
     //   quickshell ipc -p /usr/share/sedmio/shell call control toggle
     IpcHandler {
         target: "control"
@@ -57,6 +58,8 @@ ShellRoot {
             else ShellState.openControl(ShellState.focusedScreen());
         }
         function open(): void { ShellState.openControl(ShellState.focusedScreen()); }
+        // Открыть раздел: sound, calendar, battery, settings.
+        function openSection(section: string): void { ShellState.openControl(ShellState.focusedScreen(), section); }
         function close(): void { ShellState.closeAll(); }
     }
 

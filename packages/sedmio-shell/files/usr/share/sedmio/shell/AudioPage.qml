@@ -4,10 +4,12 @@ import Quickshell
 import Quickshell.Services.Pipewire
 import Sedmio.Style
 
-// Страница «Звук»: куда выводить звук и откуда брать микрофон.
+// Куда выводить звук и откуда брать микрофон — в разделе «Звук» панели
+// управления (без заголовка) или отдельной страницей.
 ColumnLayout {
     id: page
     property real maxHeight: 600
+    property bool showHeader: true
     signal back()
     signal openExternal(var command)
 
@@ -22,6 +24,7 @@ ColumnLayout {
     }
 
     PageHeader {
+        visible: page.showHeader
         Layout.fillWidth: true
         title: "Звук"
         onBack: page.back()

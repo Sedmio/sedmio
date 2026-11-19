@@ -3,8 +3,9 @@ import Quickshell
 import Quickshell.Widgets
 import Sedmio.Style
 
-// Содержимое запуска программ: поле поиска и список. Подложку рисует
-// DrawerShape в слое рамки, здесь только то, что на ней.
+// Содержимое запуска программ: поле поиска, список и внизу блокировка,
+// сон и выключение. Подложку рисует DrawerShape в слое рамки, здесь
+// только то, что на ней.
 Item {
     id: root
     property bool open: false
@@ -16,7 +17,8 @@ Item {
     // (но не меньше трёх, чтобы панель не прыгала на каждой букве).
     property real maxHeight: 600
     readonly property real wantedHeight: Math.min(maxHeight,
-        field.height + 10 + Math.max(3, list.count) * (54 + list.spacing))
+        field.height + 10 + Math.max(3, list.count) * (54 + list.spacing)
+        + 10 + 1 + 10 + session.implicitHeight)
 
     function refresh() {
         results = AppSearch.search(search.text);
@@ -87,6 +89,7 @@ Item {
     onOpenChanged: {
         if (!open) appMenu.visible = false;
         if (open) {
+            session.reset();
             search.text = "";
             refresh();
             AppSearch.rescan();
@@ -185,7 +188,7 @@ Item {
 
     ListView {
         id: list
-        anchors { top: field.bottom; topMargin: 10; left: parent.left; right: parent.right; bottom: parent.bottom }
+        anchors { top: field.bottom; topMargin: 10; left: parent.left; right: parent.right; bottom: separator.top; bottomMargin: 10 }
         clip: true
         spacing: 2
         model: root.results
@@ -262,5 +265,18 @@ Item {
             text: "Ничего не нашлось"
             color: Theme.inkMuted
         }
+    }
+
+    Rectangle {
+        id: separator
+        anchors { left: parent.left; right: parent.right; bottom: session.top; bottomMargin: 10 }
+        height: 1
+        color: Theme.line
+    }
+
+    SessionButtons {
+        id: session
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        onDone: root.closeRequested(false)
     }
 }

@@ -3,8 +3,8 @@ import Quickshell
 import Quickshell.Services.Pipewire
 import Quickshell.Widgets
 
-// Громкость основного выхода: колесо — громче/тише, клик — панель
-// управления, средняя кнопка — без звука.
+// Громкость основного выхода: колесо — громче/тише, клик — раздел «Звук»
+// панели управления, средняя кнопка — без звука.
 BarButton {
     id: root
     required property string screenName
@@ -17,10 +17,10 @@ BarButton {
 
     PwObjectTracker { objects: [root.sink] }
 
-    active: ShellState.controlScreen === screenName
+    active: ShellState.controlShows(screenName, "sound")
     onClicked: event => {
         if (event.button === Qt.MiddleButton) { if (ready) sink.audio.muted = !sink.audio.muted; }
-        else { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName); }
+        else { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName, "sound"); }
     }
     onWheel: event => {
         if (!ready) return;

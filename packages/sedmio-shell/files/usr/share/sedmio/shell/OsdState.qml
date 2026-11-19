@@ -19,12 +19,19 @@ Singleton {
     property int maximum: 100
     property string text: ""
 
-    // Это видно на открытой панели управления — индикатор поверх не нужен
-    // (kded присылает его на любое изменение громкости, и от ползунка тоже).
-    readonly property var shownInControl: ["volume", "microphone", "brightness", "powerProfile", "wifi", "bluetooth"]
+    // Это видно в открытом разделе панели управления — индикатор поверх
+    // не нужен (kded присылает его на любое изменение громкости, и от
+    // ползунка тоже).
+    readonly property var shownInControl: ({
+        sound: ["volume", "microphone"],
+        calendar: [],
+        battery: ["brightness", "powerProfile"],
+        settings: ["brightness", "powerProfile", "wifi", "bluetooth"],
+    })
 
     function show() {
-        if (ShellState.controlScreen !== "" && shownInControl.includes(kind)) return;
+        if (ShellState.controlScreen !== ""
+            && (shownInControl[ShellState.controlSection] ?? []).includes(kind)) return;
         screenName = ShellState.focusedScreen();
         shown = true;
         hideTimer.restart();

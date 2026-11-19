@@ -8,29 +8,37 @@ import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 import Sedmio.Style
 
-// Содержимое панели управления: дата и календарь, плитки (сеть, Bluetooth,
-// «Не беспокоить», режим питания), громкость, микрофон, яркость и кнопки
-// выключения. Сеть, Bluetooth и звук открывают свои страницы. Подложку
-// рисует DrawerShape в слое рамки, здесь только то, что на ней.
+// Содержимое панели управления. У каждой кнопки панели свой раздел
+// (ShellState.controlSection):
+//   sound    — громкость, микрофон, куда выводить звук;
+//   calendar — дата и календарь;
+//   battery  — заряд, режим питания, яркость;
+//   settings — плитки (сеть, Bluetooth, «Не беспокоить», режим питания),
+//              яркость и «Параметры».
+// Сеть и Bluetooth открывают свои страницы. Выключение — в запуске
+// программ (SessionButtons). Подложку рисует DrawerShape в слое рамки,
+// здесь только то, что на ней.
 Item {
     id: root
     property bool open: false
+    property string section: "settings"
     property real maxHeight: 700
     signal closeRequested(bool restoreFocus)
 
-    // "main" | "network" | "bluetooth" | "audio"
+    // "main" | "network" | "bluetooth"
     property string page: "main"
 
     readonly property real wantedHeight: Math.min(maxHeight,
         page === "main" ? main.implicitHeight : (pageLoader.item ? pageLoader.item.implicitHeight : 0))
 
-    onOpenChanged: {
-        if (!open) return;
+    function reset() {
         page = "main";
-        confirm = "";
         calendar.reset();
         keys.forceActiveFocus();
     }
+    onOpenChanged: if (open) reset()
+    // Нажали кнопку другого раздела, не закрывая панель.
+    onSectionChanged: if (open) reset()
 
     // Запустить программу (параметры системы) и закрыть панель.
     function openExternal(command) {
@@ -61,43 +69,14 @@ Item {
         return p === PowerProfile.PowerSaver ? "Экономия энергии"
              : p === PowerProfile.Performance ? "Производительность" : "Сбалансированный";
     }
+    function nextProfile() {
+        const i = profiles.indexOf(PowerProfiles.profile);
+        PowerProfiles.profile = profiles[(i + 1) % profiles.length];
+    }
     function profileIcon(p) {
         return p === PowerProfile.PowerSaver ? "battery-profile-powersave"
              : p === PowerProfile.Performance ? "battery-profile-performance"
              : "battery-profile-balanced";
-    }
-
-    // ---- Выключение и выход: опасное — по второму нажатию.
-
-    property string confirm: ""
-    Timer {
-        id: confirmTimer
-        interval: 4000
-        onTriggered: root.confirm = ""
-    }
-
-    readonly property var sessionActions: [
-        { id: "lock", icon: "system-lock-screen", hint: "Заблокировать", safe: true,
-          command: ["loginctl", "lock-session"] },
-        { id: "suspend", icon: "system-suspend", hint: "Сон", safe: true,
-          command: ["systemctl", "suspend"] },
-        { id: "logout", icon: "system-log-out", hint: "Выйти", ask: "Ещё раз — выйти",
-          command: ["busctl", "--user", "call", "org.sedmio.SessionManager", "/Shutdown", "org.kde.Shutdown", "logout"] },
-        { id: "reboot", icon: "system-reboot", hint: "Перезагрузить", ask: "Ещё раз — перезагрузить",
-          command: ["busctl", "--user", "call", "org.sedmio.SessionManager", "/Shutdown", "org.kde.Shutdown", "logoutAndReboot"] },
-        { id: "shutdown", icon: "system-shutdown", hint: "Выключить", ask: "Ещё раз — выключить",
-          command: ["busctl", "--user", "call", "org.sedmio.SessionManager", "/Shutdown", "org.kde.Shutdown", "logoutAndShutdown"] },
-    ]
-
-    function runSession(action) {
-        if (!action.safe && confirm !== action.id) {
-            confirm = action.id;
-            confirmTimer.restart();
-            return;
-        }
-        confirm = "";
-        closeRequested(false);
-        Quickshell.execDetached(action.command);
     }
 
     // ---- Клавиши: Esc — назад или закрыть.
@@ -111,7 +90,10 @@ Item {
         }
     }
 
-    // ---- Главная страница
+    // ---- Главная страница раздела
+
+    readonly property var battery: UPower.displayDevice
+    readonly property bool hasBattery: battery !== null && battery.isLaptopBattery && battery.isPresent
 
     ColumnLayout {
         id: main
@@ -119,9 +101,11 @@ Item {
         visible: root.page === "main"
         spacing: 14
 
-        // Время и дата
+        // ---- Часы: время, дата, календарь
+
         SystemClock { id: clock; precision: SystemClock.Minutes }
         RowLayout {
+            visible: root.section === "calendar"
             Layout.fillWidth: true
             Layout.leftMargin: 4
             spacing: 12
@@ -145,14 +129,42 @@ Item {
 
         Calendar {
             id: calendar
+            visible: root.section === "calendar"
             Layout.fillWidth: true
         }
 
-        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.line }
+        // ---- Батарея: заряд
 
-        // Плитки
+        RowLayout {
+            visible: root.section === "battery" && root.hasBattery
+            Layout.fillWidth: true
+            Layout.leftMargin: 4
+            spacing: 12
+            readonly property int percent: root.hasBattery
+                ? Math.round(root.battery.percentage * (root.battery.percentage <= 1 ? 100 : 1)) : 0
+            SText {
+                text: parent.percent + "%"
+                size: 30
+                weight: 650
+                font.features: ({ "tnum": 1 })
+            }
+            SText {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+                text: !root.hasBattery ? ""
+                    : root.battery.state === UPowerDeviceState.Charging ? "Заряжается"
+                    : root.battery.state === UPowerDeviceState.FullyCharged ? "Заряжена"
+                    : UPower.onBattery ? "От батареи" : "Подключено к сети"
+                color: Theme.inkSoft
+                elide: Text.ElideRight
+            }
+        }
+
+        // ---- Быстрые настройки: плитки
+
         GridLayout {
             id: tiles
+            visible: root.section === "settings"
             Layout.fillWidth: true
             columns: 2
             rowSpacing: 8
@@ -209,19 +221,32 @@ Item {
                 title: "Режим питания"
                 subtitle: root.profileName(PowerProfiles.profile)
                 active: PowerProfiles.profile !== PowerProfile.Balanced
-                onToggled: {
-                    const i = root.profiles.indexOf(PowerProfiles.profile);
-                    PowerProfiles.profile = root.profiles[(i + 1) % root.profiles.length];
-                }
+                onToggled: root.nextProfile()
             }
         }
 
-        // Ползунки
+        // ---- Батарея: режим питания
+
+        QuickTile {
+            visible: root.section === "battery"
+            Layout.fillWidth: true
+            icon: root.profileIcon(PowerProfiles.profile)
+            title: "Режим питания"
+            subtitle: root.profileName(PowerProfiles.profile)
+            active: PowerProfiles.profile !== PowerProfile.Balanced
+            onToggled: root.nextProfile()
+        }
+
+        // ---- Ползунки: звук — громкость и микрофон; батарея и быстрые
+        // настройки — яркость.
+
         ColumnLayout {
+            visible: root.section !== "calendar"
             Layout.fillWidth: true
             spacing: 2
 
             SliderRow {
+                visible: root.section === "sound"
                 Layout.fillWidth: true
                 readonly property bool ready: root.sink !== null && root.sink.audio !== null
                 icon: !ready || root.sink.audio.muted ? "audio-volume-muted"
@@ -229,20 +254,18 @@ Item {
                     : root.sink.audio.volume < 0.67 ? "audio-volume-medium" : "audio-volume-high"
                 value: ready ? Math.min(1, root.sink.audio.volume) : 0
                 muted: !ready || root.sink.audio.muted
-                hasDetails: true
                 onIconClicked: if (ready) root.sink.audio.muted = !root.sink.audio.muted
                 onMoved: v => {
                     if (!ready) return;
                     root.sink.audio.volume = v;
                     if (v > 0 && root.sink.audio.muted) root.sink.audio.muted = false;
                 }
-                onDetails: root.page = "audio"
             }
 
             SliderRow {
                 Layout.fillWidth: true
                 readonly property bool ready: root.source !== null && root.source.audio !== null
-                visible: ready
+                visible: ready && root.section === "sound"
                 icon: ready && root.source.audio.muted ? "microphone-sensitivity-muted" : "audio-input-microphone"
                 value: ready ? Math.min(1, root.source.audio.volume) : 0
                 muted: !ready || root.source.audio.muted
@@ -258,6 +281,7 @@ Item {
                 SliderRow {
                     required property int index
                     readonly property var modelData: ScreenBrightness.displays[index] ?? ({})
+                    visible: root.section === "battery" || root.section === "settings"
                     Layout.fillWidth: true
                     icon: "brightness-high"
                     iconClickable: false
@@ -269,88 +293,40 @@ Item {
             }
         }
 
-        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.line }
+        // ---- Звук: куда выводить и откуда брать
 
-        // Параметры и выключение. Подтверждение опасного действия — на месте
-        // «Параметров», чтобы кнопки под мышью не сдвигались.
-        RowLayout {
+        Rectangle { visible: root.section === "sound"; Layout.fillWidth: true; implicitHeight: 1; color: Theme.line }
+
+        AudioPage {
+            visible: root.section === "sound"
             Layout.fillWidth: true
-            spacing: 4
+            showHeader: false
+            maxHeight: root.maxHeight - 60
+            onOpenExternal: command => root.openExternal(command)
+        }
 
-            SText {
-                Layout.fillWidth: true
-                Layout.leftMargin: 6
-                visible: root.confirm !== ""
-                text: (root.sessionActions.find(a => a.id === root.confirm) ?? {}).ask ?? ""
-                color: Theme.terracotta
-                size: 13
-                weight: 600
-                elide: Text.ElideRight
+        // ---- Быстрые настройки: «Параметры»
+
+        Rectangle { visible: root.section === "settings"; Layout.fillWidth: true; implicitHeight: 1; color: Theme.line }
+
+        Rectangle {
+            visible: root.section === "settings"
+            implicitWidth: settingsRow.implicitWidth + 20
+            implicitHeight: 38
+            radius: 12
+            color: settingsArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
+            RowLayout {
+                id: settingsRow
+                anchors.centerIn: parent
+                spacing: 8
+                SIcon { name: "configure" }
+                SText { text: "Параметры"; size: 13; weight: 550 }
             }
-
-            Rectangle {
-                visible: root.confirm === ""
-                implicitWidth: settingsRow.implicitWidth + 20
-                implicitHeight: 38
-                radius: 12
-                color: settingsArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
-                RowLayout {
-                    id: settingsRow
-                    anchors.centerIn: parent
-                    spacing: 8
-                    SIcon { name: "configure" }
-                    SText { text: "Параметры"; size: 13; weight: 550 }
-                }
-                MouseArea {
-                    id: settingsArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: root.openExternal(["/usr/lib/sedmio/open-settings"])
-                }
-            }
-
-            Item { Layout.fillWidth: true; visible: root.confirm === "" }
-
-            Repeater {
-                model: root.sessionActions
-                Rectangle {
-                    id: action
-                    required property var modelData
-                    readonly property bool asking: root.confirm === modelData.id
-                    implicitWidth: 38
-                    implicitHeight: 38
-                    radius: 12
-                    color: asking ? Theme.terracotta : (actionArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0))
-                    Behavior on color { ColorAnimation { duration: Theme.animFast } }
-                    SIcon {
-                        anchors.centerIn: parent
-                        name: action.modelData.icon
-                        light: action.asking
-                    }
-                    MouseArea {
-                        id: actionArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: root.runSession(action.modelData)
-                    }
-                    // Подпись над кнопкой при наведении
-                    Rectangle {
-                        visible: actionArea.containsMouse && !action.asking
-                        anchors { bottom: parent.top; bottomMargin: 6; horizontalCenter: parent.horizontalCenter }
-                        width: hintText.implicitWidth + 16
-                        height: 26
-                        radius: 8
-                        color: Theme.ink
-                        SText {
-                            id: hintText
-                            anchors.centerIn: parent
-                            text: action.modelData.hint
-                            size: 12
-                            weight: 500
-                            color: Theme.textOnGreen
-                        }
-                    }
-                }
+            MouseArea {
+                id: settingsArea
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: root.openExternal(["/usr/lib/sedmio/open-settings"])
             }
         }
     }
@@ -362,8 +338,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top }
         active: root.page !== "main"
         sourceComponent: root.page === "network" ? networkPage
-            : root.page === "bluetooth" ? bluetoothPage
-            : root.page === "audio" ? audioPage : null
+            : root.page === "bluetooth" ? bluetoothPage : null
     }
 
     Component {
@@ -377,14 +352,6 @@ Item {
     Component {
         id: bluetoothPage
         BluetoothPage {
-            maxHeight: root.maxHeight
-            onBack: { root.page = "main"; keys.forceActiveFocus(); }
-            onOpenExternal: command => root.openExternal(command)
-        }
-    }
-    Component {
-        id: audioPage
-        AudioPage {
             maxHeight: root.maxHeight
             onBack: { root.page = "main"; keys.forceActiveFocus(); }
             onOpenExternal: command => root.openExternal(command)

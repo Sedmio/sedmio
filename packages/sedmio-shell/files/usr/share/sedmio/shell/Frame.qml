@@ -272,6 +272,7 @@ PanelWindow {
         ControlPanel {
             id: control
             open: frame.controlOpen
+            section: ShellState.controlSection
             x: Theme.barWidth + 14
             y: frame.height - Theme.border - frame.controlHeight + 14
             width: frame.controlWidth - 28

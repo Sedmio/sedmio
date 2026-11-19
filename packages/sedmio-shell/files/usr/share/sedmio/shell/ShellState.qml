@@ -13,6 +13,10 @@ Singleton {
     property string launcherScreen: ""
     // То же для панели управления и центра уведомлений.
     property string controlScreen: ""
+    // Раздел панели управления — у каждой кнопки панели свой:
+    // "sound" (звук), "calendar" (часы), "battery" (батарея),
+    // "settings" (быстрые настройки, Meta+A).
+    property string controlSection: "settings"
     property string notificationsScreen: ""
     property string clipboardScreen: ""
     // Меню быстрых ссылок (Win+X, QuickMenu.qml).
@@ -53,18 +57,26 @@ Singleton {
         launcherScreen = screenName;
     }
 
-    function toggleControl(screenName) {
-        if (controlScreen === screenName) closeAll();
-        else openControl(screenName);
+    // Нажали кнопку открытого раздела — закрыть; другого — переключить
+    // на месте, не закрывая панель.
+    function toggleControl(screenName, section) {
+        section = section || "settings";
+        if (controlScreen === screenName && controlSection === section) closeAll();
+        else openControl(screenName, section);
     }
 
-    function openControl(screenName) {
+    function openControl(screenName, section) {
         rememberFocus();
         quickMenuScreen = "";
         launcherScreen = "";
         notificationsScreen = "";
         clipboardScreen = "";
+        controlSection = section || "settings";
         controlScreen = screenName;
+    }
+
+    function controlShows(screenName, section) {
+        return controlScreen === screenName && controlSection === section;
     }
 
     function toggleNotifications(screenName) {

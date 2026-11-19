@@ -4,12 +4,13 @@ import Quickshell.Services.UPower
 import Quickshell.Widgets
 import Sedmio.Style
 
-// Батарея ноутбука (UPower). На компьютере без батареи не видна.
+// Батарея ноутбука (UPower), клик — заряд, режим питания и яркость.
+// На компьютере без батареи не видна.
 BarButton {
     id: root
     required property string screenName
-    active: ShellState.controlScreen === screenName
-    onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName); }
+    active: ShellState.controlShows(screenName, "battery")
+    onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName, "battery"); }
     readonly property var device: UPower.displayDevice
     readonly property bool present: device !== null && device.isLaptopBattery && device.isPresent
     // UPower отдаёт долю от 0 до 1
