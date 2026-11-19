@@ -41,6 +41,7 @@ qt_add_qml_module(sedmio-preferences
         power.cpp power.h
         displayswitcher.cpp displayswitcher.h
         sound.cpp sound.h
+        account.cpp account.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -60,6 +61,7 @@ qt_add_qml_module(sedmio-preferences
         qml/DefaultsPage.qml
         qml/PowerPage.qml
         qml/SoundPage.qml
+        qml/AccountPage.qml
         qml/DisplaySwitcher.qml
         qml/SSlider.qml
         qml/DateTimePage.qml
@@ -80,6 +82,7 @@ target_link_libraries(sedmio-preferences PRIVATE
     LayerShellQt::Interface
     KF6::PulseAudioQt
     PkgConfig::PULSE
+    crypt  # хэш нового пароля (libxcrypt)
     PkgConfig::XKBREGISTRY
     ICU::i18n
     ICU::uc

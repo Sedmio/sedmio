@@ -1,0 +1,95 @@
+#!/usr/bin/python3 -I
+# Вход без пароля: включить или выключить для того, кто просит.
+#   pkexec /usr/lib/sedmio/set-autologin on|off
+#
+# Зовут «Параметры» (раздел «Учётная запись»). Правит секцию
+# [initial_session] в /etc/greetd/sedmio.toml — как её пишет установщик:
+# есть секция — после включения компьютера сразу запускается сеанс этого
+# пользователя, выйдет — обычный экран входа.
+#
+# Пользователь — тот, кто вызвал pkexec (PKEXEC_UID), а не аргумент: чужой
+# вход без пароля так не включить. «off» убирает секцию, только если она
+# про этого пользователя. Файл пишется целиком во временный рядом и
+# подменяется одним rename — оборванная запись не оставит greetd без
+# настроек.
+
+import os
+import pwd
+import re
+import sys
+import tempfile
+
+CONFIG = "/etc/greetd/sedmio.toml"
+SESSION = "/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland"
+SECTION = re.compile(r"^\s*\[([^\]]+)\]\s*(#.*)?$")
+VALUE = re.compile(r'^\s*(\w+)\s*=\s*"([^"]*)"\s*$')
+
+
+def fail(message, code=1):
+    print(f"set-autologin: {message}", file=sys.stderr)
+    sys.exit(code)
+
+
+def split(lines):
+    """Строки без секции [initial_session] и её значения (command, user)."""
+    kept, values, inside = [], {}, False
+    for line in lines:
+        match = SECTION.match(line)
+        if match:
+            inside = match.group(1).strip() == "initial_session"
+        if inside:
+            value = VALUE.match(line)
+            if value:
+                values[value.group(1)] = value.group(2)
+            continue
+        kept.append(line)
+    # Хвост: пустые строки и пояснение к убранной секции.
+    while kept and (not kept[-1].strip() or (kept[-1].lstrip().startswith("#") and "без пароля" in kept[-1])):
+        kept.pop()
+    return kept, values
+
+
+def main():
+    if len(sys.argv) != 2 or sys.argv[1] not in ("on", "off"):
+        fail("использование: set-autologin on|off", 2)
+    if os.geteuid() != 0:
+        fail("нужны права root (через pkexec)")
+    uid = os.environ.get("PKEXEC_UID", "")
+    if not uid.isdigit() or int(uid) == 0:
+        fail("запускать через pkexec от имени пользователя")
+    user = pwd.getpwuid(int(uid)).pw_name
+    if not re.fullmatch(r"[a-z_][a-z0-9_.-]*\$?", user):
+        fail(f"странное имя пользователя: {user!r}")
+
+    with open(CONFIG, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    if not any(SECTION.match(line) and SECTION.match(line).group(1).strip() == "default_session" for line in lines):
+        fail(f"в {CONFIG} нет [default_session] — не трогаю")
+    kept, old = split(lines)
+
+    if sys.argv[1] == "off":
+        if old.get("user") not in (None, user):
+            return 0  # вход без пароля у другого пользователя — не наш
+        result = kept
+    else:
+        command = old.get("command") or SESSION
+        result = kept + ["", "# Вход без пароля («Параметры» Sedmio). Убрать — удалить эту секцию.",
+                         "[initial_session]", f'command = "{command}"', f'user = "{user}"']
+
+    directory = os.path.dirname(CONFIG)
+    fd, temporary = tempfile.mkstemp(prefix=".sedmio.toml.", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("\n".join(result) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(temporary, 0o644)
+        os.replace(temporary, CONFIG)
+    except BaseException:
+        os.unlink(temporary)
+        raise
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

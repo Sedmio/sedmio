@@ -15,10 +15,12 @@ Item {
         color: Theme.greenWash
         border.width: 1
         border.color: Theme.line
-        visible: picture.status !== Image.Ready
+        // Круг и под картинкой: у прозрачных картинок (Konqi и т. п.) иначе
+        // нет границы.
 
         SText {
             anchors.centerIn: parent
+            visible: picture.status !== Image.Ready
             text: root.name.charAt(0).toUpperCase()
             size: root.width * 0.42
             weight: 550

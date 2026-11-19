@@ -22,6 +22,7 @@ ApplicationWindow {
         { id: "sound", title: "Звук", icon: "preferences-desktop-sound" },
         { id: "power", title: "Питание", icon: "preferences-system-power-management" },
         { id: "defaults", title: "Программы по умолчанию", icon: "preferences-desktop-default-applications" },
+        { id: "account", title: "Учётная запись", icon: "system-users" },
         { id: "datetime", title: "Дата и время", icon: "preferences-system-time" },
         { id: "about", title: "О системе", icon: "help-about" }
     ]
@@ -120,6 +121,7 @@ ApplicationWindow {
                        : App.page === "sound" ? soundPage
                        : App.page === "power" ? powerPage
                        : App.page === "defaults" ? defaultsPage
+                       : App.page === "account" ? accountPage
                        : App.page === "datetime" ? dateTimePage
                        : App.page === "about" ? aboutPage
                        : displayPage
@@ -132,6 +134,7 @@ ApplicationWindow {
     Component { id: soundPage; SoundPage {} }
     Component { id: powerPage; PowerPage {} }
     Component { id: defaultsPage; DefaultsPage {} }
+    Component { id: accountPage; AccountPage {} }
     Component { id: dateTimePage; DateTimePage {} }
     Component { id: aboutPage; AboutPage {} }
 }
