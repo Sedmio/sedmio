@@ -23,6 +23,7 @@ namespace
 const QString kLogind = QStringLiteral("org.freedesktop.login1");
 const QString kLogindPath = QStringLiteral("/org/freedesktop/login1");
 const QString kLogindManager = QStringLiteral("org.freedesktop.login1.Manager");
+const QString kShutdownName = QStringLiteral("org.kde.Shutdown");
 
 QDBusMessage systemdCall(const QString &method)
 {
@@ -67,10 +68,13 @@ bool Manager::registerOnBus()
     bus.registerObject(QStringLiteral("/LogoutPrompt"), new LogoutPrompt(this), QDBusConnection::ExportScriptableSlots);
     bus.registerObject(QStringLiteral("/Shutdown"), new Shutdown(this), QDBusConnection::ExportScriptableSlots);
     // Имя занято окном Plasma (его подняла шина, пока нас не было) — встаём
-    // в очередь: оно закроется, имя перейдёт к нам.
+    // в очередь: оно закроется, имя перейдёт к нам. org.kde.Shutdown — только
+    // на время выхода (startLogout): по нему powerdevil узнаёт, что идёт
+    // выключение, и не усыпляет. «Выйти / выключить сразу» в остальное
+    // время — через своё имя: org.sedmio.SessionManager /Shutdown.
     QDBusConnectionInterface *iface = bus.interface();
     bool ok = true;
-    for (const QString &name : {QStringLiteral("org.kde.LogoutPrompt"), QStringLiteral("org.kde.Shutdown")}) {
+    for (const QString &name : {QStringLiteral("org.kde.LogoutPrompt"), QStringLiteral("org.sedmio.SessionManager")}) {
         const auto reply = iface->registerService(name, QDBusConnectionInterface::QueueService, QDBusConnectionInterface::DontAllowReplacement);
         if (!reply.isValid()) {
             qWarning() << "sedmio-session-manager: не удалось занять" << name << reply.error().message();
@@ -224,6 +228,9 @@ void Manager::startLogout(Type type)
         return;
     }
     m_logoutType = type;
+    // Как plasma-shutdown: имя на шине — «идёт выход» (powerdevil не усыпит).
+    QDBusConnection::sessionBus().interface()->registerService(kShutdownName, QDBusConnectionInterface::QueueService,
+                                                               QDBusConnectionInterface::DontAllowReplacement);
 
     // KWin закрывает окна; программа с несохранённым может спросить и
     // отменить выход — тогда false. Ждём сколько угодно: человек думает.
@@ -252,6 +259,7 @@ void Manager::startLogout(Type type)
 void Manager::cancelled()
 {
     m_logoutType = None;
+    QDBusConnection::sessionBus().interface()->unregisterService(kShutdownName);
 }
 
 void Manager::finish()

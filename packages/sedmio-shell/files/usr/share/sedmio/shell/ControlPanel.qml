@@ -82,11 +82,11 @@ Item {
         { id: "suspend", icon: "system-suspend", hint: "Сон", safe: true,
           command: ["systemctl", "suspend"] },
         { id: "logout", icon: "system-log-out", hint: "Выйти", ask: "Ещё раз — выйти",
-          command: ["busctl", "--user", "call", "org.kde.Shutdown", "/Shutdown", "org.kde.Shutdown", "logout"] },
+          command: ["busctl", "--user", "call", "org.sedmio.SessionManager", "/Shutdown", "org.kde.Shutdown", "logout"] },
         { id: "reboot", icon: "system-reboot", hint: "Перезагрузить", ask: "Ещё раз — перезагрузить",
-          command: ["busctl", "--user", "call", "org.kde.Shutdown", "/Shutdown", "org.kde.Shutdown", "logoutAndReboot"] },
+          command: ["busctl", "--user", "call", "org.sedmio.SessionManager", "/Shutdown", "org.kde.Shutdown", "logoutAndReboot"] },
         { id: "shutdown", icon: "system-shutdown", hint: "Выключить", ask: "Ещё раз — выключить",
-          command: ["busctl", "--user", "call", "org.kde.Shutdown", "/Shutdown", "org.kde.Shutdown", "logoutAndShutdown"] },
+          command: ["busctl", "--user", "call", "org.sedmio.SessionManager", "/Shutdown", "org.kde.Shutdown", "logoutAndShutdown"] },
     ]
 
     function runSession(action) {

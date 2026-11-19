@@ -330,7 +330,11 @@ plasma-shutdown и ksmserver-logout-greeter.
   держит на шине имена Plasma `org.kde.LogoutPrompt` и `org.kde.Shutdown`
   (их зовут программы KDE, powerdevil по кнопке питания, наше меню и
   Alt+F4 на пустом столе) и показывает экран «Что сделать?» поверх всех
-  мониторов. Выход: KWin закрывает окна (программа может спросить
+  мониторов. `org.kde.Shutdown` занят только на время выхода, как у
+  plasma-shutdown: по нему powerdevil узнаёт «идёт выключение» и не
+  усыпляет (иначе сна не было бы вовсе). «Выйти / выключить сразу» —
+  через постоянное имя `org.sedmio.SessionManager /Shutdown` (так зовут
+  меню оболочки и powerdevil). Выход: KWin закрывает окна (программа может спросить
   «сохранить?» и отменить), затем logind выключает или перезагружает, а
   для выхода останавливается graphical-session.target.
 - Ctrl+Alt+Del — своё действие kglobalaccel (`sedmio-logout.desktop`);
