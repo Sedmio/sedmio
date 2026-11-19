@@ -33,6 +33,12 @@ export PACKAGER="${PACKAGER:-Sedmio Linux <fsedis@yandex.ru>}"
 
 mkdir -p "$REPO"
 
+# Имена наших пакетов: их зависимости на них не ставим из репозиториев
+own=()
+for dir in "$ROOT"/packages/*/; do
+  [[ -f "$dir/PKGBUILD" ]] && own+=("$(basename "$dir")")
+done
+
 for dir in "$ROOT"/packages/*/; do
   [[ -f "$dir/PKGBUILD" ]] || continue
   name="$(basename "$dir")"
@@ -62,8 +68,16 @@ for dir in "$ROOT"/packages/*/; do
 
   echo "==> $name"
   if [[ $compiled == 1 ]]; then
-    # Пакет компилируется: ставим его зависимости для сборки
-    flags=(--syncdeps --noconfirm --needed)
+    # Пакет компилируется: ставим его зависимости для сборки. Кроме
+    # наших собственных — их ещё нет в репозиториях этой машины
+    # (makepkg --syncdeps на них падает), а для сборки они не нужны.
+    mapfile -t deps < <(cd "$dir" && makepkg --printsrcinfo \
+      | sed -nE 's/^\t(make|check)?depends = //p' | sed 's/[<>=].*//' \
+      | grep -vxF -f <(printf '%s\n' "${own[@]}") | sort -u)
+    if [[ ${#deps[@]} -gt 0 ]]; then
+      sudo pacman -S --needed --noconfirm --asdeps "${deps[@]}"
+    fi
+    flags=(--nodeps)
   else
     # Пакет состоит только из конфигов и зависимостей,
     # ставить его зависимости на машину сборки не нужно.
