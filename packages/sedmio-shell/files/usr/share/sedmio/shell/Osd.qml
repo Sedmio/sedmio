@@ -9,8 +9,9 @@ Item {
     id: root
     readonly property bool progress: OsdState.mode === "progress"
 
-    // Ширина по содержимому: полосе нужно место, подписи — сколько займёт.
-    readonly property real wantedWidth: progress ? 300 : Math.max(200, Math.min(420, label.implicitWidth + 72))
+    // Ширина по содержимому: полосе нужно место, подписи — сколько займёт
+    // (отступы 16, значок 24, промежуток 12, отступ 16).
+    readonly property real wantedWidth: progress ? 300 : Math.max(120, Math.min(420, label.implicitWidth + 68))
 
     IconImage {
         id: icon
