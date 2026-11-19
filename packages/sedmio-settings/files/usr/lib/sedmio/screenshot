@@ -5,10 +5,12 @@
 #   screenshot          PrtSc, Win+Shift+S: выделить область мышью
 #                       (снимок — когда отпустили кнопку);
 #   screenshot screen   Win+PrtSc: весь экран.
+#   screenshot window   Alt+PrtSc: активное окно.
 # Папку для снимков можно сменить в Spectacle (Параметры → Сохранение).
 
 case "$1" in
   screen) what=--fullscreen gui=-f ;;
+  window) what=--activewindow gui=-a ;;
   *) what=--region gui=-r ;;
 esac
 

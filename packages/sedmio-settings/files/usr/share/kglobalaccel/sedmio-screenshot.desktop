@@ -11,10 +11,18 @@ Name[ru]=Снимок области экрана
 Icon=org.kde.spectacle
 Exec=/usr/lib/sedmio/screenshot
 X-KDE-Shortcuts=Print,Meta+Shift+S
-Actions=Screen
+Actions=Screen;Window;
 
 [Desktop Action Screen]
 Name=Screenshot of the whole screen
 Name[ru]=Снимок всего экрана
 Exec=/usr/lib/sedmio/screenshot screen
 X-KDE-Shortcuts=Meta+Print
+
+# Alt+PrtSc: xkb выдаёт на PrtSc с Alt клавишу Sys_Req (а многие клавиатуры
+# и сами шлют SysRq) — нужны оба сочетания.
+[Desktop Action Window]
+Name=Screenshot of the active window
+Name[ru]=Снимок активного окна
+Exec=/usr/lib/sedmio/screenshot window
+X-KDE-Shortcuts=Alt+Print,Alt+SysReq
