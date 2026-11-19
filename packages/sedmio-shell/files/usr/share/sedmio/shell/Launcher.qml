@@ -34,6 +34,14 @@ Item {
     // Правый щелчок по программе — закрепить на панели или открепить,
     // как в «Пуске» Windows. У строк «Выполнить» меню нет.
     property var menuEntry: null
+    // Клавиша Menu или Shift+F10 — меню выбранной программы.
+    function showMenuForCurrent() {
+        const item = list.currentItem;
+        if (!item) return;
+        showMenu(item, 40, item.height - 6);
+        appMenu.current = 0;
+    }
+
     function showMenu(item, x, y) {
         const entry = item.modelData;
         if (!entry || entry.run || !entry.id) return;
@@ -151,6 +159,13 @@ Item {
                     break;
                 case Qt.Key_PageUp:
                     list.currentIndex = Math.max(0, list.currentIndex - 7);
+                    break;
+                case Qt.Key_Menu:
+                    root.showMenuForCurrent();
+                    break;
+                case Qt.Key_F10:
+                    if (!(event.modifiers & Qt.ShiftModifier)) return;
+                    root.showMenuForCurrent();
                     break;
                 default:
                     return;
