@@ -1,0 +1,179 @@
+#!/usr/bin/python3 -I
+# Бумажник KDE при входе без пароля (автовход).
+#
+# При входе с паролем pam_kwallet5 создаёт и открывает бумажник kdewallet
+# паролем входа. При автовходе пароля нет, и первая программа, которой
+# нужно хранилище паролей (браузер, VS Code, secret-tool), открывала окно
+# KDE «придумайте пароль для бумажника», а потом спрашивала его при
+# каждом входе. Поэтому, если бумажника ещё нет и PAM его не открывает,
+# создаём kdewallet с пустым паролем тем же путём, что pam_kwallet5
+# (ksecretd --pam-login), — в отдельной шине D-Bus, чтобы не задеть сеанс.
+# Бумажник с пустым паролем ksecretd открывает сам, без окон.
+#
+# Бумажник не создаём, если он уже есть (с любым паролем), бумажники
+# выключены или выбран другой бумажник по умолчанию. Любая ошибка — вход
+# идёт как обычно, в худшем случае KDE спросит пароль, как раньше.
+#
+# Ещё без PAM некому запустить ksecretd: имя org.freedesktop.secrets не
+# активируется по D-Bus, и программы считают, что хранилища паролей нет.
+# Запускаем его сами (через его имя org.kde.secretservicecompat).
+
+import hashlib
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+
+WALLET = "kdewallet"
+# kwalletbackend.h: PBKDF2_SHA512_KEYSIZE / SALTSIZE / ITERATIONS
+KEYSIZE = 56
+SALTSIZE = 56
+ITERATIONS = 50000
+
+
+def log(message):
+    print(message, file=sys.stderr, flush=True)
+
+
+def wallet_settings():
+    config = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+    settings = {}
+    group = None
+    try:
+        with open(os.path.join(config, "kwalletrc"), encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("["):
+                    group = line
+                elif group == "[Wallet]" and "=" in line:
+                    key, value = line.split("=", 1)
+                    settings[key.strip()] = value.strip()
+    except OSError:
+        pass
+    return settings
+
+
+def pam_ksecretd_running():
+    """ksecretd, запущенный pam_kwallet5 (вход с паролем), уже ждёт ключ."""
+    uid = os.getuid()
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+            continue
+        try:
+            if os.stat(f"/proc/{pid}").st_uid != uid:
+                continue
+            with open(f"/proc/{pid}/comm") as f:
+                if f.read().strip() != "ksecretd":
+                    continue
+            with open(f"/proc/{pid}/environ", "rb") as f:
+                if b"\0PAM_KWALLET5_LOGIN=" in b"\0" + f.read():
+                    return True
+        except OSError:
+            continue
+    return False
+
+
+def start_secret_service():
+    subprocess.run(["busctl", "--user", "--timeout=10", "call", "org.freedesktop.DBus", "/org/freedesktop/DBus",
+                    "org.freedesktop.DBus", "StartServiceByName", "su", "org.kde.secretservicecompat", "0"],
+                   stdout=subprocess.DEVNULL, check=False)
+
+
+def main():
+    settings = wallet_settings()
+    if settings.get("Enabled", "true").lower() == "false":
+        return 0
+    if pam_ksecretd_running():
+        return 0
+    try:
+        if settings.get("Default Wallet", WALLET) == WALLET:
+            return create_wallet()
+        return 0
+    finally:
+        start_secret_service()
+
+
+def create_wallet():
+
+    data = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    directory = os.path.join(data, "kwalletd")
+    wallet_file = os.path.join(directory, WALLET + ".kwl")
+    # Меньше 60 байт ksecretd и сам считает пустышкой и пересоздаёт.
+    if os.path.exists(wallet_file) and os.path.getsize(wallet_file) >= 60:
+        return 0
+
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    salt_file = os.path.join(directory, WALLET + ".salt")
+    try:
+        with open(salt_file, "rb") as f:
+            salt = f.read()
+    except OSError:
+        salt = b""
+    if len(salt) != SALTSIZE:
+        salt = os.urandom(SALTSIZE)
+        fd = os.open(salt_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(salt)
+
+    key = hashlib.pbkdf2_hmac("sha512", b"", salt, ITERATIONS, KEYSIZE)
+
+    with tempfile.TemporaryDirectory(prefix="sedmio-wallet-") as tmp:
+        bus = subprocess.Popen(["dbus-daemon", "--session", "--nofork", "--nopidfile",
+                                f"--address=unix:path={tmp}/bus", "--print-address=1"],
+                               stdout=subprocess.PIPE, text=True)
+        secretd = None
+        try:
+            address = bus.stdout.readline().strip()
+            if not address:
+                log("wallet-autologin: dbus-daemon не запустился")
+                return 1
+
+            hash_read, hash_write = os.pipe()
+            server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            server.bind(os.path.join(tmp, "env"))
+            server.listen(1)
+
+            env = dict(os.environ)
+            env.update(DBUS_SESSION_BUS_ADDRESS=address, PAM_KWALLET5_LOGIN="1", QT_QPA_PLATFORM="offscreen")
+            env.pop("XDG_SESSION_ID", None)  # иначе ksecretd следит за сеансом
+            secretd = subprocess.Popen(["/usr/bin/ksecretd", "--pam-login", str(hash_read), str(server.fileno())],
+                                       pass_fds=(hash_read, server.fileno()), env=env,
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os.close(hash_read)
+            server.close()
+            with os.fdopen(hash_write, "wb") as f:
+                f.write(key)
+            # Окружение: ksecretd ждёт его вторым (как от pam_kwallet_init).
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                client.connect(os.path.join(tmp, "env"))
+                client.sendall(b"QT_QPA_PLATFORM=offscreen\n")
+
+            deadline = time.monotonic() + 15
+            while time.monotonic() < deadline:
+                if os.path.exists(wallet_file) and os.path.getsize(wallet_file) >= 60:
+                    log("wallet-autologin: создан бумажник kdewallet без пароля")
+                    time.sleep(0.5)  # дописать файл
+                    return 0
+                if secretd.poll() is not None:
+                    break
+                time.sleep(0.1)
+            log("wallet-autologin: ksecretd не создал бумажник")
+            return 1
+        finally:
+            for process in (secretd, bus):
+                if process and process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception as error:  # вход не должен зависеть от бумажника
+        log(f"wallet-autologin: {error}")
+        sys.exit(1)

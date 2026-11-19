@@ -12,10 +12,14 @@
 # держит сеанс заблокированным), вид — наш пакет Plasma/Shell
 # org.sedmio.shell (только экран блокировки). Выбран переменной
 # PLASMA_DEFAULT_SHELL из usr/lib/environment.d.
+#
+# Бумажник KDE: при входе с паролем его открывает pam_kwallet5, при
+# автовходе — usr/lib/sedmio/wallet-autologin (бумажник без пароля, чтобы
+# программы не спрашивали его при каждом входе).
 
 pkgname=sedmio-login
 pkgver=0.1.0
-pkgrel=4
+pkgrel=5
 pkgdesc="Sedmio: экраны входа (greetd) и блокировки"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -28,6 +32,7 @@ depends=(
   'plasma-workspace'    # модули раскладки, Caps Lock и сна для QML
   'breeze'              # курсор
   'kwallet-pam'         # бумажник открывается паролем входа (etc/pam.d/sedmio-greetd)
+  'python'              # usr/lib/sedmio/wallet-autologin
   'breeze-icons'
   'sedmio-branding'     # шрифт Onest
   'sedmio-settings'     # знак Sedmio, раскладки (/etc/xdg/kxkbrc)
@@ -38,5 +43,7 @@ package() {
   cp -a "$startdir/files/." "$pkgdir/"
   find "$pkgdir" -type d -exec chmod 755 {} +
   find "$pkgdir" -type f -exec chmod 644 {} +
-  chmod 755 "$pkgdir/usr/lib/sedmio/greeter/start"
+  chmod 755 "$pkgdir/usr/lib/sedmio/greeter/start" "$pkgdir/usr/lib/sedmio/wallet-autologin"
+  install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
+  ln -s ../sedmio-wallet-autologin.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-wallet-autologin.service"
 }
