@@ -42,6 +42,34 @@ double coordinate(const QString &text, int degreeDigits)
     const double seconds = digits.size() > degreeDigits + 2 ? digits.mid(degreeDigits + 2, 2).toDouble() : 0;
     return sign * (degrees + minutes / 60 + seconds / 3600);
 }
+
+// Координаты пояса (Europe/Moscow → 55.75, 37.6) из таблиц tzdata.
+bool coordinatesOf(const QString &zone, double *latitude, double *longitude)
+{
+    if (zone.isEmpty())
+        return false;
+    static const QRegularExpression coords(QStringLiteral("^([+-]\\d{4,6})([+-]\\d{5,7})$"));
+    for (const QString &file : {QStringLiteral("/usr/share/zoneinfo/zone1970.tab"), QStringLiteral("/usr/share/zoneinfo/zone.tab")}) {
+        QFile tab(file);
+        if (!tab.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        while (!tab.atEnd()) {
+            const QString line = QString::fromUtf8(tab.readLine());
+            if (line.startsWith(QLatin1Char('#')))
+                continue;
+            const QStringList fields = line.split(QLatin1Char('\t'));
+            if (fields.size() < 3 || fields.at(2).trimmed() != zone)
+                continue;
+            const auto match = coords.match(fields.at(1));
+            if (!match.hasMatch())
+                continue;
+            *latitude = coordinate(match.captured(1), 2);
+            *longitude = coordinate(match.captured(2), 3);
+            return true;
+        }
+    }
+    return false;
+}
 } // namespace
 
 NightLight::NightLight(QObject *parent)
@@ -69,30 +97,32 @@ bool NightLight::zoneLocation(double *latitude, double *longitude)
 {
     const QString zone = QString::fromUtf8(QTimeZone::systemTimeZoneId());
     m_place.clear();
-    if (zone.isEmpty())
+    if (!coordinatesOf(zone, latitude, longitude))
         return false;
-    for (const QString &file : {QStringLiteral("/usr/share/zoneinfo/zone1970.tab"), QStringLiteral("/usr/share/zoneinfo/zone.tab")}) {
-        QFile tab(file);
-        if (!tab.open(QIODevice::ReadOnly | QIODevice::Text))
-            continue;
-        static const QRegularExpression coords(QStringLiteral("^([+-]\\d{4,6})([+-]\\d{5,7})$"));
-        while (!tab.atEnd()) {
-            const QString line = QString::fromUtf8(tab.readLine());
-            if (line.startsWith(QLatin1Char('#')))
-                continue;
-            const QStringList fields = line.split(QLatin1Char('\t'));
-            if (fields.size() < 3 || fields.at(2).trimmed() != zone)
-                continue;
-            const auto match = coords.match(fields.at(1));
-            if (!match.hasMatch())
-                continue;
-            *latitude = coordinate(match.captured(1), 2);
-            *longitude = coordinate(match.captured(2), 3);
-            m_place = cityName(zone);
-            return true;
-        }
-    }
-    return false;
+    m_place = cityName(zone);
+    return true;
+}
+
+void NightLight::followTimeZone(const QString &oldZone, const QString &newZone)
+{
+    // Координаты в knighttimerc от прежнего пояса — значит, их ставили мы
+    // («от заката до рассвета»): переезжаем вместе с поясом. Свои
+    // координаты, введённые в параметрах KDE, не трогаем.
+    double oldLatitude = 0, oldLongitude = 0, newLatitude = 0, newLongitude = 0;
+    if (!coordinatesOf(oldZone, &oldLatitude, &oldLongitude) || !coordinatesOf(newZone, &newLatitude, &newLongitude))
+        return;
+    const KSharedConfigPtr time = nightTimeConfig();
+    time->reparseConfiguration();
+    KConfigGroup location = time->group(QStringLiteral("Location"));
+    if (location.readEntry("Automatic", true))
+        return;
+    const double latitude = location.readEntry("Latitude", 0.0);
+    const double longitude = location.readEntry("Longitude", 0.0);
+    if (qAbs(latitude - oldLatitude) > 0.01 || qAbs(longitude - oldLongitude) > 0.01)
+        return;
+    location.writeEntry("Latitude", newLatitude, notify);
+    location.writeEntry("Longitude", newLongitude, notify);
+    time->sync();
 }
 
 void NightLight::readConfig()

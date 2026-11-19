@@ -1,4 +1,5 @@
 #include "system.h"
+#include "nightlight.h"
 
 #include <KFormat>
 
@@ -216,7 +217,9 @@ void SystemInfo::setTimeZone(const QString &id)
     // Процессы запоминают пояс при запуске (libc читает /etc/localtime
     // один раз), и часы оболочки остались бы в старом. Пояс меняют редко —
     // перезапускаем оболочку, панель на секунду мигнёт.
-    call(timedService, timedPath, timedService, QStringLiteral("SetTimezone"), {id, true}, [] {
+    const QString oldZone = QString::fromUtf8(QTimeZone::systemTimeZoneId());
+    call(timedService, timedPath, timedService, QStringLiteral("SetTimezone"), {id, true}, [oldZone, id] {
+        NightLight::followTimeZone(oldZone, id);
         QProcess::startDetached(QStringLiteral("systemctl"),
                                 {QStringLiteral("--user"), QStringLiteral("try-restart"), QStringLiteral("sedmio-shell.service")});
     });

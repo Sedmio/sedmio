@@ -52,6 +52,9 @@ public:
     Q_INVOKABLE void preview(int kelvin);
     Q_INVOKABLE void stopPreview();
 
+    // Сменили часовой пояс: закат — по новому, если координаты были наши.
+    static void followTimeZone(const QString &oldZone, const QString &newZone);
+
 Q_SIGNALS:
     void changed();
 

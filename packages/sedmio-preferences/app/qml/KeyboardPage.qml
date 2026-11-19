@@ -72,7 +72,10 @@ Page {
                 onClicked: {
                     if (!root.adding) root.choices = keyboard.available();
                     root.adding = !root.adding;
-                    if (root.adding) search.forceActiveFocus();
+                    if (root.adding) {
+                        search.text = "";
+                        search.forceActiveFocus();
+                    }
                 }
             }
         }

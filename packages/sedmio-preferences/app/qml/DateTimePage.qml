@@ -60,7 +60,10 @@ Page {
                 onClicked: {
                     if (!root.choosing && root.zones.length === 0) root.zones = system.timeZones();
                     root.choosing = !root.choosing;
-                    if (root.choosing) search.forceActiveFocus();
+                    if (root.choosing) {
+                        search.text = "";
+                        search.forceActiveFocus();
+                    }
                 }
             }
         }
