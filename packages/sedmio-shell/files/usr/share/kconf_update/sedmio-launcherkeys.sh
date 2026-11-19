@@ -5,8 +5,8 @@
 # раньше работала Plasma, Win и Alt+F1 записаны за меню plasmashell (а Win+S —
 # за «остановить комнату»), — и запуск оставался без Win. Забираем их у
 # plasmashell, только если там они
-# по умолчанию и Plasma не выбрана вместо нашей оболочки (use-plasmashell,
-# запасной путь). Потом Win+R («Выполнить») и Win+S (поиск). Win+R по
+# по умолчанию и Plasma не выбрана вместо нашей оболочки (use-plasmashell).
+# Потом Win+R («Выполнить») и Win+S (поиск). Win+R по
 # умолчанию у Spectacle: запись области экрана (у неё есть и Win+Shift+R —
 # его оставляем). Клавишу Spectacle забираем, только если у него
 # сочетания по умолчанию; свободную — просто добавляем запуску. Занятую
@@ -71,15 +71,9 @@ sorted_groups() { # $@ — «4 k 0 0 0 …»
 }
 
 # Можно ли забирать клавиши у plasmashell: Plasma не выбрана вместо нашей
-# оболочки (use-plasmashell) и сейчас не работает запасной plasmashell
-# (тогда — в другой раз).
+# оболочки (use-plasmashell).
 plasma_replaced() {
-  [ -e "${XDG_CONFIG_HOME:-$HOME/.config}/sedmio/use-plasmashell" ] && return 1
-  if [ -e "${XDG_RUNTIME_DIR:-/nonexistent}/sedmio/shell-fallback" ]; then
-    retry
-    return 1
-  fi
-  return 0
+  [ ! -e "${XDG_CONFIG_HOME:-$HOME/.config}/sedmio/use-plasmashell" ]
 }
 
 # Win и Alt+F1 — у меню plasmashell по умолчанию: забрать запуску.

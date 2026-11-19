@@ -7,14 +7,14 @@ PartOf=graphical-session.target
 ConditionPathExists=!%h/.config/sedmio/use-plasmashell
 StartLimitIntervalSec=60s
 StartLimitBurst=3
-# Упала насовсем — запасная оболочка (plasmashell и агент polkit KDE).
-OnFailure=sedmio-shell-fallback.service
+# Упала насовсем (три раза за минуту) — аварийный режим: плашку с
+# перезапуском показывает sedmio-session-manager (пакет sedmio-session).
 
 [Service]
 # Плашки Quickshell о перезагрузке настроек — для разработчика, не для нас.
 Environment=QS_NO_RELOAD_POPUP=1
 # Без обработчика падений Quickshell (окно «has crashed» по-английски и
-# самоперезапуск мимо systemd — тогда не срабатывают счётчик и OnFailure).
+# самоперезапуск мимо systemd — тогда не срабатывает счётчик падений).
 # Пакет quickshell собран без него, это — на случай другой сборки.
 Environment=QS_DISABLE_CRASH_HANDLER=1
 ExecStart=/usr/bin/quickshell --path /usr/share/sedmio/shell

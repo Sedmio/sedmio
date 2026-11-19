@@ -121,7 +121,7 @@ build() {
     -D DISTRIBUTOR_DEBUGINFO_AVAILABLE=No
     # Без своего обработчика падений: он показывает английское окно
     # «has crashed» и перезапускает Quickshell мимо systemd — тогда не
-    # работают счётчик падений и запасной путь (sedmio-shell-fallback).
+    # работают счётчик падений и аварийный режим (sedmio-session-manager).
     -D CRASH_HANDLER=OFF
     # Модули Hyprland завязаны на wlr-реализацию окна, а Hyprland нам не нужен.
     -D HYPRLAND=OFF

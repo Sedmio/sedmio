@@ -1,8 +1,10 @@
 // sedmio-session-manager: выход, выключение и перезагрузка в сеансе
-// Sedmio — вместо ksmserver, plasma-shutdown и ksmserver-logout-greeter.
-// См. manager.h. Запускает sedmio-session-manager.service.
+// Sedmio — вместо ksmserver, plasma-shutdown и ksmserver-logout-greeter
+// (см. manager.h), и аварийный режим без оболочки (см. shellwatch.h).
+// Запускает sedmio-session-manager.service.
 
 #include "manager.h"
+#include "shellwatch.h"
 
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
@@ -48,5 +50,7 @@ int main(int argc, char *argv[])
     if (!manager.registerOnBus())
         return 1;
     feedSplash(&app);
+    // Оболочка упала насовсем — плашка с перезапуском (аварийный режим).
+    ShellWatch shellWatch;
     return app.exec();
 }
