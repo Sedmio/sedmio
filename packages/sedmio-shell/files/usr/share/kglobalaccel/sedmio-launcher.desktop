@@ -2,8 +2,8 @@
 # этого каталога при старте сеанса и выполняет Exec по клавише.
 # Одиночный Meta в Plasma 6 — обычное сочетание kglobalaccel (у plasmashell
 # было «Meta, Alt+F1» для его меню), раздел ModifierOnlyShortcuts в kwinrc
-# KWin 6.8 уже не читает. Alt+Пробел и Alt+F2 были у KRunner — их у него
-# забирает /usr/share/sedmio/xdg/kglobalaccel/org.kde.krunner.desktop.
+# KWin 6.8 уже не читает. Alt+Пробел и Alt+F2 были у KRunner (ушёл
+# вместе с plasma-workspace).
 # Оболочка не запущена (упала) — клавиша ничего не делает: программы
 # тогда запускают из «Диспетчера задач» (Ctrl+Shift+Esc, «Запустить новую
 # задачу»), о чём говорит плашка аварийного режима.

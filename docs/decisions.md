@@ -432,3 +432,11 @@ audioshortcutsservice, индикатор рисует оболочка), раз
   sedmio-menu. Цвета схемы Sedmio в kdeglobals переносит
   sedmio-theme-sync, а не plasma-apply-colorscheme. Скрипт панели
   plasmashell (закреплённые программы) убран.
+- Зависимости: plasma-workspace, plasma-desktop и systemsettings больше
+  никто не требует. Что приходило с ними и нужно нам — прямо в
+  sedmio-base (plasma-integration, qqc2-desktop-style, kde-cli-tools,
+  polkit-kde-agent, xorg-xwayland, xorg-xrdb, xdg-user-dirs,
+  ocean-sound-theme) и в sedmio-session (kded). kactivitymanagerd,
+  kmenuedit, ksystemstats, baloo и прочее уходят. На уже установленной
+  системе пакеты Plasma сами не удалятся: `pacman -Rs plasma-workspace
+  plasma-desktop systemsettings`.

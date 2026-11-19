@@ -9,12 +9,12 @@
 
 pkgname=sedmio-settings
 pkgver=0.1.0
-pkgrel=27
+pkgrel=28
 pkgdesc="Sedmio: название системы, настройки KDE, раскладок, значков и приложений по умолчанию"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
 license=('MIT')
-depends=('plasma-desktop' 'breeze-icons')
+depends=('kconfig' 'breeze-icons')  # kconfig: kreadconfig6 и kwriteconfig6 в kconf_update
 # Тема значков sedmio собирается из Breeze (icons/make-theme.py).
 makedepends=('python' 'breeze-icons')
 optdepends=('firefox: политики браузера из /etc/firefox/policies'

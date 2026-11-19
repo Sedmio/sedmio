@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=14
+pkgrel=15
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -21,8 +21,8 @@ depends=(
   'sedmio-login'            # экраны входа (greetd вместо SDDM) и блокировки
   'sedmio-session'          # сеанс: запуск, выход, выключение (вместо startplasma и ksmserver)
 
-  # Plasma: минимальный набор вместо группы plasma целиком
-  'plasma-desktop'
+  # Службы и части KDE — без Plasma (plasma-workspace, plasma-desktop и
+  # systemsettings в систему не входят: всё их — своё, docs/decisions.md §15)
   'kscreen'
   'plasma-nm'
   'plasma-pa'
@@ -32,6 +32,14 @@ depends=(
   'kde-gtk-config'
   'breeze-gtk'
   'xdg-desktop-portal-kde'
+  'plasma-integration'      # вид программ Qt и KDE: диалоги, цвета, значки
+  'qqc2-desktop-style'      # вид разделов KDE (kcmshell6) и программ на Kirigami
+  'kde-cli-tools'           # типы файлов (kcm_filetypes), kde-open, kioclient
+  'polkit-kde-agent'        # запасной агент паролей (sedmio-agents-fallback)
+  'xorg-xwayland'           # программы и игры для X11
+  'xorg-xrdb'               # KWin передаёт им масштаб (Xft.dpi) через xrdb
+  'xdg-user-dirs'           # «Документы», «Загрузки» и т. п. на русском
+  'ocean-sound-theme'       # звуки уведомлений и «Проверить звук»
 
   # Программы
   'sedmio-files'            # «Файлы» вместо Dolphin

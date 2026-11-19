@@ -28,7 +28,7 @@
 
 pkgname=sedmio-session
 pkgver=0.1.0
-pkgrel=8
+pkgrel=9
 pkgdesc="Sedmio: сеанс — запуск, выход, выключение"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -39,6 +39,7 @@ depends=(
   'layer-shell-qt'  # экран выхода поверх всего на каждом мониторе
   'kwin'
   'kconfig'         # kreadconfig6: язык из plasma-localerc, заставка
+  'kded'            # kded6: kconf_update при входе, модули KDE (клавиши громкости)
   'dbus'            # dbus-update-activation-environment
   'systemd'
 )
