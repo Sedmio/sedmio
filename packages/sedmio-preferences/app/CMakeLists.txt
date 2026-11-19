@@ -7,9 +7,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core DBus Gui Widgets OpenGL Quick QuickControls2)
 find_package(KF6CoreAddons 6.10 REQUIRED)
 find_package(KF6WindowSystem 6.10 REQUIRED)
+find_package(KF6Config 6.10 REQUIRED)
 find_package(KF6Screen 6.3 REQUIRED)
 # Русские названия городов в часовых поясах.
 find_package(ICU REQUIRED COMPONENTS i18n uc)
+# Названия раскладок клавиатуры.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(XKBREGISTRY REQUIRED IMPORTED_TARGET xkbregistry)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -24,6 +28,7 @@ qt_add_qml_module(sedmio-preferences
         displays.cpp displays.h
         system.cpp system.h
         wallpapers.cpp wallpapers.h
+        keyboard.cpp keyboard.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -38,6 +43,7 @@ qt_add_qml_module(sedmio-preferences
         qml/Page.qml
         qml/DisplayPage.qml
         qml/WallpaperPage.qml
+        qml/KeyboardPage.qml
         qml/DateTimePage.qml
         qml/AboutPage.qml
 )
@@ -51,6 +57,8 @@ target_link_libraries(sedmio-preferences PRIVATE
     KF6::CoreAddons
     KF6::WindowSystem
     KF6::Screen
+    KF6::ConfigCore
+    PkgConfig::XKBREGISTRY
     ICU::i18n
     ICU::uc
 )

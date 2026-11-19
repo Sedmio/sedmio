@@ -10,8 +10,8 @@ namespace
 {
 const QString service = QStringLiteral("org.sedmio.Preferences");
 const QString path = QStringLiteral("/org/sedmio/Preferences");
-const QStringList pages = {QStringLiteral("display"), QStringLiteral("wallpaper"), QStringLiteral("datetime"),
-                           QStringLiteral("about")};
+const QStringList pages = {QStringLiteral("display"), QStringLiteral("wallpaper"), QStringLiteral("keyboard"),
+                           QStringLiteral("datetime"), QStringLiteral("about")};
 } // namespace
 
 App::App(QObject *parent)
@@ -26,6 +26,7 @@ QString App::normalizePage(const QString &page)
         {QStringLiteral("kcm_kscreen"), QStringLiteral("display")},
         {QStringLiteral("screen"), QStringLiteral("display")},
         {QStringLiteral("kcm_wallpaper"), QStringLiteral("wallpaper")},
+        {QStringLiteral("kcm_keyboard"), QStringLiteral("keyboard")},
         {QStringLiteral("kcm_clock"), QStringLiteral("datetime")},
         {QStringLiteral("kcm_about-distro"), QStringLiteral("about")},
     };
