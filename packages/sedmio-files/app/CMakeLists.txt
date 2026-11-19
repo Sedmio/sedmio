@@ -62,7 +62,13 @@ target_link_libraries(sedmio-files PRIVATE
     KF6::WindowSystem
 )
 
-install(TARGETS sedmio-files RUNTIME DESTINATION bin)
+# Уведомление о подключённой флешке (devices.cpp) — отдельная маленькая
+# программа без интерфейса: работает весь сеанс, «Файлы» — нет.
+qt_add_executable(sedmio-devices devices.cpp)
+target_link_libraries(sedmio-devices PRIVATE Qt6::DBus KF6::CoreAddons KF6::Solid)
+
+install(TARGETS sedmio-files sedmio-devices RUNTIME DESTINATION bin)
+install(FILES sedmio-devices.service DESTINATION lib/systemd/user)
 install(FILES sedmio-files.desktop DESTINATION share/applications)
 # Шина запускает нас, когда кто-то просит показать папку или файл.
 install(FILES org.sedmio.Files.FileManager1.service DESTINATION share/dbus-1/services)
