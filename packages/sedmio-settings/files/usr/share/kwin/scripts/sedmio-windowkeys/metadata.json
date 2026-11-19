@@ -6,7 +6,7 @@
                 "Name": "Sedmio"
             }
         ],
-        "Description": "Win+↑ разворачивает окно, Win+↓ возвращает его прежний размер или сворачивает, Alt+F4 на пустом рабочем столе — завершение работы, после Win+D фокус у рабочего стола — как в Windows",
+        "Description": "Win+↑ разворачивает окно, Win+↓ возвращает его прежний размер или сворачивает, Alt+F4 на пустом рабочем столе — завершение работы, после Win+D фокус у рабочего стола; Win+M, Win+Home, Win+Shift+↑, Win+Ctrl+D и Win+Ctrl+F4 — как в Windows",
         "EnabledByDefault": true,
         "Id": "sedmio-windowkeys",
         "License": "GPL",
