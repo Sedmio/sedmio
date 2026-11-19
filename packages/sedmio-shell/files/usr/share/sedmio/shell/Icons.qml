@@ -18,7 +18,9 @@ Singleton {
         if (fallback === true)
             url = name ? Quickshell.iconPath(name, true) : "";
         else if (fallback)
-            url = Quickshell.iconPath(name && Quickshell.hasThemeIcon(name) ? name : fallback);
+            // Проверка через iconPath(…, true), а не hasThemeIcon: та
+            // не признаёт абсолютный путь (Icon=/opt/… у AppImage, игр).
+            url = (name && Quickshell.iconPath(name, true)) || Quickshell.iconPath(fallback);
         else
             url = name ? Quickshell.iconPath(name) : "";
         return url === "" ? "" : url + "?path=/palette-" + Theme.paletteSerial;

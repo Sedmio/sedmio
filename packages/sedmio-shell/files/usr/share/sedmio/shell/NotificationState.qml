@@ -89,7 +89,11 @@ Singleton {
     function add(notification) {
         const list = popups.filter(n => n !== notification);
         list.unshift(notification);
-        popups = list.slice(0, maxPopups);
+        // Срочные не вытесняются обычными: иначе поток сообщений во время
+        // игры убрал бы «батарея садится» с плашки поверх окна.
+        const urgent = list.filter(n => n.urgency === NotificationUrgency.Critical);
+        const normal = list.filter(n => n.urgency !== NotificationUrgency.Critical);
+        popups = urgent.slice(0, maxPopups).concat(normal.slice(0, Math.max(0, maxPopups - urgent.length)));
         notification.closed.connect(() => root.remove(notification));
     }
 

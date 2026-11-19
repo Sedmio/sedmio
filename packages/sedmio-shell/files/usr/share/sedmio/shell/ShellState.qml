@@ -166,15 +166,18 @@ Singleton {
         else windows[(current + 1) % windows.length].activate();
     }
 
-    // Экран, с которым сейчас работают: тот, где активное окно.
-    // Для клавиш (Meta), у которых своего экрана нет.
     // Активное окно во весь экран на этом экране (видео, игра): рамка
     // оболочки под ним — то, что нельзя пропустить, показываем поверх.
+    // Экран окна — первый, как в focusedScreen(): окно задело край соседнего
+    // экрана — плашка всё равно одна, там же, где уведомления и громкость.
     function fullscreenOn(screenName) {
         const active = ToplevelManager.activeToplevel;
-        return !!active && active.fullscreen && active.screens.some(s => s.name === screenName);
+        return !!active && active.fullscreen && active.screens.length > 0
+            && active.screens[0].name === screenName;
     }
 
+    // Экран, с которым сейчас работают: тот, где активное окно.
+    // Для клавиш (Meta), у которых своего экрана нет.
     function focusedScreen() {
         const active = ToplevelManager.activeToplevel;
         if (active && active.screens.length > 0) return active.screens[0].name;
