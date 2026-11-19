@@ -1,0 +1,12 @@
+#!/bin/sh
+# Перечитать QML оболочки Sedmio во всех открытых сеансах — из хука pacman
+# sedmio-shell-reload.hook, когда все новые файлы уже на месте. Сама
+# оболочка за файлами не следит (shell.qml). Не получилось — не страшно:
+# новая версия подхватится при следующем входе. Обновление не ломаем.
+for pid in $(pgrep -f "^/usr/bin/quickshell --path /usr/share/sedmio/shell"); do
+  uid=$(stat -c %u "/proc/$pid" 2>/dev/null) || continue
+  user=$(id -nu "$uid" 2>/dev/null) || continue
+  timeout 10 runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    quickshell ipc --pid "$pid" call shell reload >/dev/null 2>&1 || true
+done
+exit 0

@@ -11,6 +11,8 @@ StartLimitBurst=3
 OnFailure=sedmio-shell-fallback.service
 
 [Service]
+# Плашки Quickshell о перезагрузке настроек — для разработчика, не для нас.
+Environment=QS_NO_RELOAD_POPUP=1
 ExecStart=/usr/bin/quickshell --path /usr/share/sedmio/shell
 Restart=on-failure
 Slice=session.slice

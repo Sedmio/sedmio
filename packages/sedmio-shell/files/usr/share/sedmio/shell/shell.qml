@@ -7,6 +7,18 @@ import Quickshell.Services.Kde
 import Quickshell.Services.Polkit
 
 ShellRoot {
+    // За файлами не следим: pacman обновляет их по одному, и оболочка
+    // перечитала бы недописанный набор («Config reload failed» и старая
+    // версия до перезахода). Перечитывает хук pacman, когда все файлы на
+    // месте (usr/share/libalpm/hooks/sedmio-shell-reload.hook):
+    //   quickshell ipc -p /usr/share/sedmio/shell call shell reload
+    settings.watchFiles: false
+
+    IpcHandler {
+        target: "shell"
+        function reload(): void { Quickshell.reload(false); }
+    }
+
     Variants {
         model: Quickshell.screens
 
