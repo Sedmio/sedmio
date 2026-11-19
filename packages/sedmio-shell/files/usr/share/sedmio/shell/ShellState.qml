@@ -157,12 +157,14 @@ Singleton {
     // Программы на панели: [{key, windows: [toplevel…]}] в порядке
     // появления, окна одной программы — вместе. Диалоги (у окна есть
     // родитель) не считаем — они поднимаются вместе со своим окном.
+    // Окна других рабочих столов тоже, как в Windows (inCurrentDesktop —
+    // из нашего патча Quickshell; без него undefined — окно показываем).
     // Здесь, а не в панели: по этому же порядку работают Meta+1…9.
     readonly property var windowGroups: {
         const byKey = {};
         const result = [];
         for (const t of ToplevelManager.toplevels.values) {
-            if (t.parent) continue;
+            if (t.parent || t.inCurrentDesktop === false) continue;
             const key = t.appId || t.title;
             if (!byKey[key]) {
                 byKey[key] = { key: key, windows: [] };

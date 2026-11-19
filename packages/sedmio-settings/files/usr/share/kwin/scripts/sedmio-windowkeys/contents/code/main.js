@@ -169,6 +169,14 @@ registerShortcut("Sedmio New Desktop", "Создать рабочий стол (
         workspace.currentDesktop = workspace.desktops[workspace.desktops.length - 1];
 });
 registerShortcut("Sedmio Close Desktop", "Закрыть рабочий стол (как Win+Ctrl+F4 в Windows)", "Meta+Ctrl+F4", function () {
-    if (workspace.desktops.length > 1)
-        workspace.removeDesktop(workspace.currentDesktop);
+    if (workspace.desktops.length <= 1)
+        return;
+    workspace.removeDesktop(workspace.currentDesktop);
+    // Фокус — верхнему окну стола, на который перешли: иначе он ни у кого,
+    // и набранное с клавиатуры пропадает.
+    if (workspace.activeWindow)
+        return;
+    const shown = taskWindows().filter(function (w) { return !w.minimized; });
+    if (shown.length > 0)
+        workspace.activeWindow = shown[shown.length - 1];
 });

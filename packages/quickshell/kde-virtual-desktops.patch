@@ -1,0 +1,312 @@
+--- a/assets/org.quickshell.desktop
++++ b/assets/org.quickshell.desktop
+@@ -8,4 +8,5 @@
+ Exec=/usr/bin/quickshell
+ # KWin only lets clients bind org_kde_plasma_window_management (window list)
+ # when their desktop file lists it here and Exec matches the executable.
+-X-KDE-Wayland-Interfaces=org_kde_plasma_window_management
++# org_kde_plasma_virtual_desktop_management tells which desktop is current.
++X-KDE-Wayland-Interfaces=org_kde_plasma_window_management,org_kde_plasma_virtual_desktop_management
+--- a/src/wayland/toplevel/CMakeLists.txt
++++ b/src/wayland/toplevel/CMakeLists.txt
+@@ -22,11 +22,13 @@
+ # KWin: org_kde_plasma_window_management (kde_toplevel.cpp)
+ find_package(PlasmaWaylandProtocols REQUIRED)
+ wl_proto(wlp-plasma-window-management plasma-window-management "${PLASMA_WAYLAND_PROTOCOLS_DIR}")
++wl_proto(wlp-plasma-virtual-desktop plasma-virtual-desktop "${PLASMA_WAYLAND_PROTOCOLS_DIR}")
+ 
+ target_link_libraries(quickshell-wayland-toplevel-management PRIVATE
+ 	Qt::Quick Qt::WaylandClient Qt::WaylandClientPrivate wayland-client
+ 	wlp-foreign-toplevel
+ 	wlp-plasma-window-management
++	wlp-plasma-virtual-desktop
+ )
+ 
+ qs_module_pch(quickshell-wayland-toplevel-management SET large)
+--- a/src/wayland/toplevel/handle.hpp
++++ b/src/wayland/toplevel/handle.hpp
+@@ -28,6 +28,9 @@
+ 	[[nodiscard]] virtual bool minimized() const = 0;
+ 	[[nodiscard]] virtual bool fullscreen() const = 0;
+ 	[[nodiscard]] virtual QList<QScreen*> screens() const = 0;
++	// On the virtual desktop being shown (or on all of them). Protocols
++	// without virtual desktops: always.
++	[[nodiscard]] virtual bool inCurrentDesktop() const { return true; }
+ 
+ 	virtual void activate() = 0;
+ 	virtual void close() = 0;
+@@ -51,6 +54,7 @@
+ 	void minimizedChanged();
+ 	void fullscreenChanged();
+ 	void screensChanged();
++	void inCurrentDesktopChanged();
+ };
+ 
+ } // namespace qs::wayland::toplevel::impl
+--- a/src/wayland/toplevel/kde_toplevel.hpp
++++ b/src/wayland/toplevel/kde_toplevel.hpp
+@@ -1,11 +1,13 @@
+ #pragma once
+ 
++#include <qhash.h>
+ #include <qlist.h>
+ #include <qloggingcategory.h>
+ #include <qobject.h>
+ #include <qrect.h>
+ #include <qscreen.h>
+ #include <qstring.h>
++#include <qstringlist.h>
+ #include <qtmetamacros.h>
+ #include <qvector.h>
+ #include <qwayland-plasma-window-management.h>
+@@ -14,6 +16,7 @@
+ 
+ #include "../../core/logcat.hpp"
+ #include "handle.hpp"
++#include "qwayland-plasma-virtual-desktop.h"
+ #include "wayland-plasma-window-management-client-protocol.h"
+ 
+ // Windows of other applications through KWin's own protocol,
+@@ -43,6 +46,7 @@
+ 	[[nodiscard]] bool minimized() const override;
+ 	[[nodiscard]] bool fullscreen() const override;
+ 	[[nodiscard]] QList<QScreen*> screens() const override;
++	[[nodiscard]] bool inCurrentDesktop() const override;
+ 
+ 	// Windows KWin does not want on a taskbar: desktop, panels of other
+ 	// shells, on-screen displays and the like. They are never made ready.
+@@ -70,6 +74,8 @@
+ 	    override;
+ 	void org_kde_plasma_window_initial_state() override;
+ 	void org_kde_plasma_window_unmapped() override;
++	void org_kde_plasma_window_virtual_desktop_entered(const QString& id) override;
++	void org_kde_plasma_window_virtual_desktop_left(const QString& id) override;
+ 
+ 	void setState(uint32_t flag, bool on);
+ 	void updateReady();
+@@ -82,9 +88,61 @@
+ 	ToplevelHandle* mParent = nullptr;
+ 	QRect mGeometry;
+ 	QList<QScreen*> mScreens;
++	QStringList mDesktops;
+ 	QWindow* rectWindow = nullptr;
+ };
+ 
++class VirtualDesktopManager;
++
++// One virtual desktop; only tells when it becomes the current one.
++class VirtualDesktop
++    : public QObject
++    , public QtWayland::org_kde_plasma_virtual_desktop {
++	Q_OBJECT;
++
++public:
++	VirtualDesktop(VirtualDesktopManager* manager, QString id);
++	~VirtualDesktop() override;
++	Q_DISABLE_COPY_MOVE(VirtualDesktop);
++
++private:
++	void org_kde_plasma_virtual_desktop_activated() override;
++
++	VirtualDesktopManager* manager;
++	QString id;
++};
++
++// Which virtual desktop KWin shows, through
++// org_kde_plasma_virtual_desktop_management. Not offered — current() is
++// empty and every window counts as on the current desktop.
++class VirtualDesktopManager
++    : public QWaylandClientExtensionTemplate<VirtualDesktopManager>
++    , public QtWayland::org_kde_plasma_virtual_desktop_management {
++	Q_OBJECT;
++
++public:
++	[[nodiscard]] QString current() const { return this->mCurrent; }
++	void setCurrent(const QString& id);
++
++	static VirtualDesktopManager* instance();
++
++signals:
++	void currentChanged();
++
++protected:
++	explicit VirtualDesktopManager();
++
++	void org_kde_plasma_virtual_desktop_management_desktop_created(
++	    const QString& id,
++	    uint32_t position
++	) override;
++	void org_kde_plasma_virtual_desktop_management_desktop_removed(const QString& id) override;
++
++private:
++	QHash<QString, VirtualDesktop*> mDesktops;
++	QString mCurrent;
++};
++
+ class ToplevelManager
+     : public QWaylandClientExtensionTemplate<ToplevelManager>
+     , public QtWayland::org_kde_plasma_window_management {
+--- a/src/wayland/toplevel/kde_toplevel.cpp
++++ b/src/wayland/toplevel/kde_toplevel.cpp
+@@ -1,6 +1,7 @@
+ #include "kde_toplevel.hpp"
+ #include <algorithm>
+ #include <cstdint>
++#include <utility>
+ 
+ #include <private/qwaylandscreen_p.h>
+ #include <private/qwaylandwindow_p.h>
+@@ -28,6 +29,10 @@
+ constexpr uint32_t STATE_MAXIMIZED = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_MAXIMIZED;
+ constexpr uint32_t STATE_FULLSCREEN = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_FULLSCREEN;
+ constexpr uint32_t STATE_SKIPTASKBAR = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_SKIPTASKBAR;
++constexpr uint32_t STATE_ON_ALL_DESKTOPS = ORG_KDE_PLASMA_WINDOW_MANAGEMENT_STATE_ON_ALL_DESKTOPS;
++
++// desktop_created and activated are in the first version.
++constexpr int VIRTUAL_DESKTOP_MANAGER_VERSION = 1;
+ 
+ // window_with_uuid and get_window_by_uuid need 13, send_to_output 15.
+ // Newer versions change how windows are announced (mapped, stacking order
+@@ -94,6 +99,9 @@
+ 	auto* app = qGuiApp;
+ 	QObject::connect(app, &QGuiApplication::screenAdded, this, &ToplevelHandle::updateScreens);
+ 	QObject::connect(app, &QGuiApplication::screenRemoved, this, &ToplevelHandle::updateScreens);
++	// clang-format off
++	QObject::connect(VirtualDesktopManager::instance(), &VirtualDesktopManager::currentChanged, this, &ToplevelHandle::inCurrentDesktopChanged);
++	// clang-format on
+ }
+ 
+ ToplevelHandle::~ToplevelHandle() {
+@@ -110,6 +118,25 @@
+ bool ToplevelHandle::skipTaskbar() const { return (this->mState & STATE_SKIPTASKBAR) != 0; }
+ QList<QScreen*> ToplevelHandle::screens() const { return this->mScreens; }
+ 
++// Not known yet (no desktops reported, KWin without the protocol) —
++// rather show the window than lose it.
++bool ToplevelHandle::inCurrentDesktop() const {
++	if ((this->mState & STATE_ON_ALL_DESKTOPS) != 0 || this->mDesktops.isEmpty()) return true;
++	auto current = VirtualDesktopManager::instance()->current();
++	return current.isEmpty() || this->mDesktops.contains(current);
++}
++
++void ToplevelHandle::org_kde_plasma_window_virtual_desktop_entered(const QString& id) {
++	if (this->mDesktops.contains(id)) return;
++	this->mDesktops.push_back(id);
++	emit this->inCurrentDesktopChanged();
++}
++
++void ToplevelHandle::org_kde_plasma_window_virtual_desktop_left(const QString& id) {
++	if (!this->mDesktops.removeOne(id)) return;
++	emit this->inCurrentDesktopChanged();
++}
++
+ void ToplevelHandle::setState(uint32_t flag, bool on) { this->set_state(flag, on ? flag : 0); }
+ 
+ // Activating a minimized window also restores it, as on a regular taskbar.
+@@ -227,6 +254,7 @@
+ 	if ((changed & STATE_MAXIMIZED) != 0) emit this->maximizedChanged();
+ 	if ((changed & STATE_MINIMIZED) != 0) emit this->minimizedChanged();
+ 	if ((changed & STATE_FULLSCREEN) != 0) emit this->fullscreenChanged();
++	if ((changed & STATE_ON_ALL_DESKTOPS) != 0) emit this->inCurrentDesktopChanged();
+ 
+ 	this->updateReady();
+ }
+@@ -278,4 +306,51 @@
+ 	delete this;
+ }
+ 
++VirtualDesktopManager::VirtualDesktopManager()
++    : QWaylandClientExtensionTemplate(VIRTUAL_DESKTOP_MANAGER_VERSION) {
++	this->initialize();
++}
++
++VirtualDesktopManager* VirtualDesktopManager::instance() {
++	static auto* instance = new VirtualDesktopManager(); // NOLINT
++	return instance;
++}
++
++void VirtualDesktopManager::setCurrent(const QString& id) {
++	if (id == this->mCurrent) return;
++	this->mCurrent = id;
++	emit this->currentChanged();
++}
++
++void VirtualDesktopManager::org_kde_plasma_virtual_desktop_management_desktop_created(
++    const QString& id,
++    uint32_t /*position*/
++) {
++	if (this->mDesktops.contains(id)) return;
++	auto* desktop = new VirtualDesktop(this, id);
++	desktop->init(this->get_virtual_desktop(id));
++	this->mDesktops.insert(id, desktop);
++}
++
++void VirtualDesktopManager::org_kde_plasma_virtual_desktop_management_desktop_removed(
++    const QString& id
++) {
++	delete this->mDesktops.take(id);
++	if (id == this->mCurrent) this->setCurrent(QString());
++}
++
++VirtualDesktop::VirtualDesktop(VirtualDesktopManager* manager, QString id)
++    : QObject(manager)
++    , manager(manager)
++    , id(std::move(id)) {}
++
++// The interface has no destructor request: only forget the proxy.
++VirtualDesktop::~VirtualDesktop() {
++	if (this->isInitialized()) wl_proxy_destroy(reinterpret_cast<wl_proxy*>(this->object())); // NOLINT
++}
++
++void VirtualDesktop::org_kde_plasma_virtual_desktop_activated() {
++	this->manager->setCurrent(this->id);
++}
++
+ } // namespace qs::wayland::toplevel::kde
+--- a/src/wayland/toplevel/qml.hpp
++++ b/src/wayland/toplevel/qml.hpp
+@@ -51,6 +51,9 @@
+ 	/// be ignored by the compositor.
+ 	/// Fullscreen can be requested on a specific screen with the @@fullscreenOn() function.
+ 	Q_PROPERTY(bool fullscreen READ fullscreen WRITE setFullscreen NOTIFY fullscreenChanged);
++	/// If the window is on the virtual desktop being shown, or on all of them.
++	/// Always true when the compositor does not report virtual desktops.
++	Q_PROPERTY(bool inCurrentDesktop READ inCurrentDesktop NOTIFY inCurrentDesktopChanged);
+ 	QML_ELEMENT;
+ 	QML_UNCREATABLE("Toplevels must be acquired from the ToplevelManager.");
+ 
+@@ -90,6 +93,8 @@
+ 	[[nodiscard]] bool fullscreen() const;
+ 	void setFullscreen(bool fullscreen);
+ 
++	[[nodiscard]] bool inCurrentDesktop() const;
++
+ 	[[nodiscard]] impl::ToplevelHandle* implHandle() const { return this->handle; }
+ 
+ signals:
+@@ -102,6 +107,7 @@
+ 	void maximizedChanged();
+ 	void minimizedChanged();
+ 	void fullscreenChanged();
++	void inCurrentDesktopChanged();
+ 
+ private slots:
+ 	void onClosed();
+--- a/src/wayland/toplevel/qml.cpp
++++ b/src/wayland/toplevel/qml.cpp
+@@ -26,6 +26,7 @@
+ 	QObject::connect(handle, &impl::ToplevelHandle::maximizedChanged, this, &Toplevel::maximizedChanged);
+ 	QObject::connect(handle, &impl::ToplevelHandle::minimizedChanged, this, &Toplevel::minimizedChanged);
+ 	QObject::connect(handle, &impl::ToplevelHandle::fullscreenChanged, this, &Toplevel::fullscreenChanged);
++	QObject::connect(handle, &impl::ToplevelHandle::inCurrentDesktopChanged, this, &Toplevel::inCurrentDesktopChanged);
+ 	// clang-format on
+ }
+ 
+@@ -45,6 +46,7 @@
+ }
+ 
+ bool Toplevel::activated() const { return this->handle->activated(); }
++bool Toplevel::inCurrentDesktop() const { return this->handle->inCurrentDesktop(); }
+ 
+ QList<QuickshellScreenInfo*> Toplevel::screens() const {
+ 	QList<QuickshellScreenInfo*> screens;
