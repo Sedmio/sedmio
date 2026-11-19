@@ -58,7 +58,7 @@ ShellRoot {
             else ShellState.openControl(ShellState.focusedScreen());
         }
         function open(): void { ShellState.openControl(ShellState.focusedScreen()); }
-        // Открыть раздел: sound, calendar, battery, settings.
+        // Открыть раздел: network, brightness, sound, calendar, battery, settings.
         function openSection(section: string): void { ShellState.openControl(ShellState.focusedScreen(), section); }
         function close(): void { ShellState.closeAll(); }
     }

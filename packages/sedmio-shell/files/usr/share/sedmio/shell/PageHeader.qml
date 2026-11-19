@@ -7,6 +7,7 @@ RowLayout {
     id: root
     property string title
     property bool showSwitch: false
+    property bool showBack: true
     property bool checked: false
     signal back()
     signal toggled()
@@ -14,6 +15,7 @@ RowLayout {
     spacing: 8
 
     Rectangle {
+        visible: root.showBack
         implicitWidth: 34
         implicitHeight: 34
         radius: 11

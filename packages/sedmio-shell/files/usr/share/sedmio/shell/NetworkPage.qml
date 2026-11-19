@@ -4,11 +4,13 @@ import Quickshell
 import Quickshell.Networking
 import Sedmio.Style
 
-// Страница «Сеть»: проводное подключение и сети Wi‑Fi. Клик по сети —
-// подключиться; к новой защищённой сети пароль вводится прямо в строке.
+// Раздел «Сеть» панели управления: проводное подключение и сети Wi‑Fi.
+// Клик по сети — подключиться; к новой защищённой сети пароль вводится
+// прямо в строке.
 ColumnLayout {
     id: page
     property real maxHeight: 600
+    property bool showBack: true
     signal back()
     signal openExternal(var command)
 
@@ -71,6 +73,7 @@ ColumnLayout {
         Layout.fillWidth: true
         title: page.wifi ? "Wi‑Fi" : "Сеть"
         showSwitch: page.wifi !== null
+        showBack: page.showBack
         checked: Networking.wifiEnabled
         onBack: page.back()
         onToggled: Networking.wifiEnabled = !Networking.wifiEnabled

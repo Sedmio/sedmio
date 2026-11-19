@@ -4,8 +4,8 @@ import Quickshell
 import Sedmio.Style
 
 // Панель слева, часть рамки. Сверху знак Sedmio и открытые окна,
-// снизу трей, раскладка, батарея, звук, уведомления, часы и быстрые
-// настройки.
+// снизу трей, раскладка, сеть, батарея, яркость, звук, уведомления, часы
+// и быстрые настройки.
 Item {
     id: bar
     required property var window     // окно рамки: меню трея, сворачивание
@@ -93,7 +93,19 @@ Item {
             tooltip: bar.tooltip
         }
 
+        NetworkButton {
+            Layout.alignment: Qt.AlignHCenter
+            screenName: bar.screenName
+            tooltip: bar.tooltip
+        }
+
         Battery {
+            Layout.alignment: Qt.AlignHCenter
+            screenName: bar.screenName
+            tooltip: bar.tooltip
+        }
+
+        BrightnessButton {
             Layout.alignment: Qt.AlignHCenter
             screenName: bar.screenName
             tooltip: bar.tooltip

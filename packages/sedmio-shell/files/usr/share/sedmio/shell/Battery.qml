@@ -4,7 +4,7 @@ import Quickshell.Services.UPower
 import Quickshell.Widgets
 import Sedmio.Style
 
-// Батарея ноутбука (UPower), клик — заряд, режим питания и яркость.
+// Батарея ноутбука (UPower), клик — заряд и режим питания.
 // На компьютере без батареи не видна.
 BarButton {
     id: root

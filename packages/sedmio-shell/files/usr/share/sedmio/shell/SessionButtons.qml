@@ -3,9 +3,10 @@ import QtQuick.Layouts
 import Quickshell
 import Sedmio.Style
 
-// Блокировка, сон, выход, перезагрузка и выключение — внизу запуска
-// программ, как в «Пуске». Опасное — по второму нажатию; просьба нажать
-// ещё раз появляется слева, чтобы кнопки под мышью не сдвигались.
+// Низ запуска программ, как в «Пуске»: «Параметры» и блокировка, сон,
+// выход, перезагрузка, выключение. Опасное — по второму нажатию; просьба
+// нажать ещё раз появляется на месте «Параметров», чтобы кнопки под мышью
+// не сдвигались.
 RowLayout {
     id: root
     // Действие выбрано — закрыть меню.
@@ -46,9 +47,37 @@ RowLayout {
         Quickshell.execDetached(action.command);
     }
 
+    Rectangle {
+        visible: root.confirm === ""
+        implicitWidth: settingsRow.implicitWidth + 20
+        implicitHeight: 38
+        radius: 12
+        color: settingsArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
+        Behavior on color { ColorAnimation { duration: Theme.animFast } }
+        RowLayout {
+            id: settingsRow
+            anchors.centerIn: parent
+            spacing: 8
+            SIcon { name: "configure" }
+            SText { text: "Параметры"; size: 13; weight: 550 }
+        }
+        MouseArea {
+            id: settingsArea
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: {
+                root.done();
+                ShellState.launch("", ["/usr/lib/sedmio/open-settings"]);
+            }
+        }
+    }
+
+    Item { Layout.fillWidth: true; visible: root.confirm === "" }
+
     SText {
         Layout.fillWidth: true
         Layout.leftMargin: 6
+        visible: root.confirm !== ""
         text: (root.actions.find(a => a.id === root.confirm) ?? {}).ask ?? ""
         color: Theme.terracotta
         size: 13

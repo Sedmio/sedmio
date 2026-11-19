@@ -23,10 +23,12 @@ Singleton {
     // не нужен (kded присылает его на любое изменение громкости, и от
     // ползунка тоже).
     readonly property var shownInControl: ({
+        network: ["wifi"],
+        brightness: ["brightness"],
         sound: ["volume", "microphone"],
         calendar: [],
-        battery: ["brightness", "powerProfile"],
-        settings: ["brightness", "powerProfile", "wifi", "bluetooth"],
+        battery: ["powerProfile"],
+        settings: ["powerProfile", "bluetooth"],
     })
 
     function show() {

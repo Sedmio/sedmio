@@ -14,8 +14,9 @@ Singleton {
     // То же для панели управления и центра уведомлений.
     property string controlScreen: ""
     // Раздел панели управления — у каждой кнопки панели свой:
-    // "sound" (звук), "calendar" (часы), "battery" (батарея),
-    // "settings" (быстрые настройки, Meta+A).
+    // "network" (сеть), "brightness" (яркость), "sound" (звук),
+    // "calendar" (часы), "battery" (батарея), "settings" (быстрые
+    // настройки, Meta+A).
     property string controlSection: "settings"
     property string notificationsScreen: ""
     property string clipboardScreen: ""
