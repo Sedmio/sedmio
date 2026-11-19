@@ -22,7 +22,7 @@ registerShortcut("Sedmio Window Down", "Вернуть размер или св�
     if (w.maximizeMode !== 0)
         w.setMaximize(false, false);
     else if (w.tile)
-        w.tile = null;
+        w.tile.unmanage(w);
     else if (w.minimizable)
         w.minimized = true;
 });
