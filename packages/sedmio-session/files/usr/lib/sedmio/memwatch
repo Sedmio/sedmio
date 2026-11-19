@@ -1,0 +1,253 @@
+#!/usr/bin/python3 -I
+# Память: уведомления вместо модуля kded oom_notifier из plasma-workspace.
+# Служба sedmio-memwatch.service в сеансе Sedmio.
+#
+# 1. Программу закрыли из-за нехватки памяти — сказать какую. Об этом
+#    пишет в журнал менеджер systemd пользователя, у каждой программы своя
+#    группа (app-<id>-<случайное>.scope, /usr/lib/sedmio/launch):
+#      systemd-oomd закрыл группу целиком (своп почти кончился или всё
+#        тормозит, usr/lib/systemd/system/*.d из sedmio-settings);
+#      ядро закрыло процесс в группе — памяти не осталось совсем (у Firefox
+#        это может быть одна вкладка, сам он остаётся).
+# 2. Память почти кончилась — предупредить заранее и назвать, кто больше
+#    всего занимает. Снова — только когда память освободилась и опять
+#    кончилась.
+
+import configparser
+import glob
+import json
+import os
+import re
+import subprocess
+import threading
+import time
+
+OOM_KERNEL = "fe6faa94e7774663a0da52717891d8ef"  # ядро закрыло процесс в группе
+OOM_OOMD = "d989611b15e44c9dbf31e3c81256e4ed"    # systemd-oomd закрыл группу
+
+# Предупреждать: доступной памяти меньше 10 % и (если своп есть) свободно
+# меньше четверти свопа — systemd-oomd закрывает при 10 % свободного.
+# Снова — когда памяти больше 20 % или свопа свободно больше половины.
+WARN_MEM, CLEAR_MEM = 0.10, 0.20
+WARN_SWAP, CLEAR_SWAP = 0.25, 0.50
+POLL = 3
+
+UID = os.getuid()
+APP_SLICE = f"/sys/fs/cgroup/user.slice/user-{UID}.slice/user@{UID}.service/app.slice"
+
+
+def unescape(text):
+    return re.sub(r"\\x([0-9a-fA-F]{2})", lambda m: chr(int(m.group(1), 16)), text)
+
+
+def app_id(unit):
+    """app-firefox-9cf11d8f.scope → firefox; app-orca\\x2dide@….service → orca-ide."""
+    if not unit.startswith("app-"):
+        return None
+    body = unit[4:].rsplit(".", 1)[0]
+    if "@" in body:
+        body = body.split("@", 1)[0]
+    elif unit.endswith(".scope"):
+        body = body.rsplit("-", 1)[0]
+    # app[-<запустивший>]-<id>: в самом id дефисы экранированы (\x2d).
+    return unescape(body.split("-")[-1]) or None
+
+
+def data_dirs():
+    home = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    rest = os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share"
+    return [home] + [d for d in rest.split(":") if d]
+
+
+def desktop_entry(id_):
+    """Название и значок программы из её .desktop-файла."""
+    for base in data_dirs():
+        path = os.path.join(base, "applications", id_ + ".desktop")
+        if not os.path.isfile(path):
+            continue
+        parser = configparser.ConfigParser(interpolation=None, strict=False)
+        parser.optionxform = str
+        try:
+            parser.read(path, encoding="utf-8")
+            entry = parser["Desktop Entry"]
+        except (configparser.Error, KeyError, UnicodeDecodeError):
+            continue
+        name = entry.get("Name[ru]") or entry.get("Name")
+        return name, entry.get("Icon") or ""
+    return None, ""
+
+
+def unit_description(unit):
+    try:
+        out = subprocess.run(["systemctl", "--user", "show", "-p", "Description", "--value", unit],
+                             capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        out = ""
+    return out or unit
+
+
+def program(unit):
+    """(название, значок) программы группы unit."""
+    id_ = app_id(unit)
+    if id_:
+        name, icon = desktop_entry(id_)
+        if name:
+            return name, icon
+        return id_, ""
+    return unit_description(unit), ""
+
+
+def killed_process(since):
+    """Имя процесса, который только что закрыло ядро (если журнал ядра читается)."""
+    try:
+        out = subprocess.run(["journalctl", "-k", "-q", "-o", "cat", "--since", f"@{int(since) - 10}"],
+                             capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    found = re.findall(r"Killed process \d+ \(([^)]+)\)", out)
+    return found[-1] if found else None
+
+
+def gib(n):
+    return f"{n / 1024 ** 3:.1f}".replace(".", ",") + " ГБ"
+
+
+def notify(title, body, icon="dialog-warning", action=None):
+    """Уведомление; action — (ключ, подпись, что сделать по нажатию)."""
+    args = ["notify-send", "--app-name=Sedmio", f"--icon={icon or 'dialog-warning'}",
+            "--urgency=critical"]
+    if action:
+        args += [f"--action={action[0]}={action[1]}", "--wait"]
+    args += [title, body]
+
+    def run():
+        try:
+            out = subprocess.run(args, capture_output=True, text=True).stdout.strip()
+        except OSError:
+            return
+        if action and out == action[0]:
+            action[2]()
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def open_tasks():
+    command = ["sedmio-tasks"]
+    if os.access("/usr/lib/sedmio/launch", os.X_OK):
+        command = ["/usr/lib/sedmio/launch", "sedmio-tasks"] + command
+    try:
+        subprocess.Popen(command, start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        pass
+
+
+TASKS = ("tasks", "Диспетчер задач", open_tasks)
+
+
+# ---- 1. Закрыли из-за памяти
+
+def watch_journal():
+    recent = {}
+    while True:
+        try:
+            journal = subprocess.Popen(
+                ["journalctl", "--user", "-f", "-n", "0", "-o", "json",
+                 f"MESSAGE_ID={OOM_KERNEL}", f"MESSAGE_ID={OOM_OOMD}"],
+                stdout=subprocess.PIPE, text=True)
+        except OSError:
+            return
+        for line in journal.stdout:
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            unit = entry.get("USER_UNIT") or entry.get("UNIT") or ""
+            if not unit:
+                continue
+            now = time.time()
+            # Об одном и том же бывает несколько записей подряд.
+            if now - recent.get(unit, 0) < 10:
+                continue
+            recent[unit] = now
+            name, icon = program(unit)
+            if entry.get("MESSAGE_ID") == OOM_OOMD:
+                notify(f"Программа «{name}» закрыта",
+                       "Не хватило памяти: система закрыла программу, чтобы компьютер не завис.",
+                       icon)
+            else:
+                process = killed_process(now)
+                what = f"процесс {process}" if process else "один из процессов"
+                notify("Не хватило памяти",
+                       f"В программе «{name}» система закрыла {what}. "
+                       "Если программа работает неправильно, перезапустите её.",
+                       icon)
+        journal.wait()
+        time.sleep(5)
+
+
+# ---- 2. Память почти кончилась
+
+def meminfo():
+    info = {}
+    with open("/proc/meminfo") as f:
+        for line in f:
+            key, value = line.split(":", 1)
+            info[key] = int(value.split()[0]) * 1024
+    return info
+
+
+def read_int(path, key=None):
+    try:
+        with open(path) as f:
+            if key is None:
+                return int(f.read().strip())
+            for line in f:
+                name, value = line.split()
+                if name == key:
+                    return int(value)
+    except (OSError, ValueError):
+        pass
+    return 0
+
+
+def top_programs(count=3):
+    """Кто больше всего занимает: [(название, байт)], по программам."""
+    usage = {}
+    for group in glob.glob(os.path.join(APP_SLICE, "app-*")):
+        used = read_int(os.path.join(group, "memory.stat"), "anon") \
+            + read_int(os.path.join(group, "memory.swap.current"))
+        name, _ = program(os.path.basename(group))
+        usage[name] = usage.get(name, 0) + used
+    top = sorted(usage.items(), key=lambda item: item[1], reverse=True)
+    return [(name, used) for name, used in top[:count] if used >= 200 * 1024 ** 2]
+
+
+def watch_memory():
+    warned = False
+    while True:
+        try:
+            info = meminfo()
+        except (OSError, ValueError, IndexError):
+            time.sleep(POLL)
+            continue
+        total, available = info.get("MemTotal", 0), info.get("MemAvailable", 0)
+        swap_total, swap_free = info.get("SwapTotal", 0), info.get("SwapFree", 0)
+        mem_share = available / total if total else 1
+        swap_share = swap_free / swap_total if swap_total else 0
+
+        if not warned and mem_share < WARN_MEM and (swap_total == 0 or swap_share < WARN_SWAP):
+            warned = True
+            top = top_programs()
+            body = f"Свободно {gib(available)}."
+            if top:
+                body += " Больше всего занимают: " + ", ".join(f"{n} — {gib(u)}" for n, u in top) + "."
+            body += " Закройте ненужное, иначе система закроет программу сама."
+            notify("Память почти кончилась", body, "dialog-warning", TASKS)
+        elif warned and (mem_share > CLEAR_MEM or (swap_total and swap_share > CLEAR_SWAP)):
+            warned = False
+        time.sleep(POLL)
+
+
+threading.Thread(target=watch_journal, daemon=True).start()
+watch_memory()

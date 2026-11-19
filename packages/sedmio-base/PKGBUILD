@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=16
+pkgrel=17
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"

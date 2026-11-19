@@ -1,0 +1,13 @@
+# Память: «программа закрыта — не хватило памяти» и «память почти
+# кончилась» (/usr/lib/sedmio/memwatch) вместо oom_notifier из
+# plasma-workspace.
+[Unit]
+Description=Sedmio session: low memory warnings
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/lib/sedmio/memwatch
+Restart=on-failure
+RestartSec=5
+Slice=background.slice

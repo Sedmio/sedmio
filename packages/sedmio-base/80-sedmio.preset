@@ -3,6 +3,9 @@ enable greetd.service
 enable NetworkManager.service
 enable bluetooth.service
 enable power-profiles-daemon.service
+# Закрывает прожорливую программу, пока система не зависла от нехватки
+# памяти (настройки — sedmio-settings: usr/lib/systemd/system/*.d).
+enable systemd-oomd.service
 enable reflector.timer
 # Обновляет systemd-boot в разделе EFI при следующей загрузке после
 # обновления пакета systemd (иначе там навсегда остаётся версия с установки).

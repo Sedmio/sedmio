@@ -1,8 +1,17 @@
-# Пресет (80-sedmio.preset) применяет только установщик. На системе,
-# поставленной до перехода на greetd, включён SDDM — меняем его на
-# greetd один раз. Сам SDDM остаётся установленным, пока его не удалят:
-#   pacman -Rns sddm sddm-kcm
+# Пресет (80-sedmio.preset) применяет только установщик. На уже
+# установленной системе то, что появилось в нём позже, включаем здесь.
 post_upgrade() {
+  # systemd-oomd (своп в сжатой памяти и его настройки — sedmio-settings)
+  # на уже установленной системе — включить один раз, при переходе на
+  # версию, где он появился. Выключил пользователь потом — не трогаем.
+  if [ "$(vercmp "$2" 0.1.0-17)" -lt 0 ]; then
+    systemctl enable systemd-oomd.service 2>/dev/null
+    echo "==> Своп в сжатой памяти (zram) и systemd-oomd заработают после перезагрузки."
+  fi
+
+  # Система поставлена до перехода на greetd: включён SDDM — меняем его на
+  # greetd один раз. Сам SDDM остаётся, пока его не удалят:
+  #   pacman -Rns sddm sddm-kcm
   if systemctl is-enabled --quiet sddm.service 2>/dev/null; then
     systemctl disable sddm.service 2>/dev/null
     systemctl enable greetd.service 2>/dev/null
