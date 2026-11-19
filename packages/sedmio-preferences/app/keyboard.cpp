@@ -4,6 +4,8 @@
 #include <KConfigGroup>
 
 #include <QCollator>
+#include <QDBusArgument>
+#include <QDBusMetaType>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QHash>
@@ -13,6 +15,7 @@
 #include <libintl.h>
 
 #include <algorithm>
+#include <optional>
 
 namespace
 {
@@ -23,6 +26,99 @@ const QHash<QString, QString> switchOptions = {
     {QStringLiteral("win_space"), QStringLiteral("grp:win_space_toggle")},
     {QStringLiteral("caps"), QStringLiteral("grp:caps_toggle")},
 };
+
+// Alt+Shift и Ctrl+Shift — не параметром xkb (он переключает в момент
+// нажатия: Alt+Shift+Tab, Ctrl+Shift+T меняли язык), а сочетанием KWin из
+// одних модификаторов: срабатывает по отпусканию и только если между ними
+// ничего не нажали — как в Windows. Не получилось назначить — xkb, как
+// раньше. Экран входа остаётся на xkb (/etc/xdg/kxkbrc, свой KWin); то же
+// делает kconf_update sedmio-layoutswitch для тех, кто уже входил.
+const QHash<QString, int> kwinSwitchKeys = {
+    {QStringLiteral("alt_shift"), int(Qt::ALT) | Qt::Key_Shift},
+    {QStringLiteral("ctrl_shift"), int(Qt::CTRL) | Qt::Key_Shift},
+};
+
+const QStringList layoutAction = {QStringLiteral("KDE Keyboard Layout Switcher"),
+                                  QStringLiteral("Switch to Next Keyboard Layout"),
+                                  QString(),
+                                  QString()};
+
+QDBusMessage kglobalaccel(const QString &method)
+{
+    return QDBusMessage::createMethodCall(QStringLiteral("org.kde.kglobalaccel"),
+                                          QStringLiteral("/kglobalaccel"),
+                                          QStringLiteral("org.kde.KGlobalAccel"),
+                                          method);
+}
+} // namespace
+
+// Одно сочетание kglobalaccel — структура (ai): до четырёх клавиш подряд.
+struct KeySequence {
+    QList<int> keys;
+};
+Q_DECLARE_METATYPE(KeySequence)
+
+QDBusArgument &operator<<(QDBusArgument &arg, const KeySequence &sequence)
+{
+    arg.beginStructure();
+    arg << sequence.keys;
+    arg.endStructure();
+    return arg;
+}
+
+const QDBusArgument &operator>>(const QDBusArgument &arg, KeySequence &sequence)
+{
+    arg.beginStructure();
+    arg >> sequence.keys;
+    arg.endStructure();
+    return arg;
+}
+
+namespace
+{
+// Клавиши действия KWin «следующая раскладка» (a(ai)); нет ответа — nullopt.
+std::optional<QList<KeySequence>> layoutShortcut()
+{
+    qDBusRegisterMetaType<KeySequence>();
+    qDBusRegisterMetaType<QList<KeySequence>>();
+    QDBusMessage call = kglobalaccel(QStringLiteral("shortcutKeys"));
+    call << layoutAction;
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 3000);
+    if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().isEmpty()
+        || reply.signature() != QLatin1String("a(ai)"))
+        return std::nullopt;
+    QList<KeySequence> keys;
+    reply.arguments().constFirst().value<QDBusArgument>() >> keys;
+    return keys;
+}
+
+// Оставить у действия его клавиши без наших Alt+Shift и Ctrl+Shift и
+// добавить key (0 — не добавлять). true — встало (проверено чтением).
+bool setLayoutShortcut(int key)
+{
+    const auto current = layoutShortcut();
+    if (!current)
+        return false;
+    QList<KeySequence> keys;
+    for (const KeySequence &sequence : *current) {
+        const int first = sequence.keys.value(0);
+        if (first != 0 && std::find(kwinSwitchKeys.cbegin(), kwinSwitchKeys.cend(), first) == kwinSwitchKeys.cend())
+            keys << sequence;
+    }
+    if (key != 0)
+        keys << KeySequence{{key, 0, 0, 0}};
+
+    QDBusMessage call = kglobalaccel(QStringLiteral("setForeignShortcutKeys"));
+    call << layoutAction << QVariant::fromValue(keys);
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 3000);
+    if (reply.type() != QDBusMessage::ReplyMessage)
+        return false;
+    if (key == 0)
+        return true;
+
+    const auto now = layoutShortcut();
+    return now && std::any_of(now->cbegin(), now->cend(), [key](const KeySequence &s) { return s.keys.value(0) == key; });
+}
 
 QString translate(const char *text)
 {
@@ -99,6 +195,12 @@ void Keyboard::load()
         }
         m_otherOptions.append(option);
     }
+    // Alt+Shift, Ctrl+Shift — сочетанием KWin, параметра xkb нет; метка — SwitchKey.
+    if (m_switchKey.isEmpty()) {
+        const QString kwinKey = group.readEntry("SwitchKey", QString());
+        if (kwinSwitchKeys.contains(kwinKey))
+            m_switchKey = kwinKey;
+    }
     m_perWindow = group.readEntry("SwitchMode", QStringLiteral("Global")) == QLatin1String("Window");
     Q_EMIT changed();
 }
@@ -113,8 +215,13 @@ void Keyboard::save()
         layouts << layout.layout;
         variants << layout.variant;
     }
+    // Сначала клавиша KWin, потом параметр xkb: встала — xkb не нужен (иначе
+    // язык переключался бы дважды); не встала — переключает xkb, как раньше.
+    const bool viaKWin = kwinSwitchKeys.contains(m_switchKey) && setLayoutShortcut(kwinSwitchKeys.value(m_switchKey));
+    if (!viaKWin)
+        setLayoutShortcut(0);
     QStringList options = m_otherOptions;
-    if (switchOptions.contains(m_switchKey))
+    if (!viaKWin && switchOptions.contains(m_switchKey))
         options << switchOptions.value(m_switchKey);
 
     // Notify — KConfig сам разошлёт «настройки сменились», по нему KWin
@@ -125,6 +232,10 @@ void Keyboard::save()
     group.writeEntry("VariantList", variants.join(QLatin1Char(',')), flags);
     group.writeEntry("ResetOldOptions", true, flags);
     group.writeEntry("Options", options.join(QLatin1Char(',')), flags);
+    if (viaKWin)
+        group.writeEntry("SwitchKey", m_switchKey, flags);
+    else
+        group.deleteEntry("SwitchKey", flags);
     group.writeEntry("SwitchMode", m_perWindow ? QStringLiteral("Window") : QStringLiteral("Global"), flags);
     if (!config.sync()) {
         m_error = QStringLiteral("Не удалось сохранить раскладки.");

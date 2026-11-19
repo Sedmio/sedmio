@@ -1,0 +1,7 @@
+# Alt+Shift и Ctrl+Shift переключают язык, как в Windows (по отпусканию и
+# только если между ними ничего не нажали), — для каждого пользователя один
+# раз (kconf_update помнит Id в ~/.config/kconf_updaterc). Пакет sedmio-settings.
+Version=6
+
+Id=sedmio-layoutswitch-1
+Script=sedmio-layoutswitch.sh,sh
