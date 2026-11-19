@@ -24,10 +24,10 @@ Item {
         list.positionViewAtBeginning();
     }
 
-    function launchCurrent() {
+    function launchCurrent(inTerminal) {
         const entry = results[list.currentIndex];
         if (!entry) return;
-        AppSearch.launch(entry);
+        AppSearch.launch(entry, inTerminal === true);
         root.closeRequested(false);
     }
 
@@ -35,6 +35,7 @@ Item {
         if (open) {
             search.text = "";
             refresh();
+            AppSearch.rescan();
             search.forceActiveFocus();
         }
     }
@@ -43,6 +44,10 @@ Item {
     Connections {
         target: DesktopEntries.applications
         function onValuesChanged() { if (root.open) root.refresh(); }
+    }
+    Connections {
+        target: AppSearch
+        function onExecutablesChanged() { if (root.open && search.text !== "") root.refresh(); }
     }
 
     // Поле поиска
@@ -84,7 +89,7 @@ Item {
                     break;
                 case Qt.Key_Return:
                 case Qt.Key_Enter:
-                    root.launchCurrent();
+                    root.launchCurrent((event.modifiers & Qt.ControlModifier) !== 0);
                     break;
                 case Qt.Key_Down:
                 case Qt.Key_Tab:
