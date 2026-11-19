@@ -224,8 +224,9 @@ Breeze, и он перекрывает `/etc/xdg`. Скрипт трогает �
 `/etc/xdg/xdg-desktop-portal/kde-portals.conf` — копии файла из
 plasma-workspace (он перекрывает его целиком, поэтому после обновления
 Plasma строки сверять). Программы KDE/Qt сами спрашивают портал только с
-`PLASMA_INTEGRATION_USE_PORTAL=1` (environment.d), Firefox — сам в сеансе
-KDE. Вернуть окно KDE одному пользователю — тот же файл в
+`PLASMA_INTEGRATION_USE_PORTAL=1`, программы GTK3 — с `GTK_USE_PORTAL=1`
+(обе в environment.d; GTK4 и Firefox спрашивают портал сами). Не наше окно
+остаётся только у программ со старым GtkFileChooserDialog (GIMP). Вернуть окно KDE одному пользователю — тот же файл в
 `~/.config/xdg-desktop-portal/` без строки FileChooser.
 
 Модули kded, чью работу делает оболочка, не загружаются
