@@ -1,9 +1,0 @@
-# Панель эмодзи Plasma без глобальных клавиш (Meta+. и пр.): в Sedmio
-# она не нужна. Перекрывает одноимённый файл plasma-desktop (каталог
-# первым в XDG_DATA_DIRS, см. /usr/lib/environment.d/60-sedmio-data-dirs.conf).
-[Desktop Entry]
-Type=Application
-Name=Emoji Selector
-Exec=plasma-emojier
-NoDisplay=true
-X-KDE-Shortcuts=
