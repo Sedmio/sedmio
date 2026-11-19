@@ -24,7 +24,7 @@ PanelWindow {
     // Экран, где окно, с которым сейчас работают.
     screen: {
         const active = ToplevelManager.activeToplevel;
-        const name = active && active.screens.length > 0 ? active.screens[0].name : "";
+        const name = active && active.screens.length > 0 ? (active.screens[0]?.name ?? "") : "";
         return Quickshell.screens.find(s => s.name === name) ?? Quickshell.screens[0];
     }
     anchors { left: true; right: true; top: true; bottom: true }

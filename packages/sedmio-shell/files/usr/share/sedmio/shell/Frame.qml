@@ -23,11 +23,16 @@ PanelWindow {
     WlrLayershell.namespace: "sedmio-frame"
     WlrLayershell.keyboardFocus: anyOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    readonly property bool launcherOpen: ShellState.launcherScreen === screen.name
-    readonly property bool controlOpen: ShellState.controlScreen === screen.name
-    readonly property bool historyOpen: ShellState.notificationsScreen === screen.name
-    readonly property bool clipboardOpen: ShellState.clipboardScreen === screen.name
-    readonly property bool quickMenuOpen: ShellState.quickMenuScreen === screen.name
+    // Экрана может не быть, пока окно пересоздаётся (перезагрузка QML,
+    // экран отключили): тогда здесь ничего не открыто.
+    readonly property string screenName: screen ? screen.name : ""
+    function isHere(name) { return screenName !== "" && name === screenName; }
+
+    readonly property bool launcherOpen: isHere(ShellState.launcherScreen)
+    readonly property bool controlOpen: isHere(ShellState.controlScreen)
+    readonly property bool historyOpen: isHere(ShellState.notificationsScreen)
+    readonly property bool clipboardOpen: isHere(ShellState.clipboardScreen)
+    readonly property bool quickMenuOpen: isHere(ShellState.quickMenuScreen)
     readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen || clipboardOpen || quickMenuOpen
 
     // 0 — запуск спрятан в рамке, 1 — выехал полностью.
@@ -79,12 +84,12 @@ PanelWindow {
 
     // Уведомления и индикатор — на экране, с которым сейчас работают.
     // Пока открыт центр уведомлений (на любом экране), карточки не всплывают.
-    readonly property bool isFocusedScreen: ShellState.focusedScreen() === screen.name
+    readonly property bool isFocusedScreen: isHere(ShellState.focusedScreen())
     // Карточки операций (копирование файлов) — там же, над уведомлениями.
     readonly property bool notificationsShown: isFocusedScreen
         && (NotificationState.popups.length > 0 || JobsState.popups.length > 0)
         && ShellState.notificationsScreen === ""
-    readonly property bool osdShown: OsdState.shown && OsdState.screenName === screen.name
+    readonly property bool osdShown: OsdState.shown && isHere(OsdState.screenName)
 
     // Справа сверху один выдвижной ящик: в нём либо всплывающие карточки,
     // либо центр уведомлений.
@@ -362,7 +367,7 @@ PanelWindow {
         QuickMenu {
             id: quickMenu
             open: frame.quickMenuOpen
-            screenName: frame.screen.name
+            screenName: frame.screenName
             x: Theme.barWidth + 6
             y: Theme.border + 2
             width: implicitWidth
@@ -383,7 +388,7 @@ PanelWindow {
             width: Theme.barWidth
             height: frame.height
             window: frame
-            screenName: frame.screen.name
+            screenName: frame.screenName
             tooltip: tooltip
         }
 
