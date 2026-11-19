@@ -1,0 +1,16 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Sedmio"
+            }
+        ],
+        "Description": "Win+↑ разворачивает окно, Win+↓ возвращает его прежний размер или сворачивает — как в Windows",
+        "EnabledByDefault": true,
+        "Id": "sedmio-windowkeys",
+        "License": "GPL",
+        "Name": "Клавиши окон как в Windows"
+    },
+    "X-Plasma-API": "javascript"
+}

@@ -23,3 +23,7 @@ library=org.sedmio.decoration
 # Слева значок программы (меню окна), справа свернуть, развернуть, закрыть.
 ButtonsOnLeft=M
 ButtonsOnRight=IAX
+
+[Plugins]
+# Win+↑ / Win+↓ как в Windows (usr/share/kwin/scripts/sedmio-windowkeys).
+sedmio-windowkeysEnabled=true
