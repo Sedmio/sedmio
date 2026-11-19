@@ -94,9 +94,13 @@ Singleton {
         if (entry.open) {
             let target = entry.text.replace(/^~(?=\/|$)/, home);
             if (/^www\./i.test(target)) target = "https://" + target;
-            // Исполняемый файл — запустить, остальное — в своей программе.
+            // Адрес — в браузере; путь: исполняемый файл — запустить, другой
+            // файл или папку — в своей программе; такого пути нет — это
+            // команда с параметрами («/usr/bin/firefox --private-window»).
             ShellState.launch("xdg-open", ["sh", "-c",
-                'if [ -f "$1" ] && [ -x "$1" ]; then exec "$1"; fi; exec xdg-open "$1"', "sh", target], home);
+                'case "$1" in *://*) exec xdg-open "$1" ;; esac; ' +
+                'if [ -e "$1" ]; then [ -f "$1" ] && [ -x "$1" ] && exec "$1"; exec xdg-open "$1"; fi; ' +
+                'exec sh -c "$2"', "sh", target, entry.text], home);
             return;
         }
         const id = entry.text.split(/\s+/)[0].split("/").pop();
