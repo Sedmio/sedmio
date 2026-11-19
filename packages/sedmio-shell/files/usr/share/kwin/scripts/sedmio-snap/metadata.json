@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Sedmio"
+            }
+        ],
+        "Description": "Snap layouts and Snap Assist like in Windows 11: drag a window to the top of the screen to pick a layout, then pick windows for the free places",
+        "Description[ru]": "Раскладки и подбор окон как в Windows 11: потяните окно к верхнему краю экрана и выберите место в схеме, потом — окна на свободные места",
+        "Icon": "view-split-left-right",
+        "Id": "sedmio-snap",
+        "License": "MIT",
+        "Name": "Sedmio Snap",
+        "Name[ru]": "Привязка окон Sedmio"
+    },
+    "X-Plasma-API": "declarativescript",
+    "X-Plasma-MainScript": "ui/main.qml"
+}

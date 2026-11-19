@@ -26,3 +26,6 @@ ButtonsOnRight=IAX
 [Plugins]
 # Win+↑ / Win+↓ как в Windows (usr/share/kwin/scripts/sedmio-windowkeys).
 sedmio-windowkeysEnabled=true
+# Раскладки у верхнего края и подбор окон как в Windows 11
+# (usr/share/kwin/scripts/sedmio-snap, пакет sedmio-shell).
+sedmio-snapEnabled=true
