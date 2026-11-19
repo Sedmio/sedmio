@@ -15,9 +15,9 @@ Singleton {
     property string controlScreen: ""
     // Раздел панели управления — у каждой кнопки панели свой:
     // "network" (сеть), "brightness" (яркость), "sound" (звук),
-    // "calendar" (часы), "battery" (батарея), "settings" (быстрые
-    // настройки, Meta+A).
-    property string controlSection: "settings"
+    // "calendar" (часы), "battery" (батарея); "bluetooth" — из плитки
+    // в Пуске.
+    property string controlSection: "calendar"
     property string notificationsScreen: ""
     property string clipboardScreen: ""
     // Меню быстрых ссылок (Win+X, QuickMenu.qml).
@@ -61,7 +61,6 @@ Singleton {
     // Нажали кнопку открытого раздела — закрыть; другого — переключить
     // на месте, не закрывая панель.
     function toggleControl(screenName, section) {
-        section = section || "settings";
         if (controlScreen === screenName && controlSection === section) closeAll();
         else openControl(screenName, section);
     }
@@ -72,7 +71,7 @@ Singleton {
         launcherScreen = "";
         notificationsScreen = "";
         clipboardScreen = "";
-        controlSection = section || "settings";
+        controlSection = section;
         controlScreen = screenName;
     }
 

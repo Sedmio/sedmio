@@ -4,11 +4,12 @@ import Quickshell
 import Quickshell.Bluetooth
 import Sedmio.Style
 
-// Страница «Bluetooth»: свои устройства (подключить/отключить) и найденные
+// Раздел «Bluetooth» (из плитки в Пуске): свои устройства (подключить/отключить) и найденные
 // рядом (клик — сопрячь и подключить). Пока открыта, адаптер ищет устройства.
 ColumnLayout {
     id: page
     property real maxHeight: 600
+    property bool showBack: true
     signal back()
     signal openExternal(var command)
 
@@ -44,6 +45,7 @@ ColumnLayout {
         Layout.fillWidth: true
         title: "Bluetooth"
         showSwitch: page.adapter !== null
+        showBack: page.showBack
         checked: page.enabled
         onBack: page.back()
         onToggled: page.adapter.enabled = !page.adapter.enabled

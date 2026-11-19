@@ -48,17 +48,17 @@ ShellRoot {
         function close(): void { ShellState.closeAll(); }
     }
 
-    // Быстрые настройки (раздел "settings" панели управления): клавиши Meta+A
-    // (usr/share/kglobalaccel/sedmio-control.desktop) —
-    //   quickshell ipc -p /usr/share/sedmio/shell call control toggle
+    // Панель управления (у каждой кнопки панели свой раздел) —
+    //   quickshell ipc -p /usr/share/sedmio/shell call control openSection sound
     IpcHandler {
         target: "control"
+        // Прежняя команда Meta+A: kglobalaccel помнит Exec из
+        // sedmio-control.desktop до перезахода — пусть и она открывает Пуск.
         function toggle(): void {
-            if (ShellState.controlScreen !== "") ShellState.closeAll();
-            else ShellState.openControl(ShellState.focusedScreen());
+            if (ShellState.launcherScreen !== "") ShellState.closeAll();
+            else ShellState.openLauncher(ShellState.focusedScreen());
         }
-        function open(): void { ShellState.openControl(ShellState.focusedScreen()); }
-        // Открыть раздел: network, brightness, sound, calendar, battery, settings.
+        // Раздел: network, brightness, sound, calendar, battery, bluetooth.
         function openSection(section: string): void { ShellState.openControl(ShellState.focusedScreen(), section); }
         function close(): void { ShellState.closeAll(); }
     }

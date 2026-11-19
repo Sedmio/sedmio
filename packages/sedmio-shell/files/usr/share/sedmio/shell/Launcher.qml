@@ -1,11 +1,14 @@
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
+import Quickshell.Bluetooth
 import Sedmio.Style
 
-// Содержимое запуска программ: поле поиска, список и внизу блокировка,
-// сон и выключение. Подложку рисует DrawerShape в слое рамки, здесь
-// только то, что на ней.
+// Содержимое запуска программ (Пуск): поле поиска, список, плитки
+// (Bluetooth, «Не беспокоить», режим питания) и внизу «Параметры» и
+// выключение. Подложку рисует DrawerShape в слое рамки, здесь только то,
+// что на ней.
 Item {
     id: root
     property bool open: false
@@ -18,7 +21,7 @@ Item {
     property real maxHeight: 600
     readonly property real wantedHeight: Math.min(maxHeight,
         field.height + 10 + Math.max(3, list.count) * (54 + list.spacing)
-        + 10 + 1 + 10 + session.implicitHeight)
+        + 10 + tiles.implicitHeight + 10 + 1 + 10 + session.implicitHeight)
 
     function refresh() {
         results = AppSearch.search(search.text);
@@ -188,7 +191,7 @@ Item {
 
     ListView {
         id: list
-        anchors { top: field.bottom; topMargin: 10; left: parent.left; right: parent.right; bottom: separator.top; bottomMargin: 10 }
+        anchors { top: field.bottom; topMargin: 10; left: parent.left; right: parent.right; bottom: tiles.top; bottomMargin: 10 }
         clip: true
         spacing: 2
         model: root.results
@@ -264,6 +267,49 @@ Item {
             visible: list.count === 0
             text: "Ничего не нашлось"
             color: Theme.inkMuted
+        }
+    }
+
+    // Плитки. С Bluetooth их три — последняя во всю ширину.
+    readonly property var adapter: Bluetooth.defaultAdapter
+    readonly property var btConnected: adapter ? adapter.devices.values.filter(d => d.connected) : []
+
+    GridLayout {
+        id: tiles
+        anchors { left: parent.left; right: parent.right; bottom: separator.top; bottomMargin: 10 }
+        columns: 2
+        rowSpacing: 8
+        columnSpacing: 8
+
+        QuickTile {
+            visible: root.adapter !== null
+            Layout.fillWidth: true
+            Layout.preferredWidth: 1
+            icon: root.adapter && root.adapter.enabled ? "network-bluetooth-activated" : "network-bluetooth"
+            title: "Bluetooth"
+            subtitle: !root.adapter || !root.adapter.enabled ? "Выключен"
+                : root.btConnected.length > 0 ? root.btConnected.map(d => d.name).join(", ") : "Включён"
+            active: root.adapter !== null && root.adapter.enabled
+            hasDetails: true
+            onToggled: root.adapter.enabled = !root.adapter.enabled
+            // Устройства — в панели управления, Пуск закрывается.
+            onDetails: ShellState.openControl(ShellState.launcherScreen, "bluetooth")
+        }
+
+        QuickTile {
+            Layout.fillWidth: true
+            Layout.preferredWidth: 1
+            icon: NotificationState.doNotDisturb ? "notifications-disabled" : "notifications"
+            title: "Не беспокоить"
+            subtitle: NotificationState.doNotDisturb ? "Только срочные" : "Выключено"
+            active: NotificationState.doNotDisturb
+            onToggled: NotificationState.setDoNotDisturb(!NotificationState.doNotDisturb)
+        }
+
+        PowerModeTile {
+            Layout.columnSpan: root.adapter !== null ? 2 : 1
+            Layout.fillWidth: true
+            Layout.preferredWidth: 1
         }
     }
 

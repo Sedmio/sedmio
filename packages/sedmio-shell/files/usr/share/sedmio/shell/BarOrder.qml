@@ -11,7 +11,7 @@ Singleton {
     id: root
 
     readonly property var defaults: ["keyboard", "network", "battery", "brightness",
-        "volume", "notifications", "clock", "settings"]
+        "volume", "notifications", "clock"]
     property var keys: defaults
 
     readonly property string path:

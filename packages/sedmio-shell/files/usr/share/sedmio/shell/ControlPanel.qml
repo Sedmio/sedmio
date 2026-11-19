@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Bluetooth
 import Quickshell.Services.Kde
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
@@ -14,25 +13,26 @@ import Sedmio.Style
 //   sound      — громкость, микрофон, куда выводить звук;
 //   calendar   — дата и календарь;
 //   battery    — заряд и режим питания;
-//   settings   — плитки: Bluetooth, «Не беспокоить», режим питания.
-// Bluetooth открывает свою страницу. «Параметры» и выключение — в запуске
-// программ (SessionButtons). Подложку рисует DrawerShape в слое рамки,
-// здесь только то, что на ней.
+//   bluetooth  — устройства Bluetooth (BluetoothPage; из плитки в Пуске).
+// Плитки «Не беспокоить» и режим питания, «Параметры» и выключение — в
+// Пуске (Launcher). Подложку рисует DrawerShape в слое рамки, здесь
+// только то, что на ней.
 Item {
     id: root
     property bool open: false
-    property string section: "settings"
+    property string section: "calendar"
     property real maxHeight: 700
     signal closeRequested(bool restoreFocus)
 
-    // "main" | "network" | "bluetooth". В разделе «Сеть» — сразу "network".
+    // "main" | "network" | "bluetooth": в разделах сети и Bluetooth —
+    // сразу их страница.
     property string page: "main"
 
     readonly property real wantedHeight: Math.min(maxHeight,
         page === "main" ? main.implicitHeight : (pageLoader.item ? pageLoader.item.implicitHeight : 0))
 
     function reset() {
-        page = section === "network" ? "network" : "main";
+        page = section === "network" || section === "bluetooth" ? section : "main";
         calendar.reset();
         keys.forceActiveFocus();
     }
@@ -52,34 +52,13 @@ Item {
     readonly property var source: Pipewire.defaultAudioSource
     PwObjectTracker { objects: [root.sink, root.source] }
 
-    readonly property var adapter: Bluetooth.defaultAdapter
-    readonly property var btConnected: adapter ? adapter.devices.values.filter(d => d.connected) : []
-
-    readonly property var profiles: PowerProfiles.hasPerformanceProfile
-        ? [PowerProfile.PowerSaver, PowerProfile.Balanced, PowerProfile.Performance]
-        : [PowerProfile.PowerSaver, PowerProfile.Balanced]
-
-    function profileName(p) {
-        return p === PowerProfile.PowerSaver ? "Экономия энергии"
-             : p === PowerProfile.Performance ? "Производительность" : "Сбалансированный";
-    }
-    function nextProfile() {
-        const i = profiles.indexOf(PowerProfiles.profile);
-        PowerProfiles.profile = profiles[(i + 1) % profiles.length];
-    }
-    function profileIcon(p) {
-        return p === PowerProfile.PowerSaver ? "battery-profile-powersave"
-             : p === PowerProfile.Performance ? "battery-profile-performance"
-             : "battery-profile-balanced";
-    }
-
     // ---- Клавиши: Esc — назад или закрыть.
 
     Item {
         id: keys
         focus: true
         Keys.onEscapePressed: {
-            if (root.page !== "main" && root.section !== "network") root.page = "main";
+            if (root.page !== root.section && root.page !== "main") root.page = "main";
             else root.closeRequested(true);
         }
     }
@@ -154,63 +133,11 @@ Item {
             }
         }
 
-        // ---- Быстрые настройки: плитки
-
-        GridLayout {
-            id: tiles
-            visible: root.section === "settings"
-            Layout.fillWidth: true
-            columns: 2
-            rowSpacing: 8
-            columnSpacing: 8
-
-            QuickTile {
-                visible: root.adapter !== null
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-                icon: root.adapter && root.adapter.enabled ? "network-bluetooth-activated" : "network-bluetooth"
-                title: "Bluetooth"
-                subtitle: !root.adapter || !root.adapter.enabled ? "Выключен"
-                    : root.btConnected.length > 0 ? root.btConnected.map(d => d.name).join(", ") : "Включён"
-                active: root.adapter !== null && root.adapter.enabled
-                hasDetails: true
-                onToggled: root.adapter.enabled = !root.adapter.enabled
-                onDetails: root.page = "bluetooth"
-            }
-
-            QuickTile {
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-                icon: NotificationState.doNotDisturb ? "notifications-disabled" : "notifications"
-                title: "Не беспокоить"
-                subtitle: NotificationState.doNotDisturb ? "Только срочные" : "Выключено"
-                active: NotificationState.doNotDisturb
-                onToggled: NotificationState.setDoNotDisturb(!NotificationState.doNotDisturb)
-            }
-
-            QuickTile {
-                // С Bluetooth плиток три — последняя во всю ширину.
-                Layout.columnSpan: root.adapter !== null ? 2 : 1
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-                icon: root.profileIcon(PowerProfiles.profile)
-                title: "Режим питания"
-                subtitle: root.profileName(PowerProfiles.profile)
-                active: PowerProfiles.profile !== PowerProfile.Balanced
-                onToggled: root.nextProfile()
-            }
-        }
-
         // ---- Батарея: режим питания
 
-        QuickTile {
+        PowerModeTile {
             visible: root.section === "battery"
             Layout.fillWidth: true
-            icon: root.profileIcon(PowerProfiles.profile)
-            title: "Режим питания"
-            subtitle: root.profileName(PowerProfiles.profile)
-            active: PowerProfiles.profile !== PowerProfile.Balanced
-            onToggled: root.nextProfile()
         }
 
         // ---- Ползунки: звук — громкость и микрофон; яркость.
@@ -304,6 +231,7 @@ Item {
         id: bluetoothPage
         BluetoothPage {
             maxHeight: root.maxHeight
+            showBack: root.section !== "bluetooth"
             onBack: { root.page = "main"; keys.forceActiveFocus(); }
             onOpenExternal: command => root.openExternal(command)
         }

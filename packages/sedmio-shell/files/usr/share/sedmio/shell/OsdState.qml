@@ -28,7 +28,7 @@ Singleton {
         sound: ["volume", "microphone"],
         calendar: [],
         battery: ["powerProfile"],
-        settings: ["powerProfile", "bluetooth"],
+        bluetooth: ["bluetooth"],
     })
 
     function show() {

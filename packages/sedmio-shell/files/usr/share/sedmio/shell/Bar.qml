@@ -5,7 +5,7 @@ import Sedmio.Style
 
 // Панель слева, часть рамки. Сверху знак Sedmio и открытые окна,
 // снизу трей и кнопки состояния (раскладка, сеть, батарея, яркость, звук,
-// уведомления, часы, быстрые настройки) — их порядок меняется
+// уведомления, часы) — их порядок меняется
 // перетаскиванием (BarOrder).
 Item {
     id: bar
@@ -154,7 +154,7 @@ Item {
                     sourceComponent: ({
                         keyboard: keyboardButton, network: networkButton, battery: batteryButton,
                         brightness: brightnessButton, volume: volumeButton,
-                        notifications: notificationsButton, clock: clockButton, settings: settingsButton,
+                        notifications: notificationsButton, clock: clockButton,
                     })[slot.key] ?? null
                 }
 
@@ -192,5 +192,4 @@ Item {
     Component { id: volumeButton; Volume { screenName: bar.screenName; tooltip: bar.tooltip } }
     Component { id: notificationsButton; NotificationsButton { screenName: bar.screenName; tooltip: bar.tooltip } }
     Component { id: clockButton; Clock { screenName: bar.screenName; tooltip: bar.tooltip } }
-    Component { id: settingsButton; QuickSettingsButton { screenName: bar.screenName; tooltip: bar.tooltip } }
 }

@@ -1,9 +1,9 @@
-# Глобальные клавиши панели управления Sedmio (как Win+A в Windows 11).
-# Как устроено — в sedmio-launcher.desktop рядом.
+# Win+A (в Windows 11 — быстрые настройки): у нас они в Пуске, клавиша его
+# и открывает. Как устроено — в sedmio-launcher.desktop рядом.
 [Desktop Entry]
 Type=Application
-Name=Sedmio control panel
-Name[ru]=Панель управления Sedmio
+Name=Sedmio quick settings
+Name[ru]=Быстрые настройки Sedmio
 Icon=preferences-system
-Exec=quickshell ipc -p /usr/share/sedmio/shell call control toggle
+Exec=quickshell ipc -p /usr/share/sedmio/shell call launcher toggle
 X-KDE-Shortcuts=Meta+A
