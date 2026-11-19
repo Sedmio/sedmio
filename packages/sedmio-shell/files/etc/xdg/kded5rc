@@ -1,6 +1,11 @@
 # Модули kded, чью работу делает оболочка Sedmio (пакет sedmio-shell):
 #   networkmanagement — агент паролей Wi‑Fi из plasma-nm (у оболочки свой);
-#   donationmessage   — просьба KDE о пожертвованиях.
+#   donationmessage   — просьба KDE о пожертвованиях;
+#   appmenu           — глобальное меню (его у оболочки нет);
+#   plasma_accentcolor_service — акцентный цвет из обоев (цвета у нас свои);
+#   lookandfeelautoswitcher    — смена темы Plasma по времени суток;
+#   kded_accounts     — сетевые учётные записи KDE (KAccounts);
+#   remotenotifier    — обновление папки remote:/ в Dolphin.
 # Не загружаются при входе. Выгружать их на ходу нельзя — kded6 падает.
 # Имя файла — kded5rc: kded6 читает настройки под старым именем.
 # Запасная оболочка и режим use-plasmashell загружают networkmanagement
@@ -9,4 +14,19 @@
 autoload=false
 
 [Module-donationmessage]
+autoload=false
+
+[Module-appmenu]
+autoload=false
+
+[Module-plasma_accentcolor_service]
+autoload=false
+
+[Module-lookandfeelautoswitcher]
+autoload=false
+
+[Module-kded_accounts]
+autoload=false
+
+[Module-remotenotifier]
 autoload=false
