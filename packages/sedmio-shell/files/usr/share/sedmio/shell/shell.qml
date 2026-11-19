@@ -67,6 +67,13 @@ ShellRoot {
         function close(): void { ShellState.closeAll(); }
     }
 
+    // Программы на панели по номеру: Meta+1…9
+    // (usr/share/kglobalaccel/sedmio-windows.desktop).
+    IpcHandler {
+        target: "windows"
+        function activate(number: int): void { ShellState.activateGroup(number - 1); }
+    }
+
     // Всплывающие индикаторы: служба org.kde.osdService вместо plasmashell.
     // Её вызывают kded (клавиши громкости, плееры), powerdevil (яркость),
     // KWin (раскладка).

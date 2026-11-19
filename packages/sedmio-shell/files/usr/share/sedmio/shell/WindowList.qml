@@ -1,32 +1,17 @@
 import QtQuick
-import Quickshell.Wayland
 
 // Открытые окна, по кнопке на программу: окна одной программы — в одной
-// кнопке. Диалоги (у окна есть родитель: «Свойства», «Сохранить как»)
-// не показываем — они всегда над своим окном и поднимаются вместе с ним.
-// Список даёт ToplevelManager — в нашей сборке Quickshell он работает
-// и под KWin (org_kde_plasma_window_management).
+// кнопке. Диалоги («Свойства», «Сохранить как») не показываем — они всегда
+// над своим окном и поднимаются вместе с ним. Список даёт ToplevelManager —
+// в нашей сборке Quickshell он работает и под KWin
+// (org_kde_plasma_window_management).
 ListView {
     id: list
     required property var window
     required property Item tooltip
 
-    // [{key, windows: [toplevel…]}] в порядке появления программ.
-    // Читает appId и parent каждого окна — пересчитается, когда они сменятся.
-    readonly property var groups: {
-        const byKey = {};
-        const result = [];
-        for (const t of ToplevelManager.toplevels.values) {
-            if (t.parent) continue;
-            const key = t.appId || t.title;
-            if (!byKey[key]) {
-                byKey[key] = { key: key, windows: [] };
-                result.push(byKey[key]);
-            }
-            byKey[key].windows.push(t);
-        }
-        return result;
-    }
+    // Программы и их окна — в ShellState (по ним же работают Meta+1…9).
+    readonly property var groups: ShellState.windowGroups
 
     function windowsOf(key) {
         const group = groups.find(g => g.key === key);

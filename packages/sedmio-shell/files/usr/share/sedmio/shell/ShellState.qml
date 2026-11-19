@@ -123,6 +123,39 @@ Singleton {
         }
     }
 
+    // Программы на панели: [{key, windows: [toplevel…]}] в порядке
+    // появления, окна одной программы — вместе. Диалоги (у окна есть
+    // родитель) не считаем — они поднимаются вместе со своим окном.
+    // Здесь, а не в панели: по этому же порядку работают Meta+1…9.
+    readonly property var windowGroups: {
+        const byKey = {};
+        const result = [];
+        for (const t of ToplevelManager.toplevels.values) {
+            if (t.parent) continue;
+            const key = t.appId || t.title;
+            if (!byKey[key]) {
+                byKey[key] = { key: key, windows: [] };
+                result.push(byKey[key]);
+            }
+            byKey[key].windows.push(t);
+        }
+        return result;
+    }
+
+    // Meta+1…9 (usr/share/kglobalaccel/sedmio-windows.desktop): показать
+    // программу с этим номером на панели, как в Windows. Она уже активна:
+    // одно окно — свернуть, несколько — показать следующее.
+    function activateGroup(index) {
+        const group = windowGroups[index];
+        if (!group) return;
+        if (anythingOpen) closeAll(false);
+        const windows = group.windows;
+        const current = windows.findIndex(w => w.activated);
+        if (current < 0) windows[0].activate();
+        else if (windows.length === 1) windows[0].minimized = true;
+        else windows[(current + 1) % windows.length].activate();
+    }
+
     // Экран, с которым сейчас работают: тот, где активное окно.
     // Для клавиш (Meta), у которых своего экрана нет.
     function focusedScreen() {

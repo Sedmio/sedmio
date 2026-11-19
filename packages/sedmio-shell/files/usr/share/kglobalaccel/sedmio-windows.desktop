@@ -1,0 +1,60 @@
+# Meta+1…9 — программа с этим номером на панели (как в Windows; в Plasma
+# эти клавиши были у панели задач plasmashell). Как устроено — в
+# sedmio-launcher.desktop рядом. Оболочка не запущена — клавиши ничего
+# не делают (у запасного plasmashell они заняты нами).
+[Desktop Entry]
+Type=Application
+Name=Sedmio windows
+Name[ru]=Окна на панели Sedmio
+Icon=sedmio
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 1
+X-KDE-Shortcuts=Meta+1
+Actions=2;3;4;5;6;7;8;9;
+
+[Desktop Action 2]
+Name=Program 2 on the panel
+Name[ru]=Программа 2 на панели
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 2
+X-KDE-Shortcuts=Meta+2
+
+[Desktop Action 3]
+Name=Program 3 on the panel
+Name[ru]=Программа 3 на панели
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 3
+X-KDE-Shortcuts=Meta+3
+
+[Desktop Action 4]
+Name=Program 4 on the panel
+Name[ru]=Программа 4 на панели
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 4
+X-KDE-Shortcuts=Meta+4
+
+[Desktop Action 5]
+Name=Program 5 on the panel
+Name[ru]=Программа 5 на панели
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 5
+X-KDE-Shortcuts=Meta+5
+
+[Desktop Action 6]
+Name=Program 6 on the panel
+Name[ru]=Программа 6 на панели
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 6
+X-KDE-Shortcuts=Meta+6
+
+[Desktop Action 7]
+Name=Program 7 on the panel
+Name[ru]=Программа 7 на панели
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 7
+X-KDE-Shortcuts=Meta+7
+
+[Desktop Action 8]
+Name=Program 8 on the panel
+Name[ru]=Программа 8 на панели
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 8
+X-KDE-Shortcuts=Meta+8
+
+[Desktop Action 9]
+Name=Program 9 on the panel
+Name[ru]=Программа 9 на панели
+Exec=quickshell ipc -p /usr/share/sedmio/shell call windows activate 9
+X-KDE-Shortcuts=Meta+9
