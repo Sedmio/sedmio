@@ -4,8 +4,9 @@ import Quickshell
 import Sedmio.Style
 
 // Панель слева, часть рамки. Сверху знак Sedmio и открытые окна,
-// снизу трей, раскладка, сеть, батарея, яркость, звук, уведомления, часы
-// и быстрые настройки.
+// снизу трей и кнопки состояния (раскладка, сеть, батарея, яркость, звук,
+// уведомления, часы, быстрые настройки) — их порядок меняется
+// перетаскиванием (BarOrder).
 Item {
     id: bar
     required property var window     // окно рамки: меню трея, сворачивание
@@ -79,7 +80,7 @@ Item {
 
     ColumnLayout {
         id: bottomGroup
-        anchors { bottom: parent.bottom; left: parent.left; right: parent.right; bottomMargin: Theme.border + 6 }
+        anchors { bottom: parent.bottom; left: parent.left; right: parent.right; bottomMargin: Theme.border }
         spacing: 6
 
         Tray {
@@ -88,52 +89,108 @@ Item {
             tooltip: bar.tooltip
         }
 
-        KeyboardLayout {
-            Layout.alignment: Qt.AlignHCenter
-            tooltip: bar.tooltip
-        }
+        // Кнопки в порядке из BarOrder. Зажать и потянуть — кнопка встаёт
+        // на место той, над которой её держат; отпустили — порядок
+        // сохраняется.
+        ListView {
+            id: buttons
+            Layout.fillWidth: true
+            Layout.preferredHeight: contentHeight
+            interactive: false
+            model: order
 
-        NetworkButton {
-            Layout.alignment: Qt.AlignHCenter
-            screenName: bar.screenName
-            tooltip: bar.tooltip
-        }
+            ListModel { id: order }
+            function sync() {
+                const wanted = BarOrder.keys;
+                for (let i = order.count - 1; i >= 0; --i)
+                    if (!wanted.includes(order.get(i).key)) order.remove(i);
+                for (let i = 0; i < wanted.length; ++i) {
+                    if (i < order.count && order.get(i).key === wanted[i]) continue;
+                    let from = -1;
+                    for (let j = i + 1; j < order.count; ++j)
+                        if (order.get(j).key === wanted[i]) { from = j; break; }
+                    if (from >= 0) order.move(from, i, 1);
+                    else order.insert(i, { key: wanted[i] });
+                }
+            }
+            Component.onCompleted: sync()
+            Connections {
+                target: BarOrder
+                function onKeysChanged() { if (buttons.dragKey === "") buttons.sync(); }
+            }
 
-        Battery {
-            Layout.alignment: Qt.AlignHCenter
-            screenName: bar.screenName
-            tooltip: bar.tooltip
-        }
+            property string dragKey: ""
+            function dragTo(y) {
+                let from = -1;
+                for (let i = 0; i < order.count; ++i) if (order.get(i).key === dragKey) from = i;
+                const to = indexAt(width / 2, y);
+                if (from >= 0 && to >= 0 && to !== from) order.move(from, to, 1);
+            }
+            function drop() {
+                const keys = [];
+                for (let i = 0; i < order.count; ++i) keys.push(order.get(i).key);
+                dragKey = "";
+                BarOrder.setOrder(keys);
+            }
 
-        BrightnessButton {
-            Layout.alignment: Qt.AlignHCenter
-            screenName: bar.screenName
-            tooltip: bar.tooltip
-        }
+            // Обёртка: невидимая кнопка (батареи нет, раскладка одна) места
+            // не занимает; у видимой снизу промежуток 6.
+            delegate: Item {
+                id: slot
+                required property string key
+                readonly property Item button: loader.item
+                readonly property bool shown: button !== null && button.visible
+                readonly property real topGap: key === "clock" ? 4 : 0
+                width: ListView.view.width
+                height: shown ? topGap + button.implicitHeight + 6 : 0
+                z: buttons.dragKey === key ? 1 : 0
+                scale: buttons.dragKey === key ? 1.1 : 1
+                Behavior on scale { NumberAnimation { duration: Theme.animFast } }
 
-        Volume {
-            Layout.alignment: Qt.AlignHCenter
-            screenName: bar.screenName
-            tooltip: bar.tooltip
-        }
+                Loader {
+                    id: loader
+                    y: slot.topGap
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    sourceComponent: ({
+                        keyboard: keyboardButton, network: networkButton, battery: batteryButton,
+                        brightness: brightnessButton, volume: volumeButton,
+                        notifications: notificationsButton, clock: clockButton, settings: settingsButton,
+                    })[slot.key] ?? null
+                }
 
-        NotificationsButton {
-            Layout.alignment: Qt.AlignHCenter
-            screenName: bar.screenName
-            tooltip: bar.tooltip
-        }
+                DragHandler {
+                    target: null
+                    xAxis.enabled: false
+                    enabled: slot.shown
+                    onActiveChanged: {
+                        if (active) {
+                            if (bar.tooltip) bar.tooltip.hide();
+                            buttons.dragKey = slot.key;
+                        } else if (buttons.dragKey === slot.key) {
+                            buttons.drop();
+                        }
+                    }
+                    onCentroidChanged: {
+                        if (active) buttons.dragTo(slot.mapToItem(buttons.contentItem, centroid.position.x, centroid.position.y).y);
+                    }
+                }
+            }
 
-        Clock {
-            Layout.alignment: Qt.AlignHCenter
-            screenName: bar.screenName
-            Layout.topMargin: 4
-            tooltip: bar.tooltip
-        }
-
-        QuickSettingsButton {
-            Layout.alignment: Qt.AlignHCenter
-            screenName: bar.screenName
-            tooltip: bar.tooltip
+            displaced: Transition {
+                NumberAnimation { property: "y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+            }
+            move: Transition {
+                NumberAnimation { property: "y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+            }
         }
     }
+
+    Component { id: keyboardButton; KeyboardLayout { tooltip: bar.tooltip } }
+    Component { id: networkButton; NetworkButton { screenName: bar.screenName; tooltip: bar.tooltip } }
+    Component { id: batteryButton; Battery { screenName: bar.screenName; tooltip: bar.tooltip } }
+    Component { id: brightnessButton; BrightnessButton { screenName: bar.screenName; tooltip: bar.tooltip } }
+    Component { id: volumeButton; Volume { screenName: bar.screenName; tooltip: bar.tooltip } }
+    Component { id: notificationsButton; NotificationsButton { screenName: bar.screenName; tooltip: bar.tooltip } }
+    Component { id: clockButton; Clock { screenName: bar.screenName; tooltip: bar.tooltip } }
+    Component { id: settingsButton; QuickSettingsButton { screenName: bar.screenName; tooltip: bar.tooltip } }
 }
