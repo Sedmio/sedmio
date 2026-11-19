@@ -15,4 +15,13 @@ Keywords[ru]=параметры;настройки;экран;монитор;р�
 StartupNotify=true
 # Как Win+I в Windows (раньше эти клавиши были у параметров KDE).
 X-KDE-Shortcuts=Meta+I
+Actions=About;
 X-KDE-Wayland-Interfaces=kde_output_management_v2,kde_output_device_v2
+
+# Win+Pause — «О системе», как в Windows.
+[Desktop Action About]
+Name=About this computer
+Name[ru]=О системе
+Icon=help-about
+Exec=sedmio-preferences about
+X-KDE-Shortcuts=Meta+Pause

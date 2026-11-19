@@ -1,0 +1,7 @@
+# Win+Пробел переключает язык всегда, как в Windows (вместе с Alt+Shift
+# или другой выбранной клавишей), — для каждого пользователя один раз
+# (kconf_update помнит Id в ~/.config/kconf_updaterc). Пакет sedmio-settings.
+Version=6
+
+Id=sedmio-winspace-1
+Script=sedmio-winspace.sh,sh

@@ -15,9 +15,8 @@ Page {
     readonly property var switchKeys: [
         { id: "alt_shift", label: "Alt + Shift" },
         { id: "ctrl_shift", label: "Ctrl + Shift" },
-        { id: "win_space", label: "Win + Пробел" },
         { id: "caps", label: "Caps Lock" },
-        { id: "", label: "Не переключать клавишами" }
+        { id: "", label: "Только Win + Пробел" }
     ]
 
     property bool adding: false
@@ -130,10 +129,11 @@ Page {
         title: "Переключение"
         Setting {
             label: "Клавиши"
-            hint: "Ещё раскладку можно сменить щелчком по значку на панели."
+            hint: "Win + Пробел переключает всегда, как в Windows. Ещё — щелчок по значку на панели."
             Choice {
                 model: root.switchKeys.map(k => k.label)
-                currentIndex: root.switchKeys.findIndex(k => k.id === keyboard.switchKey)
+                // Параметр xkb «Win + Пробел» (выбирали раньше) — то же, что «Только Win + Пробел».
+                currentIndex: root.switchKeys.findIndex(k => k.id === (keyboard.switchKey === "win_space" ? "" : keyboard.switchKey))
                 onActivated: index => keyboard.setSwitchKey(root.switchKeys[index].id)
             }
         }

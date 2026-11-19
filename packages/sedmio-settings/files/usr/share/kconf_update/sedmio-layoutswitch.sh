@@ -53,6 +53,17 @@ run() {
   dbus-send --session --type=signal /Layouts org.kde.keyboard.reloadConfig
 }
 
+# Клавиши «следующей раскладки» меняют и sedmio-layoutswitch, и
+# sedmio-winspace (при первом входе — одновременно): прочитать и записать
+# их — по очереди, иначе один затрёт добавленное другим.
+locked() {
+  if command -v flock >/dev/null 2>&1; then
+    exec 9>"${XDG_RUNTIME_DIR:-/tmp}/sedmio-layoutkeys.lock"
+    flock -w 120 9
+  fi
+  run
+}
+
 # В фоне: kded ждёт kconf_update, прежде чем грузить модули.
-run </dev/null >/dev/null 2>&1 &
+locked </dev/null >/dev/null 2>&1 &
 exit 0

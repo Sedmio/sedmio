@@ -38,6 +38,9 @@ const QHash<QString, int> kwinSwitchKeys = {
     {QStringLiteral("ctrl_shift"), int(Qt::CTRL) | Qt::Key_Shift},
 };
 
+// Win+Пробел — у «следующей раскладки» всегда, к выбранной клавише.
+constexpr int winSpaceKey = int(Qt::META) | Qt::Key_Space;
+
 const QStringList layoutAction = {QStringLiteral("KDE Keyboard Layout Switcher"),
                                   QStringLiteral("Switch to Next Keyboard Layout"),
                                   QString(),
@@ -92,21 +95,40 @@ std::optional<QList<KeySequence>> layoutShortcut()
     return keys;
 }
 
+// Сочетание ни за кем не закреплено (или уже у «следующей раскладки»).
+bool keyFreeForLayout(int key)
+{
+    QDBusMessage call = kglobalaccel(QStringLiteral("actionList"));
+    call << QVariant::fromValue(KeySequence{{key, 0, 0, 0}});
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 3000);
+    if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().isEmpty())
+        return false;
+    const QStringList owner = reply.arguments().constFirst().toStringList();
+    return owner.isEmpty() || (owner.value(0) == layoutAction.value(0) && owner.value(1) == layoutAction.value(1));
+}
+
 // Оставить у действия его клавиши без наших Alt+Shift и Ctrl+Shift и
-// добавить key (0 — не добавлять). true — встало (проверено чтением).
+// добавить key (0 — не добавлять). Win+Пробел — всегда, как в Windows
+// (его же добавляет kconf_update sedmio-winspace), если он ни за кем не
+// закреплён. true — встало (проверено чтением).
 bool setLayoutShortcut(int key)
 {
     const auto current = layoutShortcut();
     if (!current)
         return false;
     QList<KeySequence> keys;
+    bool hasWinSpace = false;
     for (const KeySequence &sequence : *current) {
         const int first = sequence.keys.value(0);
         if (first != 0 && std::find(kwinSwitchKeys.cbegin(), kwinSwitchKeys.cend(), first) == kwinSwitchKeys.cend())
             keys << sequence;
+        if (first == winSpaceKey)
+            hasWinSpace = true;
     }
     if (key != 0)
         keys << KeySequence{{key, 0, 0, 0}};
+    if (!hasWinSpace && keyFreeForLayout(winSpaceKey))
+        keys << KeySequence{{winSpaceKey, 0, 0, 0}};
 
     QDBusMessage call = kglobalaccel(QStringLiteral("setForeignShortcutKeys"));
     call << layoutAction << QVariant::fromValue(keys);
