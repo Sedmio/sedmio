@@ -5,7 +5,7 @@ import Quickshell.Io
 
 // Программы, закреплённые на панели, как в Windows: кнопка есть, даже
 // когда программа не запущена; щелчок её запускает. Закрепить и открепить —
-// правым щелчком по кнопке. Список — имена .desktop-файлов, по порядку,
+// правым щелчком по кнопке, порядок — перетаскиванием. Список — имена .desktop-файлов, по порядку,
 // в ~/.config/sedmio/panel.json; файла нет — закреплены «Файлы» и Firefox.
 // Не установленные программы панель пропускает (WindowList, ShellState).
 Singleton {
@@ -50,6 +50,17 @@ Singleton {
     function unpin(id) {
         if (!isPinned(id)) return;
         ids = ids.filter(other => other !== id);
+        save();
+    }
+
+    // Новый порядок закреплённых (перетащили кнопку на панели). Тех, кого
+    // в order нет (программа не установлена — кнопки нет), оставляем в конце.
+    function setOrder(order) {
+        const known = order.filter(id => isPinned(id));
+        const rest = ids.filter(id => known.indexOf(id) === -1);
+        const next = known.concat(rest);
+        if (JSON.stringify(next) === JSON.stringify(ids)) return;
+        ids = next;
         save();
     }
 

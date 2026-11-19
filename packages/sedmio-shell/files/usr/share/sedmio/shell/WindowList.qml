@@ -36,20 +36,67 @@ ListView {
             else keys.insert(i, { key: wanted[i] });
         }
     }
-    onGroupsChanged: sync()
+    onGroupsChanged: if (dragKey === "") sync()
+
+    // Перетаскивание закреплённых кнопок, как на панели задач Windows:
+    // кнопка встаёт на место той, над которой её держат, — среди
+    // закреплённых; отпустили — порядок сохраняется (PinnedApps).
+    property string dragKey: ""
+    readonly property int pinnedCount: groups.filter(g => g.pinned).length
+
+    function indexOfKey(key) {
+        for (let i = 0; i < keys.count; ++i) if (keys.get(i).key === key) return i;
+        return -1;
+    }
+
+    function dragTo(y) {
+        const from = indexOfKey(dragKey);
+        const over = indexAt(width / 2, y);
+        if (from < 0 || over < 0) return;
+        const to = Math.min(over, pinnedCount - 1);
+        if (to !== from && to >= 0) keys.move(from, to, 1);
+    }
+
+    function dropDragged() {
+        const order = [];
+        for (let i = 0; i < keys.count; ++i) order.push(keys.get(i).key);
+        dragKey = "";
+        PinnedApps.setOrder(order);
+        sync();
+    }
     Component.onCompleted: sync()
 
     clip: true
     spacing: 4
+    interactive: dragKey === "" && contentHeight > height
     boundsBehavior: Flickable.StopAtBounds
     model: keys
 
     delegate: WindowButton {
+        id: button
         required property string key
         group: list.groupOf(key)
         window: list.window
         tooltip: list.tooltip
         width: ListView.view.width
+        z: list.dragKey === key ? 1 : 0
+
+        DragHandler {
+            target: null
+            xAxis.enabled: false
+            enabled: button.pinned
+            onActiveChanged: {
+                if (active) {
+                    if (list.tooltip) list.tooltip.hide();
+                    list.dragKey = button.key;
+                } else if (list.dragKey === button.key) {
+                    list.dropDragged();
+                }
+            }
+            onCentroidChanged: {
+                if (active) list.dragTo(button.mapToItem(list.contentItem, centroid.position.x, centroid.position.y).y);
+            }
+        }
     }
 
     add: Transition {
