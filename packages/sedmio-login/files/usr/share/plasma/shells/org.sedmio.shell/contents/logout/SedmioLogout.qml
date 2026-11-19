@@ -10,7 +10,8 @@ import Sedmio.Style
 //
 // Как в Plasma: просили конкретное (выключить, перезагрузить) — через
 // 30 секунд это и случится; просто «завершить» — выбор без отсчёта.
-// Esc или клик мимо — отмена.
+// Esc или клик мимо — отмена. С клавиатуры, как в Windows: Tab и стрелки
+// ходят по кнопкам, Enter и Пробел нажимают выбранную.
 Item {
     id: root
 
@@ -59,6 +60,9 @@ Item {
     Keys.onEscapePressed: cancelRequested()
     Keys.onReturnPressed: if (!showAll) defaultAction()
     Keys.onEnterPressed: if (!showAll) defaultAction()
+    // Ещё ничего не выбрано — стрелка выбирает первую кнопку.
+    Keys.onLeftPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
+    Keys.onRightPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
 
     // Бумажная завеса поверх рабочего стола.
     Rectangle {
@@ -153,14 +157,21 @@ Item {
         Item { width: 1; height: 36 }
 
         Rectangle {
+            id: cancelButton
             anchors.horizontalCenter: parent.horizontalCenter
             width: cancelText.implicitWidth + 36
             height: 38
             radius: 19
             color: cancelArea.containsMouse ? Theme.surface : "transparent"
-            border.width: 1
-            border.color: cancelArea.containsMouse ? Theme.lineStrong : Theme.line
+            border.width: activeFocus ? 2 : 1
+            border.color: activeFocus ? Theme.green : cancelArea.containsMouse ? Theme.lineStrong : Theme.line
             Behavior on color { ColorAnimation { duration: Theme.animFast } }
+
+            activeFocusOnTab: true
+            Keys.onReturnPressed: root.cancelRequested()
+            Keys.onEnterPressed: root.cancelRequested()
+            Keys.onSpacePressed: root.cancelRequested()
+            Keys.onUpPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.BacktabFocusReason)
 
             SText {
                 id: cancelText
@@ -191,6 +202,25 @@ Item {
 
         width: 96
         height: circle.height + 12 + caption.implicitHeight
+
+        activeFocusOnTab: visible
+        Keys.onReturnPressed: clicked()
+        Keys.onEnterPressed: clicked()
+        Keys.onSpacePressed: clicked()
+        Keys.onLeftPressed: nextItemInFocusChain(false).forceActiveFocus(Qt.BacktabFocusReason)
+        Keys.onRightPressed: nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
+        Keys.onDownPressed: cancelButton.forceActiveFocus(Qt.TabFocusReason)
+
+        // Выбрана с клавиатуры — кольцо вокруг кнопки.
+        Rectangle {
+            anchors.fill: circle
+            anchors.margins: -5
+            radius: width / 2
+            color: "transparent"
+            border.width: 2
+            border.color: Theme.green
+            visible: option.activeFocus
+        }
 
         Rectangle {
             id: circle
