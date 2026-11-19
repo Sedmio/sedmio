@@ -14,3 +14,6 @@ Categories=Qt;KDE;System;FileTools;FileManager;
 Keywords=folder;files;explorer;
 Keywords[ru]=папка;файлы;проводник;
 StartupNotify=true
+# Meta+E, как «Проводник» в Windows и Dolphin в Plasma (kglobalaccel
+# берёт это сочетание по ссылке из /usr/share/kglobalaccel).
+X-KDE-Shortcuts=Meta+E
