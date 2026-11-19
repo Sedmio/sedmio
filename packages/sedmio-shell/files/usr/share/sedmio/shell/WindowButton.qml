@@ -42,15 +42,17 @@ Item {
 
     height: Theme.buttonSize + 4
 
-    // Метка активного окна на краю панели
+    // Метка на краю панели, как в Windows 11: запущена — короткая серая,
+    // активна — длинная зелёная; только закреплена — метки нет.
     Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         x: 2
         width: 4
-        height: root.anyActive ? 20 : 0
+        height: root.anyActive ? 20 : root.running ? 8 : 0
         radius: 2
-        color: Theme.green
+        color: root.anyActive ? Theme.green : Theme.inkMuted
         Behavior on height { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutBack } }
+        Behavior on color { ColorAnimation { duration: Theme.animFast } }
     }
 
     BarButton {
