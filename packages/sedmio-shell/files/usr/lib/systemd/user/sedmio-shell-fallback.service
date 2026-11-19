@@ -1,12 +1,12 @@
 # Запасная оболочка: наша (sedmio-shell.service) упала трижды за минуту
 # и systemd её больше не перезапускает — например, после сломанного
 # обновления. Тогда поднимаем plasmashell, чтобы не остаться без панели,
-# меню и уведомлений, и говорим об этом. Запускается только по OnFailure
+# меню и уведомлений, и говорим об этом. Окна паролей живут отдельно
+# (sedmio-agents.service) и работают дальше. Запускается только по OnFailure
 # из sedmio-shell.service; до следующего входа в сеанс.
 [Unit]
 Description=Sedmio shell fallback: plasmashell
 PartOf=graphical-session.target
-Wants=sedmio-shell-fallback-polkit.service
 # Нашу оболочку запустили снова (systemctl --user start) — запасная уходит.
 Conflicts=sedmio-shell.service
 

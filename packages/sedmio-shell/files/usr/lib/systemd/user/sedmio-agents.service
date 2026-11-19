@@ -1,0 +1,27 @@
+# Окна паролей Sedmio (администратор, Wi‑Fi, Bluetooth) — отдельно от
+# оболочки (sedmio-shell.service): падение или перезапуск панели их не
+# трогает, и наоборот.
+[Unit]
+Description=Sedmio password prompts: polkit, Wi-Fi and Bluetooth agents
+Documentation=https://github.com/Sedmio/sedmio
+After=plasma-kwin_wayland.service
+PartOf=graphical-session.target
+# С plasmashell (touch ~/.config/sedmio/use-plasmashell) — агенты KDE.
+ConditionPathExists=!%h/.config/sedmio/use-plasmashell
+StartLimitIntervalSec=60s
+StartLimitBurst=3
+# Упала насовсем — агенты KDE, чтобы пароли всё равно спрашивались.
+OnFailure=sedmio-agents-fallback.service
+
+[Service]
+Environment=QS_NO_RELOAD_POPUP=1
+# Без обработчика падений Quickshell (окно «has crashed» по-английски и
+# самоперезапуск мимо systemd — тогда не срабатывают счётчик и OnFailure).
+# Пакет quickshell собран без него, это — на случай другой сборки.
+Environment=QS_DISABLE_CRASH_HANDLER=1
+ExecStart=/usr/bin/quickshell --path /usr/share/sedmio/agents
+Restart=on-failure
+Slice=session.slice
+
+[Install]
+WantedBy=plasma-core.target

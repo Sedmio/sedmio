@@ -1,0 +1,20 @@
+# Запасные окна паролей: наши (sedmio-agents.service) упали трижды за
+# минуту и systemd их больше не перезапускает — например, после сломанного
+# обновления. Тогда пароль администратора спрашивает агент KDE, а пароль
+# Wi‑Fi — модуль kded из plasma-nm. Запускается только по OnFailure из
+# sedmio-agents.service; до следующего входа в сеанс. Без BusName: то же
+# имя уже у plasma-polkit-agent.service, и systemd отказался бы запускать.
+[Unit]
+Description=Sedmio password prompts fallback: KDE agents
+PartOf=graphical-session.target
+# Наши снова запустились — агенты KDE уходят. Запускать так:
+#   systemctl --user reset-failed sedmio-agents && systemctl --user start sedmio-agents
+# (без reset-failed systemd откажет, а агенты KDE уже остановит).
+Conflicts=sedmio-agents.service
+
+[Service]
+ExecStartPre=-/usr/bin/busctl --user call org.kde.kded6 /kded org.kde.kded6 loadModule s networkmanagement
+ExecStart=/usr/lib/polkit-kde-authentication-agent-1
+Restart=on-failure
+Slice=background.slice
+TimeoutStopSec=5sec

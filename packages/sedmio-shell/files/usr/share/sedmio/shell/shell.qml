@@ -4,7 +4,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Kde
-import Quickshell.Services.Polkit
 
 ShellRoot {
     id: root
@@ -18,6 +17,8 @@ ShellRoot {
     IpcHandler {
         target: "shell"
         function reload(): void { Quickshell.reload(false); }
+        // Окно пароля (служба sedmio-agents) открылось — меню и панели убрать.
+        function closePopups(): void { ShellState.closeAll(false); }
     }
 
     Variants {
@@ -100,21 +101,9 @@ ShellRoot {
         onHideRequested: OsdState.hide()
     }
 
-    // Пароль администратора (polkit) — вместо polkit-kde-agent, его служба
-    // отключена (usr/lib/systemd/user/plasma-polkit-agent.service.d).
-    PolkitAgent {
-        id: polkit
-        onAuthenticationRequestStarted: ShellState.closeAll(false)
-    }
-    PolkitDialog { agent: polkit }
-
-    // Пароль от Wi‑Fi, когда его просит NetworkManager, — вместо plasma-nm.
-    NetworkSecretAgent { id: networkAgent }
-    NetworkPasswordDialog { agent: networkAgent }
-
-    // Сопряжение Bluetooth (коды, разрешения) — вместо агента bluedevil.
-    BluetoothAgent { id: bluetoothAgent }
-    BluetoothPairDialog { agent: bluetoothAgent }
+    // Окна паролей (администратор, Wi‑Fi, сопряжение Bluetooth) — не здесь,
+    // а в отдельном процессе: служба sedmio-agents.service,
+    // /usr/share/sedmio/agents. Упадёт оболочка — пароли спрашиваются.
 
     // Модули kded, чью работу делает оболочка (агент паролей Wi‑Fi из
     // plasma-nm, просьба о пожертвованиях), не загружаются вовсе —

@@ -13,6 +13,10 @@ OnFailure=sedmio-shell-fallback.service
 [Service]
 # Плашки Quickshell о перезагрузке настроек — для разработчика, не для нас.
 Environment=QS_NO_RELOAD_POPUP=1
+# Без обработчика падений Quickshell (окно «has crashed» по-английски и
+# самоперезапуск мимо systemd — тогда не срабатывают счётчик и OnFailure).
+# Пакет quickshell собран без него, это — на случай другой сборки.
+Environment=QS_DISABLE_CRASH_HANDLER=1
 ExecStart=/usr/bin/quickshell --path /usr/share/sedmio/shell
 Restart=on-failure
 Slice=session.slice

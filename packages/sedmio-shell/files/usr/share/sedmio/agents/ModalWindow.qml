@@ -20,7 +20,12 @@ PanelWindow {
     // Ошибка ввода: карточка вздрагивает.
     function shake() { shakeAnimation.restart(); }
 
-    screen: Quickshell.screens.find(s => s.name === ShellState.focusedScreen()) ?? Quickshell.screens[0]
+    // Экран, где окно, с которым сейчас работают.
+    screen: {
+        const active = ToplevelManager.activeToplevel;
+        const name = active && active.screens.length > 0 ? active.screens[0].name : "";
+        return Quickshell.screens.find(s => s.name === name) ?? Quickshell.screens[0];
+    }
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
@@ -36,7 +41,7 @@ PanelWindow {
     property var windowBefore: null
     onActiveChanged: {
         if (active) {
-            ShellState.closeAll(false);
+            Agents.closeShellPopups();
             windowBefore = ToplevelManager.activeToplevel;
         } else {
             if (windowBefore) windowBefore.activate();
@@ -52,10 +57,15 @@ PanelWindow {
         MouseArea { anchors.fill: parent }
     }
 
+    // Высота карточки на момент закрытия: содержимое к этому времени уже
+    // пустеет (запрос снят), а карточка не должна прыгать, пока гаснет.
+    property real cardHeight: 0
+
     Item {
         anchors.centerIn: parent
         width: root.cardWidth
-        height: card.implicitHeight
+        height: root.active ? card.implicitHeight : root.cardHeight
+        onHeightChanged: if (root.active) root.cardHeight = height
         opacity: root.shown
         scale: 0.96 + 0.04 * root.shown
 
@@ -75,6 +85,18 @@ PanelWindow {
             shadowOpacity: 0.35
             shadowBlur: 0.9
             blurMax: 32
+        }
+
+        // Карточка видна через свою картинку. Пока окно гаснет, картинка
+        // больше не обновляется: запрос уже снят, и живое содержимое
+        // пустело бы на глазах. Нажатия по-прежнему получает сама карточка.
+        ShaderEffectSource {
+            width: card.width
+            height: root.cardHeight
+            sourceItem: card
+            sourceRect: Qt.rect(0, 0, card.width, root.cardHeight)
+            live: root.active
+            hideSource: true
         }
 
         Rectangle {

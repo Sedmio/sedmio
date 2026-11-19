@@ -1,0 +1,1 @@
+../shell/SText.qml

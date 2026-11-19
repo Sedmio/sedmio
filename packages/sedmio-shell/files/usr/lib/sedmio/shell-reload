@@ -1,12 +1,48 @@
 #!/bin/sh
-# Перечитать QML оболочки Sedmio во всех открытых сеансах — из хука pacman
-# sedmio-shell-reload.hook, когда все новые файлы уже на месте. Сама
-# оболочка за файлами не следит (shell.qml). Не получилось — не страшно:
-# новая версия подхватится при следующем входе. Обновление не ломаем.
-for pid in $(pgrep -f "^/usr/bin/quickshell --path /usr/share/sedmio/shell"); do
-  uid=$(stat -c %u "/proc/$pid" 2>/dev/null) || continue
-  user=$(id -nu "$uid" 2>/dev/null) || continue
+# Перечитать QML оболочки и окон паролей Sedmio во всех открытых сеансах —
+# из хука pacman sedmio-shell-reload.hook, когда все новые файлы уже на
+# месте. Сами они за файлами не следят (shell.qml). Не получилось — не
+# страшно: новая версия подхватится при следующем входе. Обновление не ломаем.
+#
+# Процессы ищем через systemd пользователя (MainPID), а не по командной
+# строке и не по пути настроек: Quickshell после падения перезапускает себя
+# сам, и у нового процесса нет --path в командной строке, а quickshell ipc -p
+# его не находит.
+as_user() {
+  uid=$1; shift
+  user=$(id -nu "$uid" 2>/dev/null) || return 1
   timeout 10 runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" \
-    quickshell ipc --pid "$pid" call shell reload >/dev/null 2>&1 || true
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" "$@" >/dev/null 2>&1
+}
+
+# reload <uid> <служба> <цель IpcHandler>
+reload() {
+  user=$(id -nu "$1" 2>/dev/null) || return 0
+  pid=$(timeout 10 runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$1" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$1/bus" \
+    systemctl --user show -p MainPID --value "$2" 2>/dev/null)
+  [ -n "$pid" ] && [ "$pid" != 0 ] || return 0
+  as_user "$1" quickshell ipc --pid "$pid" call "$3" reload
+}
+
+for dir in /run/user/[0-9]*; do
+  [ -S "$dir/bus" ] || continue
+  uid=${dir##*/}
+  if as_user "$uid" systemctl --user is-active --quiet sedmio-shell.service; then
+    reload "$uid" sedmio-shell.service shell
+    # Окна паролей раньше жили в оболочке, теперь — служба sedmio-agents.
+    # Обновились со старой версии: оболочка их только что отпустила —
+    # запустить службу сразу, а не после перезахода (агент polkit в сеансе
+    # один, поэтому после перезагрузки оболочки). Уже работает — ничего.
+    # Сбросить счётчик падений: новая версия, возможно, уже исправлена, а
+    # с исчерпанным счётчиком systemd откажет — и заодно остановит запасной
+    # агент KDE (Conflicts=), оставив сеанс совсем без окон паролей.
+    as_user "$uid" systemctl --user daemon-reload
+    as_user "$uid" systemctl --user reset-failed sedmio-agents.service
+    as_user "$uid" systemctl --user start sedmio-agents.service
+  fi
+  if as_user "$uid" systemctl --user is-active --quiet sedmio-agents.service; then
+    reload "$uid" sedmio-agents.service agents
+  fi
 done
 exit 0

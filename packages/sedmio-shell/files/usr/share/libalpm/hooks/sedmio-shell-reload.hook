@@ -1,10 +1,11 @@
-# Оболочка Sedmio обновилась — перечитать её в открытых сеансах разом,
+# Оболочка Sedmio или окна паролей обновились — перечитать в открытых сеансах разом,
 # после всей транзакции (usr/lib/sedmio/shell-reload).
 [Trigger]
 Type = Path
 Operation = Install
 Operation = Upgrade
 Target = usr/share/sedmio/shell/*
+Target = usr/share/sedmio/agents/*
 
 [Action]
 Description = Перезагрузка оболочки Sedmio в открытых сеансах...

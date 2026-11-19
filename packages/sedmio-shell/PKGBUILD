@@ -12,7 +12,7 @@
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=24
+pkgrel=25
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -36,4 +36,5 @@ package() {
   # Включена для всех пользователей, как службы самого Plasma.
   install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
   ln -s ../sedmio-shell.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-shell.service"
+  ln -s ../sedmio-agents.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-agents.service"
 }
