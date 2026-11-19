@@ -157,8 +157,8 @@ Singleton {
     // Программы на панели: [{key, entry, pinned, windows: [toplevel…]}].
     // Сначала закреплённые (PinnedApps) в своём порядке, даже без окон,
     // потом остальные запущенные в порядке появления; окна одной
-    // программы — вместе. key — имя .desktop-файла, а если программа его не
-    // назвала — её appId. Диалоги (у окна есть родитель) не считаем — они
+    // программы — вместе. key — у закреплённой имя .desktop-файла, у
+    // остальных appId окна (нет его — заголовок). Диалоги (у окна есть родитель) не считаем — они
     // поднимаются вместе со своим окном. Окна других рабочих столов тоже,
     // как в Windows (inCurrentDesktop — из нашего патча Quickshell; без него
     // undefined — окно показываем).
@@ -177,7 +177,9 @@ Singleton {
         for (const t of ToplevelManager.toplevels.values) {
             if (t.parent || t.inCurrentDesktop === false) continue;
             const entry = t.appId ? DesktopEntries.heuristicLookup(t.appId) : null;
-            const key = entry ? entry.id : (t.appId || t.title);
+            // К закреплённой — по найденному .desktop; остальные — по appId:
+            // догадка heuristicLookup могла бы склеить разные программы.
+            const key = entry && byKey[entry.id]?.pinned ? entry.id : (t.appId || t.title);
             if (!byKey[key]) {
                 byKey[key] = { key: key, entry: entry, pinned: false, windows: [] };
                 result.push(byKey[key]);
