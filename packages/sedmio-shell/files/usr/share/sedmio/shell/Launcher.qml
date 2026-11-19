@@ -31,7 +31,53 @@ Item {
         root.closeRequested(false);
     }
 
+    // Правый щелчок по программе — закрепить на панели или открепить,
+    // как в «Пуске» Windows. У строк «Выполнить» меню нет.
+    property var menuEntry: null
+    function showMenu(item, x, y) {
+        const entry = item.modelData;
+        if (!entry || entry.run || !entry.id) return;
+        menuEntry = entry;
+        appMenu.anchor.item = item;
+        appMenu.anchor.rect.x = x;
+        appMenu.anchor.rect.y = y;
+        appMenu.visible = true;
+    }
+
+    ContextMenu {
+        id: appMenu
+        anchor.rect.width: 1
+        anchor.rect.height: 1
+        anchor.edges: Edges.Bottom | Edges.Right
+        anchor.gravity: Edges.Bottom | Edges.Right
+        items: {
+            const entry = root.menuEntry;
+            if (!entry) return [];
+            return [
+                { icon: entry.icon, text: "Открыть", action: "launch" },
+                PinnedApps.isPinned(entry.id)
+                    ? { icon: "window-unpin", text: "Открепить от панели", action: "unpin" }
+                    : { icon: "window-pin", text: "Закрепить на панели", action: "pin" },
+            ];
+        }
+        onTriggered: action => {
+            const entry = root.menuEntry;
+            if (!entry) return;
+            if (action === "launch") {
+                AppSearch.launch(entry, false);
+                root.closeRequested(false);
+            } else if (action === "pin") {
+                PinnedApps.pin(entry.id);
+            } else if (action === "unpin") {
+                PinnedApps.unpin(entry.id);
+            }
+            search.forceActiveFocus();
+        }
+        onVisibleChanged: if (!visible) search.forceActiveFocus()
+    }
+
     onOpenChanged: {
+        if (!open) appMenu.visible = false;
         if (open) {
             search.text = "";
             refresh();
@@ -186,9 +232,11 @@ Item {
                 id: mouse
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: {
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: event => {
                     list.currentIndex = row.index;
-                    root.launchCurrent();
+                    if (event.button === Qt.RightButton) root.showMenu(row, event.x, event.y);
+                    else root.launchCurrent();
                 }
             }
         }
