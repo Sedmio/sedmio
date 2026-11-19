@@ -6,7 +6,8 @@
 # systemd (timedated, hostnamed, пароль спрашивает polkit), обои — файл
 # ~/.config/sedmio/wallpaper.json, его читает оболочка.
 #
-# Разделы пока: Экран, Обои, Клавиатура, Дата и время, О системе. Остальное — кнопкой
+# Разделы пока: Экран, Обои, Мышь и тачпад, Клавиатура, Дата и время,
+# О системе. Остальное — кнопкой
 # «Ещё в параметрах KDE»: systemsettings остаётся в системе запасным путём.
 #
 # Параметры KDE в меню называются «Параметры KDE», Meta+I открывает наши
@@ -16,7 +17,7 @@
 
 pkgname=sedmio-preferences
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Sedmio: приложение «Параметры» на QML"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

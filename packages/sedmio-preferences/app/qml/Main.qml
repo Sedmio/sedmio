@@ -17,6 +17,7 @@ ApplicationWindow {
     readonly property var pages: [
         { id: "display", title: "Экран", icon: "preferences-desktop-display" },
         { id: "wallpaper", title: "Обои", icon: "preferences-desktop-wallpaper" },
+        { id: "mouse", title: "Мышь и тачпад", icon: "preferences-desktop-mouse" },
         { id: "keyboard", title: "Клавиатура", icon: "preferences-desktop-keyboard" },
         { id: "datetime", title: "Дата и время", icon: "preferences-system-time" },
         { id: "about", title: "О системе", icon: "help-about" }
@@ -110,6 +111,7 @@ ApplicationWindow {
         id: page
         anchors { left: sidebar.right; right: parent.right; top: parent.top; bottom: parent.bottom }
         sourceComponent: App.page === "wallpaper" ? wallpaperPage
+                       : App.page === "mouse" ? mousePage
                        : App.page === "keyboard" ? keyboardPage
                        : App.page === "datetime" ? dateTimePage
                        : App.page === "about" ? aboutPage
@@ -118,6 +120,7 @@ ApplicationWindow {
 
     Component { id: displayPage; DisplayPage { displays: screens } }
     Component { id: wallpaperPage; WallpaperPage {} }
+    Component { id: mousePage; MousePage {} }
     Component { id: keyboardPage; KeyboardPage {} }
     Component { id: dateTimePage; DateTimePage {} }
     Component { id: aboutPage; AboutPage {} }

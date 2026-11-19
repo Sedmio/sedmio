@@ -29,6 +29,7 @@ qt_add_qml_module(sedmio-preferences
         system.cpp system.h
         wallpapers.cpp wallpapers.h
         keyboard.cpp keyboard.h
+        pointers.cpp pointers.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -44,6 +45,8 @@ qt_add_qml_module(sedmio-preferences
         qml/DisplayPage.qml
         qml/WallpaperPage.qml
         qml/KeyboardPage.qml
+        qml/MousePage.qml
+        qml/SSlider.qml
         qml/DateTimePage.qml
         qml/AboutPage.qml
 )
