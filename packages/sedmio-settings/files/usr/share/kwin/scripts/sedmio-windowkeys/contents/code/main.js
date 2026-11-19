@@ -1,6 +1,7 @@
-// Win+↑ и Win+↓ как в Windows (пакет sedmio-settings). Клавиши у KWin по
-// умолчанию заняты «прилепить к верху/низу» — их отдаёт этим действиям
-// kconf_update (usr/share/kconf_update/sedmio-windowkeys.sh) один раз.
+// Клавиши окон как в Windows (пакет sedmio-settings): Win+↑, Win+↓, Alt+F4
+// на пустом рабочем столе, фокус после Win+D. Клавиши у KWin по умолчанию
+// заняты его действиями — их отдаёт этим kconf_update
+// (usr/share/kconf_update/sedmio-windowkeys.sh) один раз.
 
 function usable(w) {
     return w && w.normalWindow && !w.fullScreen;
@@ -26,3 +27,35 @@ registerShortcut("Sedmio Window Down", "Вернуть размер или св�
     else if (w.minimizable)
         w.minimized = true;
 });
+
+// Alt+F4 — закрыть окно, как раньше; окна нет (пустой рабочий стол, Win+D)
+// — экран «Что сделать?» (выключить, перезагрузить, выйти), как
+// «Завершение работы Windows». Без отсчёта: случайное Alt+F4 ничего не
+// выключит.
+registerShortcut("Sedmio Window Close", "Закрыть окно, а на пустом рабочем столе — завершение работы (как Alt+F4 в Windows)", "Alt+F4", function () {
+    const w = workspace.activeWindow;
+    if (w && !w.desktopWindow && !w.dock) {
+        if (w.closeable)
+            w.closeWindow();
+        return;
+    }
+    callDBus("org.kde.LogoutPrompt", "/LogoutPrompt", "org.kde.LogoutPrompt", "promptAll");
+});
+
+// Win+D прячет окна, но активное остаётся активным: набранное уходило бы
+// в спрятанное окно, а Alt+F4 закрыл бы его. Как в Windows, фокус —
+// рабочему столу, то есть никому. Состояние «рабочий стол показан» скрипту
+// не видно — спрашиваем KWin по D-Bus, когда окна прячутся или возвращаются.
+function showDesktopChanged() {
+    callDBus("org.kde.KWin", "/KWin", "org.freedesktop.DBus.Properties", "Get",
+             "org.kde.KWin", "showingDesktop", function (showing) {
+        const w = workspace.activeWindow;
+        if (showing === true && w && !w.desktopWindow && !w.dock)
+            workspace.activeWindow = null;
+    });
+}
+function watch(w) {
+    w.hiddenByShowDesktopChanged.connect(showDesktopChanged);
+}
+workspace.windowList().forEach(watch);
+workspace.windowAdded.connect(watch);

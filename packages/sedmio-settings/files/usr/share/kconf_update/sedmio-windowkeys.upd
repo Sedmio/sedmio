@@ -1,7 +1,8 @@
-# Win+↑ / Win+↓ и Win+Tab как в Windows для каждого пользователя — один раз
+# Win+↑ / Win+↓, Win+Tab и Alt+F4 как в Windows для каждого пользователя — один раз
 # (kconf_update помнит Id в ~/.config/kconf_updaterc). Пакет sedmio-settings.
 Version=6
 
-# -2: добавился Win+Tab; повтор безопасен — трогает только сочетания по умолчанию.
-Id=sedmio-windowkeys-2
+# -2: добавился Win+Tab, -3: Alt+F4; повтор безопасен — трогает только
+# сочетания по умолчанию.
+Id=sedmio-windowkeys-3
 Script=sedmio-windowkeys.sh,sh
