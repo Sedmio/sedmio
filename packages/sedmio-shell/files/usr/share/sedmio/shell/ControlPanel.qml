@@ -304,7 +304,7 @@ Item {
                     id: settingsArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    onClicked: root.openExternal(["systemsettings"])
+                    onClicked: root.openExternal(["/usr/lib/sedmio/open-settings"])
                 }
             }
 

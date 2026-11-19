@@ -1,0 +1,11 @@
+#!/bin/sh
+# Открыть раздел параметров: наши «Параметры», а если их нет — раздел KDE.
+#   open-settings <раздел Sedmio> [модуль KDE]
+# Оболочка зовёт это вместо sedmio-preferences напрямую: без «Параметров»
+# (не поставились, удалили) кнопки всё равно что-то открывают.
+page=$1
+kcm=$2
+if command -v sedmio-preferences >/dev/null 2>&1; then
+  exec sedmio-preferences $page
+fi
+exec systemsettings $kcm

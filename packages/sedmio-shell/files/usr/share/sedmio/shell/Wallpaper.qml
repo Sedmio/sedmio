@@ -3,8 +3,10 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 
-// Обои под всеми окнами. Пока своя заглушка в палитре Sedmio:
-// мягкий градиент и знак. Выбор картинки — позже.
+// Обои под всеми окнами: картинка, выбранная в «Параметрах»
+// (WallpaperState), или свои обои Sedmio — мягкий градиент и знак. Новая
+// картинка проявляется поверх старой, когда загрузится; не открылась —
+// остаются обои Sedmio.
 PanelWindow {
     id: root
     anchors { left: true; right: true; top: true; bottom: true }
@@ -34,7 +36,62 @@ PanelWindow {
         anchors.bottomMargin: root.height * 0.1
         source: Quickshell.iconPath("sedmio", true)
         opacity: 0.13
+        visible: layerA.status !== Image.Ready && layerB.status !== Image.Ready
     }
+
+    // Две картинки по очереди: новая грузится в заднюю и проявляется, когда
+    // готова, — без мигания градиентом. Не открылась — обои Sedmio.
+    property int front: 0
+    readonly property string wanted: WallpaperState.image === "" ? ""
+        : "file://" + WallpaperState.image.split("/").map(encodeURIComponent).join("/")
+    function show() {
+        const back = front === 0 ? layerB : layerA;
+        if (wanted === "") {
+            layerA.source = "";
+            layerB.source = "";
+        } else if (back.source.toString() === wanted && back.status === Image.Ready) {
+            front = 1 - front;
+        } else {
+            back.source = wanted;
+        }
+    }
+    onWantedChanged: show()
+    // Старая картинка уже не видна — отпустить её память.
+    onFrontChanged: dropBack.restart()
+    Timer {
+        id: dropBack
+        interval: 600
+        onTriggered: (root.front === 0 ? layerB : layerA).source = ""
+    }
+    Component.onCompleted: show()
+
+    component Layer: Image {
+        required property int number
+        readonly property bool isFront: root.front === number
+        anchors.fill: parent
+        fillMode: Image.PreserveAspectCrop
+        // Не больше экрана: огромная фотография иначе съест память.
+        sourceSize: Qt.size(root.width * root.screen.devicePixelRatio, root.height * root.screen.devicePixelRatio)
+        asynchronous: true
+        cache: false
+        smooth: true
+        z: isFront ? 2 : 1
+        opacity: isFront && status === Image.Ready ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
+        onStatusChanged: {
+            if (source.toString() !== root.wanted)
+                return;
+            if (status === Image.Ready && !isFront) {
+                root.front = number;
+            } else if (status === Image.Error) {
+                console.warn("Обои не открылись:", source);
+                layerA.source = "";
+                layerB.source = "";
+            }
+        }
+    }
+    Layer { id: layerA; number: 0 }
+    Layer { id: layerB; number: 1 }
 
     // Правый клик — меню рабочего стола.
     MouseArea {

@@ -3,15 +3,17 @@ import Quickshell
 import Quickshell.Widgets
 
 // Меню по правому клику на рабочем столе (Wallpaper.qml), как в Windows.
-// Своих параметров пока нет — пункты открывают разделы параметров KDE.
+// Параметры открываются через open-settings: без «Параметров» Sedmio —
+// раздел параметров KDE.
 PopupWindow {
     id: menu
     required property var window
 
     readonly property var items: [
-        { icon: "preferences-desktop-display", text: "Параметры экрана", command: ["systemsettings", "kcm_kscreen"] },
+        { icon: "preferences-desktop-wallpaper", text: "Сменить обои", command: ["/usr/lib/sedmio/open-settings", "wallpaper"] },
+        { icon: "preferences-desktop-display", text: "Параметры экрана", command: ["/usr/lib/sedmio/open-settings", "display", "kcm_kscreen"] },
         { icon: "utilities-terminal", text: "Терминал", command: ["konsole"] },
-        { icon: "preferences-system", text: "Параметры системы", command: ["systemsettings"] },
+        { icon: "preferences-system", text: "Параметры", command: ["/usr/lib/sedmio/open-settings"] },
     ]
 
     function openAt(x, y) {
