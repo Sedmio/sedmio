@@ -129,9 +129,13 @@ Item {
         implicitWidth: 320
         implicitHeight: rows.implicitHeight + 12
         visible: false
+        onVisibleChanged: if (visible) listCard.forceActiveFocus()
 
         Rectangle {
+            id: listCard
             anchors.fill: parent
+            focus: true
+            Keys.onEscapePressed: popup.visible = false
             radius: 12
             color: Theme.surface
             border.width: 1
