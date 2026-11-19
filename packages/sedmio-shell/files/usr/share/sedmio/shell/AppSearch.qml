@@ -56,6 +56,44 @@ Singleton {
         return out;
     }
 
+    // Транслит: «fajly», «parametry», «dispetcher» → «Файлы», «Параметры»,
+    // «Диспетчер задач». Название и запрос сводятся к одному «скелету»
+    // латиницей, где разные способы записи совпадают: й/ы/j/y → i,
+    // ш/щ/sh/sch → §, ч/ch → ¢, х/kh/x → h, ю/yu/ju → u, я/ya/ja → a...
+    readonly property var cyrToLatin: ({
+        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh",
+        "з": "z", "и": "i", "й": "j", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o",
+        "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "kh", "ц": "ts",
+        "ч": "ch", "ш": "sh", "щ": "shch", "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya"
+    })
+    readonly property var latinRules: [
+        [/shch|sch|sh/g, "§"], [/ch/g, "¢"], [/zh/g, "z"], [/kh|x/g, "h"], [/ts/g, "c"],
+        [/[yj]u/g, "u"], [/[yj]a/g, "a"], [/[yj][oe]/g, "e"], [/[jy]/g, "i"], [/w/g, "v"]
+    ]
+
+    function skeleton(text) {
+        let out = "";
+        for (const ch of text.toLowerCase()) {
+            const latinCh = cyrToLatin[ch];
+            out += latinCh === undefined ? ch : latinCh;
+        }
+        for (const rule of latinRules) out = out.replace(rule[0], rule[1]);
+        return out;
+    }
+
+    // Совпадение по транслиту; только латинский запрос к русскому названию
+    // (латинские названия и так сравниваются как есть).
+    function translitScore(entry, query) {
+        if (!/^[a-z0-9 ]+$/.test(query) || !/[а-яё]/i.test(entry.name)) return 0;
+        const q = skeleton(query);
+        const name = skeleton(entry.name);
+        if (name.startsWith(q)) return 700;
+        if (words(name).some(w => w.startsWith(q))) return 550;
+        if (q.length >= 3 && name.includes(q)) return 400;
+        if (words(skeleton(entry.genericName || "")).some(w => w.startsWith(q))) return 300;
+        return 0;
+    }
+
     function words(text) {
         return text.toLowerCase().split(/[\s\-_.()]+/).filter(w => w.length > 0);
     }
@@ -99,7 +137,7 @@ Singleton {
         const swapped = switchLayout(q);
         const scored = [];
         for (const e of apps) {
-            const s = Math.max(score(e, q), Math.floor(score(e, swapped) * 0.95));
+            const s = Math.max(score(e, q), Math.floor(score(e, swapped) * 0.95), translitScore(e, q));
             if (s > 0) scored.push({ entry: e, score: s + Math.min(usage(e), 40) * 3 });
         }
         scored.sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name));
