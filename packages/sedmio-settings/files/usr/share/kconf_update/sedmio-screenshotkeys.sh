@@ -22,7 +22,15 @@ run() {
     [ $i -ge 30 ] && break
     sleep 1
   done
-  case "$actions" in *'"_launch"'*) ;; *) return 0 ;; esac   # нашего .desktop нет — не трогаем
+  case "$actions" in
+    *'"_launch"'*) ;;
+    *)
+      # Файл есть, но kglobalaccel его ещё не прочёл (пакет поставили в
+      # открытом сеансе) — повторить при следующем входе. Файла нет — не трогаем.
+      [ -e /usr/share/kglobalaccel/sedmio-screenshot.desktop ] \
+        && kwriteconfig6 --file kconf_updaterc --group sedmio-screenshotkeys.upd --key done --delete
+      return 0 ;;
+  esac
 
   if [ "$(call shortcutKeys as 4 org.kde.spectacle.desktop _launch "" "")" = "a(ai) $keys" ]; then
     call setForeignShortcutKeys "asa(ai)" 4 org.kde.spectacle.desktop _launch "" "" 0 >/dev/null

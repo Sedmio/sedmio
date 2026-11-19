@@ -31,7 +31,15 @@ run() {
   until actions=$(call allActionsForComponent as 1 kwin) \
     && case "$actions" in *'"Sedmio Window Up"'*) true ;; *) false ;; esac; do
     i=$((i + 1))
-    [ $i -ge 30 ] && return 0   # скрипт выключен или KWin не тот — не трогаем
+    if [ $i -ge 30 ]; then
+      # Скрипт есть и не выключен, но KWin его ещё не загрузил (пакет
+      # поставили в открытом сеансе) — повторить при следующем входе.
+      # Выключен или его нет — не трогаем.
+      [ -d /usr/share/kwin/scripts/sedmio-windowkeys ] \
+        && [ "$(kreadconfig6 --file kwinrc --group Plugins --key sedmio-windowkeysEnabled --default true)" != false ] \
+        && kwriteconfig6 --file kconf_updaterc --group sedmio-windowkeys.upd --key done --delete
+      return 0
+    fi
     sleep 1
   done
   retry=
