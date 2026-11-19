@@ -230,6 +230,8 @@ FocusScope {
             wrapMode: Text.Wrap
             text: folder.error !== "" ? folder.error
                 : folder.filter !== "" ? "Ничего не нашлось"
+                : folder.dirsOnly ? "Здесь нет папок"
+                : folder.mimeFilters.some(m => m !== "*/*" && m !== "*") || folder.nameFilters.some(p => p !== "*" && p !== "*.*") ? "Нет файлов этого вида"
                 : folder.isTrash ? "Корзина пуста" : "Папка пуста"
             color: Theme.inkMuted
         }

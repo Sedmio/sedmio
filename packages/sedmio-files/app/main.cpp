@@ -4,9 +4,12 @@
 //   sedmio-files [папка или файл…]   файл — открыть его папку и выделить его
 //   sedmio-files --daemon            без окна, ждать просьб по D-Bus
 //                                    (так запускает шина для FileManager1)
+//   sedmio-files --portal            окно выбора файлов для всех программ
+//                                    (служба xdg-desktop-portal, см. portal.h)
 
 #include "app.h"
 #include "images.h"
+#include "portal.h"
 #include "prompts.h"
 
 #include <QApplication>
@@ -36,8 +39,27 @@ int main(int argc, char *argv[])
     QCommandLineParser parser;
     parser.addHelpOption();
     parser.addOption({QStringLiteral("daemon"), QStringLiteral("Не открывать окно, ждать просьб по D-Bus")});
+    parser.addOption({QStringLiteral("portal"), QStringLiteral("Окно выбора файлов для других программ (xdg-desktop-portal)")});
     parser.addPositionalArgument(QStringLiteral("paths"), QStringLiteral("Какие папки открыть или какие файлы показать"));
     parser.process(app);
+
+    // Окно выбора файлов — отдельный процесс, без имён «Файлов» на шине.
+    if (parser.isSet(QStringLiteral("portal"))) {
+        QGuiApplication::setQuitOnLastWindowClosed(false);
+        // Задания KIO держат QEventLoopLocker: без окон конец задания
+        // закрыл бы процесс посреди работы. Выходим сами — по простою.
+        QCoreApplication::setQuitLockEnabled(false);
+        // Заголовок окна — ровно тот, что дала программа, без « — Файлы».
+        QGuiApplication::setApplicationDisplayName(QString());
+        QQuickStyle::setStyle(QStringLiteral("Basic"));
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("icon"), new IconProvider);
+        engine.addImageProvider(QStringLiteral("thumb"), new ThumbnailProvider);
+        FileChooserPortal portal(&engine);
+        if (!portal.registerOnBus())
+            return 0; // уже запущен другой
+        return app.exec();
+    }
 
     // Папки откроем, файлы покажем выделенными в их папках.
     QStringList folders;

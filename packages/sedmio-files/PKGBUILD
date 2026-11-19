@@ -9,6 +9,9 @@
 # папке» из других программ и повторный запуск открывают окно в нём.
 # Программа по умолчанию для папок — /etc/xdg/mimeapps.list в sedmio-settings.
 #
+# Здесь же окно «Открыть» / «Сохранить как» для всех программ
+# (sedmio-files --portal, служба xdg-desktop-portal; см. app/portal.h).
+#
 # Здесь же sedmio-devices: уведомление о подключённой флешке с кнопками
 # «Открыть» и «Извлечь» (в Plasma — апплет устройств на панели).
 #
@@ -16,7 +19,7 @@
 
 pkgname=sedmio-files
 pkgver=0.1.0
-pkgrel=9
+pkgrel=10
 pkgdesc="Sedmio: файловый менеджер «Файлы» на QML и KIO"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -31,11 +34,15 @@ depends=(
   'solid'
   'kwindowsystem'
   'breeze-icons'
+  'xdg-desktop-portal-kde'  # запасное окно выбора файлов
   # Шрифт Onest (sedmio-branding) и цвета (sedmio-theme, модуль Sedmio.Style)
   # сюда не вписаны: makepkg ставит зависимости компилируемого пакета на
   # машину сборки, а наших пакетов в репозиториях Arch нет. Их тянет
   # sedmio-base.
 )
+# Свой kde-portals.conf (окно выбора файлов) — правки администратора не
+# затираются обновлением.
+backup=('etc/xdg/xdg-desktop-portal/kde-portals.conf')
 makedepends=(
   'cmake'
   'ninja'

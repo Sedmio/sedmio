@@ -13,7 +13,7 @@ find_package(KF6WindowSystem 6.10 REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
-qt_add_executable(sedmio-files main.cpp images.cpp)
+qt_add_executable(sedmio-files main.cpp images.cpp portal.cpp portal.h)
 
 set_source_files_properties(qml/Format.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
@@ -44,6 +44,7 @@ qt_add_qml_module(sedmio-files
         qml/PromptWindow.qml
         qml/PropertiesWindow.qml
         qml/QuickLook.qml
+        qml/ChooserWindow.qml
 )
 
 target_link_libraries(sedmio-files PRIVATE
@@ -71,3 +72,9 @@ install(FILES sedmio-devices.service DESTINATION lib/systemd/user)
 install(FILES sedmio-files.desktop DESTINATION share/applications)
 # Шина запускает нас, когда кто-то просит показать папку или файл.
 install(FILES org.sedmio.Files.FileManager1.service DESTINATION share/dbus-1/services)
+
+# Окно выбора файлов для всех программ (xdg-desktop-portal, см. portal.h).
+install(FILES portal/org.freedesktop.impl.portal.desktop.sedmio.service DESTINATION share/dbus-1/services)
+install(FILES portal/sedmio.portal DESTINATION share/xdg-desktop-portal/portals)
+install(FILES portal/kde-portals.conf DESTINATION /etc/xdg/xdg-desktop-portal)
+install(FILES portal/60-sedmio-file-dialog.conf DESTINATION lib/environment.d)

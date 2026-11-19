@@ -8,6 +8,7 @@
 #include <KIO/PreviewJob>
 
 #include <QFile>
+#include <QMimeType>
 
 #include <dirent.h>
 
@@ -180,12 +181,89 @@ void FolderModel::setFilter(const QString &filter)
     Q_EMIT filterChanged();
 }
 
+void FolderModel::setNameFilters(const QStringList &filters)
+{
+    if (m_nameFilters == filters)
+        return;
+    beginFilterChange();
+    m_nameFilters = filters;
+    m_nameRegexps.clear();
+    for (const QString &pattern : filters)
+        m_nameRegexps << QRegularExpression::fromWildcard(pattern, Qt::CaseInsensitive);
+    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+    Q_EMIT typeFilterChanged();
+}
+
+void FolderModel::setMimeFilters(const QStringList &filters)
+{
+    if (m_mimeFilters == filters)
+        return;
+    beginFilterChange();
+    m_mimeFilters = filters;
+    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+    Q_EMIT typeFilterChanged();
+}
+
+void FolderModel::setDirsOnly(bool dirsOnly)
+{
+    if (m_dirsOnly == dirsOnly)
+        return;
+    beginFilterChange();
+    m_dirsOnly = dirsOnly;
+    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+    Q_EMIT typeFilterChanged();
+}
+
+void FolderModel::setSingleSelection(bool single)
+{
+    if (m_singleSelection == single)
+        return;
+    m_singleSelection = single;
+    if (single && m_selected.size() > 1) {
+        const int first = firstSelected();
+        m_selected.clear();
+        if (first >= 0)
+            m_selected.insert(urlAt(first));
+        selectionUpdated();
+    }
+    Q_EMIT singleSelectionChanged();
+}
+
 bool FolderModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
-    if (m_filter.isEmpty())
+    if (m_filter.isEmpty() && m_nameFilters.isEmpty() && m_mimeFilters.isEmpty() && !m_dirsOnly)
         return true;
     const QModelIndex index = m_dirModel->index(sourceRow, 0, sourceParent);
-    return m_dirModel->itemForIndex(index).text().contains(m_filter, Qt::CaseInsensitive);
+    const KFileItem item = m_dirModel->itemForIndex(index);
+
+    if (!item.isDir()) {
+        if (m_dirsOnly)
+            return false;
+        if (!m_nameFilters.isEmpty() || !m_mimeFilters.isEmpty()) {
+            bool matches = false;
+            const QString name = item.text();
+            for (const QRegularExpression &pattern : m_nameRegexps) {
+                if (pattern.match(name).hasMatch()) {
+                    matches = true;
+                    break;
+                }
+            }
+            if (!matches && !m_mimeFilters.isEmpty()) {
+                // По имени, без чтения файла: быстро и для сети тоже.
+                const QMimeType type = item.currentMimeType();
+                for (const QString &mime : m_mimeFilters) {
+                    const bool any = mime == QLatin1String("*/*") || mime == QLatin1String("*");
+                    if (any || (mime.endsWith(QLatin1String("/*")) ? type.name().startsWith(mime.chopped(1)) : type.inherits(mime))) {
+                        matches = true;
+                        break;
+                    }
+                }
+            }
+            if (!matches)
+                return false;
+        }
+    }
+    return m_filter.isEmpty() || item.text().contains(m_filter, Qt::CaseInsensitive);
 }
 
 void FolderModel::setSortBy(const QString &sortBy)
@@ -312,6 +390,8 @@ void FolderModel::select(int row, int mode)
     const QUrl url = urlAt(row);
     if (url.isEmpty())
         return;
+    if (m_singleSelection)
+        mode = 0;
 
     switch (mode) {
     case 0:
@@ -361,6 +441,11 @@ int FolderModel::selectUrls(const QList<QUrl> &urls)
 
 void FolderModel::selectRows(const QList<int> &rows, const QList<QUrl> &base)
 {
+    if (m_singleSelection) {
+        if (!rows.isEmpty())
+            select(rows.constLast(), 0);
+        return;
+    }
     QSet<QUrl> selected(base.cbegin(), base.cend());
     for (int row : rows) {
         const QUrl url = urlAt(row);
@@ -375,6 +460,8 @@ void FolderModel::selectRows(const QList<int> &rows, const QList<QUrl> &base)
 
 void FolderModel::selectAll()
 {
+    if (m_singleSelection)
+        return;
     m_selected.clear();
     for (int row = 0; row < rowCount(); ++row)
         m_selected.insert(urlAt(row));

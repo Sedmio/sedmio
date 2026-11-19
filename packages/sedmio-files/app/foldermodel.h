@@ -2,6 +2,7 @@
 
 #include <KDirSortFilterProxyModel>
 #include <QDateTime>
+#include <QRegularExpression>
 #include <QSet>
 #include <QUrl>
 #include <QtQml/qqmlregistration.h>
@@ -22,6 +23,14 @@ class FolderModel : public KDirSortFilterProxyModel
     Q_PROPERTY(bool showHidden READ showHidden WRITE setShowHidden NOTIFY showHiddenChanged)
     // Показывать только то, в имени чего есть эта строка (без учёта регистра).
     Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
+    // Окно выбора файлов: показывать только файлы этих видов — шаблоны
+    // имён ("*.png") и типы ("image/png", "image/*"); пусто — все. Папки
+    // видны всегда. dirsOnly — только папки (выбирают папку).
+    Q_PROPERTY(QStringList nameFilters READ nameFilters WRITE setNameFilters NOTIFY typeFilterChanged)
+    Q_PROPERTY(QStringList mimeFilters READ mimeFilters WRITE setMimeFilters NOTIFY typeFilterChanged)
+    Q_PROPERTY(bool dirsOnly READ dirsOnly WRITE setDirsOnly NOTIFY typeFilterChanged)
+    // Выбрать можно только одно (Ctrl, Shift и рамка выделяют одну строку).
+    Q_PROPERTY(bool singleSelection READ singleSelection WRITE setSingleSelection NOTIFY singleSelectionChanged)
     // name, size, date, type
     Q_PROPERTY(QString sortBy READ sortBy WRITE setSortBy NOTIFY sortChanged)
     Q_PROPERTY(bool descending READ descending WRITE setDescending NOTIFY sortChanged)
@@ -64,6 +73,14 @@ public:
     void setShowHidden(bool show);
     QString filter() const { return m_filter; }
     void setFilter(const QString &filter);
+    QStringList nameFilters() const { return m_nameFilters; }
+    void setNameFilters(const QStringList &filters);
+    QStringList mimeFilters() const { return m_mimeFilters; }
+    void setMimeFilters(const QStringList &filters);
+    bool dirsOnly() const { return m_dirsOnly; }
+    void setDirsOnly(bool dirsOnly);
+    bool singleSelection() const { return m_singleSelection; }
+    void setSingleSelection(bool single);
     QString sortBy() const { return m_sortBy; }
     void setSortBy(const QString &sortBy);
     bool descending() const { return m_descending; }
@@ -107,6 +124,8 @@ Q_SIGNALS:
     void urlChanged();
     void showHiddenChanged();
     void filterChanged();
+    void typeFilterChanged();
+    void singleSelectionChanged();
     void sortChanged();
     void countChanged();
     void loadingChanged();
@@ -127,6 +146,11 @@ private:
     KDirModel *m_dirModel;
     bool m_showHidden = false;
     QString m_filter;
+    QStringList m_nameFilters;
+    QList<QRegularExpression> m_nameRegexps;
+    QStringList m_mimeFilters;
+    bool m_dirsOnly = false;
+    bool m_singleSelection = false;
     QString m_sortBy = QStringLiteral("name");
     bool m_descending = false;
     bool m_loading = false;
