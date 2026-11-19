@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=12
+pkgrel=13
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -46,6 +46,7 @@ depends=(
   'pipewire'
   'pipewire-pulse'
   'wireplumber'
+  'rtkit'                   # PipeWire в реальном времени: без него звук трещит под нагрузкой
   'networkmanager'
   'bluez'
   'bluez-utils'
