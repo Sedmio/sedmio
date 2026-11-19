@@ -310,9 +310,8 @@ Plasma строки сверять). Программы KDE/Qt сами спра
 krunner, milou, layer-shell-qt), фреймворки KDE (kded, kglobalaccel,
 kwallet). Порядок: сеанс → заставка → аварийный режим вместо запасного
 plasmashell → powerdevil своей сборкой без plasma-workspace → plasma-nm и
-plasma-pa своей сборкой без апплетов →
-plasma-integration и xdg-desktop-portal-kde своей сборкой без зависимости
-от plasma-workspace → удалить plasma-workspace, plasma-desktop,
+plasma-pa своей сборкой без апплетов → xdg-desktop-portal-kde своей
+сборкой без plasma-workspace (plasma-integration от неё не зависит) → удалить plasma-workspace, plasma-desktop,
 systemsettings.
 
 **Сеанс — пакет sedmio-session** вместо startplasma-wayland, ksmserver,
@@ -384,4 +383,13 @@ plasmashell. Остаётся то, чем пользуемся: клавиши 
 audioshortcutsservice, индикатор рисует оболочка), разделы KDE «Wi‑Fi и
 сеть» (подключения, VPN) и «Звук» за кнопкой «Дополнительно», модули VPN,
 агент паролей Wi‑Fi KDE — запасной для sedmio-agents.
+
+**Портал — xdg-desktop-portal-kde своей сборкой.** Из plasma-workspace ему
+нужен был только модуль QML `org.kde.taskmanager` для окна «Что
+показать?» при демонстрации экрана: живые миниатюры экранов и окон
+(ScreencastingRequest, протокол KWin zkde_screencast) и ряд значков окон
+под каждым экраном. Миниатюры — тот же код (~300 строк из libtaskmanager,
+классы переименованы: у портала есть свой Screencasting) внутри портала;
+ряд значков убран. plasma-integration от plasma-workspace не зависит —
+наоборот.
 

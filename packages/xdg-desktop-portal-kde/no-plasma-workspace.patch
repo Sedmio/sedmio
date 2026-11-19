@@ -1,0 +1,473 @@
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -74,6 +74,12 @@
+     screencast.h
+     screencasting.cpp
+     screencasting.h
++    # Sedmio: живые миниатюры в окне выбора (было — org.kde.taskmanager
++    # из plasma-workspace).
++    previewscreencasting.cpp
++    previewscreencasting.h
++    screencastingrequest.cpp
++    screencastingrequest.h
+     screenchooserdialog.cpp
+     screenchooserdialog.h
+     screenshot.cpp
+--- a/src/PipeWireDelegate.qml
++++ b/src/PipeWireDelegate.qml
+@@ -10,7 +10,6 @@
+ import QtQuick.Controls as QQC2
+ import org.kde.kirigami as Kirigami
+ import org.kde.pipewire as PipeWire
+-import org.kde.taskmanager as TaskManager
+ import org.kde.kitemmodels as ItemModels
+ import org.kde.ki18n
+ 
+@@ -248,51 +247,8 @@
+         id: outputItem
+ 
+         ColumnLayout {
+-            component Tasks: RowLayout {
+-                id: tasksLayout
+-
+-                readonly property int cutoff: 4
+-                readonly property int count: tasksModel.count
+-                readonly property int hasOverflow: tasksModel.count > cutoff
+-                readonly property int remainder: Math.max(0, tasksModel.count - cutoff)
+-
+-                Layout.alignment: Qt.AlignHCenter
+-                spacing: 0
+-                implicitHeight: Kirigami.Units.gridUnit
+-
+-                property TaskManager.TasksModel tasksModel: TaskManager.TasksModel {
+-                    filterByScreen: true
+-                    screenGeometry: root.geometry
+-                    sortMode: TaskManager.TasksModel.SortLastActivated
+-                }
+-
+-                Repeater {
+-                    model: ItemModels.KSortFilterProxyModel {
+-                        sourceModel: tasksLayout.tasksModel
+-                        filterRowCallback: row => row < tasksLayout.cutoff
+-                    }
+-                    delegate: Kirigami.Icon {
+-                        required property var decoration
+-                        implicitHeight: Kirigami.Units.gridUnit
+-                        width: height
+-                        source: decoration
+-                    }
+-                }
+-
+-                QQC2.Label {
+-                    visible: text.length > 0
+-                    color: Kirigami.Theme.disabledTextColor
+-                    text: {
+-                        if (tasksLayout.count === 0) {
+-                            return KI18n.i18nc("@info:status", "No windows open")
+-                        }
+-                        if (!tasksLayout.hasOverflow) {
+-                            return ""
+-                        }
+-                        return KI18n.i18nc("%1 is a number of elided icon entries", "+%1", tasksLayout.remainder)
+-                    }
+-                }
+-            }
++            // Sedmio: ряд значков окон под экраном (TasksModel из plasma-workspace)
++            // убран — портал не зависит от неё.
+ 
+             component Heading : Kirigami.Heading {
+                 level: 2
+@@ -328,7 +284,6 @@
+                         }
+                         Selector {}
+                     }
+-                    Tasks {}
+                 }
+             }
+ 
+@@ -345,9 +300,6 @@
+                         maximumLineCount: undefined
+                         lineHeight: 1.0 // no need to pretend it is two lines we have plenty of space
+                     }
+-                    Tasks {
+-                        Layout.alignment: Qt.AlignLeft
+-                    }
+                     Item {
+                         Layout.fillWidth: true
+                     }
+--- a/src/PipeWireLayout.qml
++++ b/src/PipeWireLayout.qml
+@@ -7,7 +7,6 @@
+ import QtQuick
+ import QtQuick.Layouts
+ import org.kde.kirigami as Kirigami
+-import org.kde.taskmanager as TaskManager
+ 
+ Kirigami.CardsLayout {
+     id: root
+@@ -68,7 +67,7 @@
+ 
+             Accessible.role: root.dialog.multiple ? Accessible.CheckBox : Accessible.Button
+ 
+-            TaskManager.ScreencastingRequest {
++            ScreencastingRequest {
+                 id: waylandItem
+                 outputName: delegate.model.name
+                 uuid: delegate.model.Uuid
+--- a/src/previewscreencasting.cpp
++++ b/src/previewscreencasting.cpp
+@@ -0,0 +1,95 @@
++/*
++    SPDX-FileCopyrightText: 2020 Aleix Pol Gonzalez <aleixpol@kde.org>
++
++    SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
++*/
++
++// Sedmio: из plasma-workspace (libtaskmanager), чтобы портал не зависел от
++// неё ради живых миниатюр в окне выбора экрана. Классы переименованы:
++// у портала есть свой Screencasting.
++
++#include "previewscreencasting.h"
++#include <QDebug>
++#include <QGuiApplication>
++#include <QPointer>
++#include <QScreen>
++#include <qpa/qplatformnativeinterface.h>
++
++PreviewScreencastingStream::PreviewScreencastingStream() = default;
++
++PreviewScreencastingStream::~PreviewScreencastingStream()
++{
++    close();
++}
++
++void PreviewScreencastingStream::zkde_screencast_stream_unstable_v1_created(uint32_t node)
++{
++    Q_EMIT created(node);
++}
++
++void PreviewScreencastingStream::zkde_screencast_stream_unstable_v1_closed()
++{
++    Q_EMIT closed();
++}
++
++void PreviewScreencastingStream::zkde_screencast_stream_unstable_v1_failed(const QString &error)
++{
++    Q_EMIT failed(error);
++}
++
++void PreviewScreencastingStream::zkde_screencast_stream_unstable_v1_serial(uint32_t object_serial_hi, uint32_t object_serial_low)
++{
++    Q_EMIT objectSerialArrived(static_cast<quint64>(object_serial_hi) << 32 | object_serial_low);
++}
++
++PreviewScreencasting::PreviewScreencasting()
++    : QWaylandClientExtensionTemplate<PreviewScreencasting>(ZKDE_SCREENCAST_STREAM_UNSTABLE_V1_SERIAL_SINCE_VERSION)
++{
++    initialize();
++
++    if (!isInitialized()) {
++        qWarning() << "Remember requesting the interface on your desktop file: X-KDE-Wayland-Interfaces=zkde_screencast_unstable_v1";
++    }
++}
++
++PreviewScreencasting::~PreviewScreencasting()
++{
++    if (isActive()) {
++        destroy();
++    }
++}
++
++std::unique_ptr<PreviewScreencastingStream> PreviewScreencasting::createOutputStream(const QString &outputName, pointer mode)
++{
++    if (!isActive()) {
++        return nullptr;
++    }
++
++    wl_output *output = nullptr;
++    for (auto screen : qGuiApp->screens()) {
++        if (screen->name() == outputName) {
++            output = (wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
++        }
++    }
++
++    if (!output) {
++        return nullptr;
++    }
++
++    auto stream = std::make_unique<PreviewScreencastingStream>();
++    stream->setObjectName(outputName);
++    stream->init(stream_output(output, mode));
++    return stream;
++}
++
++std::unique_ptr<PreviewScreencastingStream> PreviewScreencasting::createWindowStream(const QString &uuid, pointer mode)
++{
++    if (!isActive()) {
++        return nullptr;
++    }
++    auto stream = std::make_unique<PreviewScreencastingStream>();
++    stream->init(stream_window(uuid, mode));
++    return stream;
++}
++
++#include "moc_previewscreencasting.cpp"
+--- a/src/previewscreencasting.h
++++ b/src/previewscreencasting.h
+@@ -0,0 +1,54 @@
++/*
++    SPDX-FileCopyrightText: 2020 Aleix Pol Gonzalez <aleixpol@kde.org>
++
++    SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
++*/
++
++// Sedmio: из plasma-workspace (libtaskmanager), чтобы портал не зависел от
++// неё ради живых миниатюр в окне выбора экрана. Классы переименованы:
++// у портала есть свой Screencasting.
++
++#pragma once
++
++#include "qwayland-zkde-screencast-unstable-v1.h"
++
++#include <QObject>
++#include <QWaylandClientExtensionTemplate>
++#include <qqmlregistration.h>
++
++#include <memory>
++
++class PreviewScreencastingStream : public QObject, public QtWayland::zkde_screencast_stream_unstable_v1
++{
++    Q_OBJECT
++
++public:
++    PreviewScreencastingStream();
++    ~PreviewScreencastingStream() override;
++
++Q_SIGNALS:
++    void objectSerialArrived(quint64 objectSerial);
++    void created(quint32 nodeid);
++    void failed(const QString &error);
++    void closed();
++
++protected:
++    void zkde_screencast_stream_unstable_v1_created(uint32_t node) override;
++    void zkde_screencast_stream_unstable_v1_closed() override;
++    void zkde_screencast_stream_unstable_v1_failed(const QString &error) override;
++    void zkde_screencast_stream_unstable_v1_serial(uint32_t object_serial_hi, uint32_t object_serial_low) override;
++};
++
++class PreviewScreencasting : public QWaylandClientExtensionTemplate<PreviewScreencasting>, public QtWayland::zkde_screencast_unstable_v1
++{
++    Q_OBJECT
++    QML_ELEMENT
++    QML_UNCREATABLE("Use ScreencastingRequest")
++
++public:
++    explicit PreviewScreencasting();
++    ~PreviewScreencasting() override;
++
++    std::unique_ptr<PreviewScreencastingStream> createOutputStream(const QString &outputName, pointer mode);
++    std::unique_ptr<PreviewScreencastingStream> createWindowStream(const QString &uuid, pointer mode);
++};
+--- a/src/screencastingrequest.cpp
++++ b/src/screencastingrequest.cpp
+@@ -0,0 +1,119 @@
++/*
++    SPDX-FileCopyrightText: 2020 Aleix Pol Gonzalez <aleixpol@kde.org>
++
++    SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
++*/
++
++// Sedmio: из plasma-workspace (libtaskmanager), чтобы портал не зависел от
++// неё ради живых миниатюр в окне выбора экрана. Классы переименованы:
++// у портала есть свой Screencasting.
++
++#include "screencastingrequest.h"
++
++#include <QCoreApplication>
++#include <QDebug>
++
++ScreencastingRequest::ScreencastingRequest(QObject *parent)
++    : QObject(parent)
++{
++}
++
++ScreencastingRequest::~ScreencastingRequest() = default;
++
++quint32 ScreencastingRequest::nodeId() const
++{
++    return m_nodeId;
++}
++
++quint64 ScreencastingRequest::objectSerial() const
++{
++    return m_objectSerial;
++}
++
++void ScreencastingRequest::resetUuid()
++{
++    setUuid(QString());
++}
++
++void ScreencastingRequest::setUuid(const QString &uuid)
++{
++    if (m_uuid == uuid) {
++        return;
++    }
++
++    setStream(nullptr);
++    m_uuid = uuid;
++    Q_EMIT uuidChanged(uuid);
++
++    if (!m_uuid.isEmpty()) {
++        if (!m_screenCasting) {
++            m_screenCasting = std::make_unique<PreviewScreencasting>();
++        }
++        setStream(m_screenCasting->createWindowStream(m_uuid, PreviewScreencasting::pointer_hidden));
++    }
++}
++
++void ScreencastingRequest::resetOutputName()
++{
++    setOutputName(QString());
++}
++
++void ScreencastingRequest::setOutputName(const QString &outputName)
++{
++    if (m_outputName == outputName) {
++        return;
++    }
++
++    setStream(nullptr);
++    m_outputName = outputName;
++    Q_EMIT outputNameChanged(outputName);
++
++    if (!m_outputName.isEmpty()) {
++        if (!m_screenCasting) {
++            m_screenCasting = std::make_unique<PreviewScreencasting>();
++        }
++        setStream(m_screenCasting->createOutputStream(m_outputName, PreviewScreencasting::pointer_hidden));
++    }
++}
++
++void ScreencastingRequest::setStream(std::unique_ptr<PreviewScreencastingStream> stream)
++{
++    if (stream) {
++        m_stream = std::move(stream);
++
++        connect(m_stream.get(), &PreviewScreencastingStream::created, this, &ScreencastingRequest::setNodeid);
++        connect(m_stream.get(), &PreviewScreencastingStream::closed, this, [this]() {
++            setNodeid(0);
++        });
++        connect(m_stream.get(), &PreviewScreencastingStream::failed, this, [](const QString &error) {
++            qWarning() << "error creating screencast" << error;
++        });
++        connect(m_stream.get(), &PreviewScreencastingStream::objectSerialArrived, this, [this](quint64 objectSerial) {
++            m_objectSerial = objectSerial;
++            Q_EMIT objectSerialChanged(objectSerial);
++        });
++    } else {
++        m_stream.reset();
++        setNodeid(0);
++    }
++}
++
++void ScreencastingRequest::setNodeid(uint nodeId)
++{
++    if (nodeId != m_nodeId) {
++        m_nodeId = nodeId;
++        Q_EMIT nodeIdChanged(nodeId);
++    }
++}
++
++QString ScreencastingRequest::uuid() const
++{
++    return m_uuid;
++}
++
++QString ScreencastingRequest::outputName() const
++{
++    return m_outputName;
++}
++
++#include "moc_screencastingrequest.cpp"
+--- a/src/screencastingrequest.h
++++ b/src/screencastingrequest.h
+@@ -0,0 +1,77 @@
++/*
++    SPDX-FileCopyrightText: 2020 Aleix Pol Gonzalez <aleixpol@kde.org>
++
++    SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
++*/
++
++// Sedmio: из plasma-workspace (libtaskmanager), чтобы портал не зависел от
++// неё ради живых миниатюр в окне выбора экрана. Классы переименованы:
++// у портала есть свой Screencasting.
++
++#pragma once
++
++#include "previewscreencasting.h"
++#include <QObject>
++#include <qqmlregistration.h>
++
++/**
++ * Allows us to request a stream for a window identified by its universally
++ * unique identifier.
++ *
++ * We will get a PipeWire node id that can be fed to any pipewire player, be it
++ * the PipeWireSourceItem, GStreamer's pipewiresink or any other.
++ */
++class ScreencastingRequest : public QObject
++{
++    Q_OBJECT
++    QML_ELEMENT
++    /**
++     * The unique identifier of the window we want to cast.
++     *
++     * @see PlasmaWindow::uuid
++     * @see PlasmaWindow::stackingOrderUuids
++     * @see PlasmaWindowModel::Uuid
++     * @see TasksModel::WinIdList
++     */
++    Q_PROPERTY(QString uuid READ uuid WRITE setUuid RESET resetUuid NOTIFY uuidChanged)
++
++    /**
++     * The output name as define in Screen.name
++     */
++    Q_PROPERTY(QString outputName READ outputName WRITE setOutputName RESET resetOutputName NOTIFY outputNameChanged)
++
++    /** The offered nodeId to give to a source */
++    Q_PROPERTY(quint32 nodeId READ nodeId NOTIFY nodeIdChanged)
++    Q_PROPERTY(quint64 objectSerial READ objectSerial NOTIFY objectSerialChanged)
++public:
++    ScreencastingRequest(QObject *parent = nullptr);
++    ~ScreencastingRequest();
++
++    void resetUuid();
++    void setUuid(const QString &uuid);
++    QString uuid() const;
++
++    void resetOutputName();
++    void setOutputName(const QString &outputName);
++    QString outputName() const;
++
++    quint32 nodeId() const;
++    quint64 objectSerial() const;
++
++Q_SIGNALS:
++    void nodeIdChanged(quint32 nodeId);
++    void uuidChanged(const QString &uuid);
++    void outputNameChanged(const QString &outputNames);
++    void objectSerialChanged(quint64 objectSerial);
++
++private:
++    void setNodeid(uint nodeId);
++    void setStream(std::unique_ptr<PreviewScreencastingStream> stream);
++
++    std::unique_ptr<PreviewScreencasting> m_screenCasting;
++    std::unique_ptr<PreviewScreencastingStream> m_stream;
++    QString m_uuid;
++    QString m_outputName;
++    quint32 m_nodeId = 0;
++    quint64 m_objectSerial = 0;
++};

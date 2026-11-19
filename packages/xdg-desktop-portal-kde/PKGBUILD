@@ -1,0 +1,72 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# xdg-desktop-portal-kde без plasma-workspace: Plasma уходит из системы
+# (docs/decisions.md, раздел 15). Из неё порталу нужен был только модуль
+# QML org.kde.taskmanager — живые миниатюры окон и экранов в окне «Что
+# показать?» при демонстрации экрана. Этот код (ScreencastingRequest,
+# ~300 строк, протокол KWin zkde_screencast) перенесён в сам портал.
+#
+# Основа — PKGBUILD из Arch (extra/xdg-desktop-portal-kde). [sedmio] стоит
+# в pacman.conf выше остальных. Обновлять вместе с Plasma (KWin).
+
+pkgname=xdg-desktop-portal-kde
+pkgver=6.8.3
+_dirver=$(echo $pkgver | cut -d. -f1-3)
+# Выше, чем у CachyOS (6.8.3-1.1): pacman -Syu не понижает версию.
+pkgrel=2
+pkgdesc='A backend implementation for xdg-desktop-portal using Qt/KF6 (сборка Sedmio без plasma-workspace)'
+arch=(x86_64)
+url='https://kde.org/plasma-desktop/'
+license=(LGPL-2.0-or-later)
+depends=(glibc
+         kcmutils
+         kconfig
+         kcoreaddons
+         kcrash
+         kdeclarative
+         kglobalaccel
+         kiconthemes
+         ki18n
+         kio
+         kio-fuse
+         kirigami
+         kirigami-addons
+         kitemviews
+         knotifications
+         kpipewire
+         kservice
+         kstatusnotifieritem
+         kwayland
+         kwindowsystem
+         libstdc++
+         libxkbcommon
+         qt6-base
+         qt6-declarative
+         wayland
+         xdg-desktop-portal)
+makedepends=(extra-cmake-modules
+             plasma-wayland-protocols
+             wayland-protocols)
+provides=(xdg-desktop-portal-impl)
+source=(https://download.kde.org/stable/plasma/$_dirver/$pkgname-$pkgver.tar.xz
+        no-plasma-workspace.patch)
+sha256sums=('d7d695716ea101a76dbfccc2b97c07058b9caaa7bbbf8ad96a3ba6fcee84a109'
+            'b5d3449e188b60648ad36df24fe17d99849afc40cacc695f22efcbb86fbb69f8')
+
+prepare() {
+  # Живые миниатюры в окне выбора экрана — свой ScreencastingRequest (код
+  # из libtaskmanager plasma-workspace) внутри портала; ряд значков окон
+  # под экранами (TasksModel) убран.
+  patch -d $pkgname-$pkgver -Np1 -i ../no-plasma-workspace.patch
+}
+
+build() {
+  cmake -B build  -S $pkgname-$pkgver \
+    -DKDE_INSTALL_LIBEXECDIR=lib \
+    -DBUILD_TESTING=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}
