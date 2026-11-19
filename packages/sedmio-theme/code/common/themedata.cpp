@@ -1,4 +1,4 @@
-#include "theme.h"
+#include "themedata.h"
 
 #include <QColor>
 #include <QDir>
@@ -13,6 +13,12 @@
 #include <cmath>
 
 Q_LOGGING_CATEGORY(lcTheme, "sedmio.theme")
+
+// Ресурс вшитой темы в статической библиотеке — подключить явно.
+static void initBuiltinTheme()
+{
+    Q_INIT_RESOURCE(builtin_theme);
+}
 
 namespace
 {
@@ -122,18 +128,27 @@ bool compatible(const QVariant &builtin, const QVariant &value)
 }
 } // namespace
 
-Theme::Theme(QObject *parent)
-    : QQmlPropertyMap(this, parent)
+namespace Sedmio
 {
+
+ThemeData *ThemeData::instance()
+{
+    static ThemeData *data = new ThemeData; // живёт до конца процесса
+    return data;
+}
+
+ThemeData::ThemeData()
+{
+    initBuiltinTheme();
     m_reload.setSingleShot(true);
     m_reload.setInterval(150);
-    connect(&m_reload, &QTimer::timeout, this, &Theme::reload);
+    connect(&m_reload, &QTimer::timeout, this, &ThemeData::reload);
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, &m_reload, qOverload<>(&QTimer::start));
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_reload, qOverload<>(&QTimer::start));
     reload();
 }
 
-void Theme::reload()
+void ThemeData::reload()
 {
     QString name;
     bool ok = false;
@@ -171,11 +186,8 @@ void Theme::reload()
     values.insert(QStringLiteral("themeName"), name);
     values.insert(QStringLiteral("themeDirectory"), directory);
 
-    // Только изменившееся: каждая замена будит привязки в QML.
-    for (auto it = values.begin(); it != values.end(); ++it) {
-        if (value(it.key()) != it.value())
-            insert(it.key(), it.value());
-    }
+    const bool differs = values != m_values;
+    m_values = values;
 
     // Следить: выбор темы и файл темы (правка на месте), их каталоги
     // (файл заменили целиком — старое наблюдение за ним пропало).
@@ -185,9 +197,12 @@ void Theme::reload()
     if (!directory.isEmpty())
         paths << directory << themeFile;
     watch(paths);
+
+    if (differs)
+        Q_EMIT changed();
 }
 
-void Theme::watch(const QStringList &paths)
+void ThemeData::watch(const QStringList &paths)
 {
     const QStringList old = m_watcher.files() + m_watcher.directories();
     if (!old.isEmpty())
@@ -200,3 +215,5 @@ void Theme::watch(const QStringList &paths)
     if (!existing.isEmpty())
         m_watcher.addPaths(existing);
 }
+
+} // namespace Sedmio

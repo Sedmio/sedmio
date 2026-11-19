@@ -31,6 +31,14 @@
         "wallpaperBottom": "#B9CCB3"
     },
 
+    "window": {
+        "windowTitle": "#EEF1EA",
+        "windowTitleInactive": "#EEF1EA",
+        "windowOutline": "#381D2420",
+        "titleHeight": 36,
+        "windowRadius": 12
+    },
+
     "fonts": {
         "fontFamily": "Onest",
         "fontSmall": 12,

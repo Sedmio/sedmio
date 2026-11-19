@@ -1,0 +1,6 @@
+# Рамки окон Sedmio для каждого пользователя — один раз (kconf_update
+# помнит Id в ~/.config/kconf_updaterc). Пакет sedmio-settings.
+Version=6
+
+Id=sedmio-decoration-1
+Script=sedmio-decoration.sh,sh

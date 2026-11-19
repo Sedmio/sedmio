@@ -14,3 +14,12 @@ LayoutName=org.sedmio.switcher
 # Без «подсветки окна»: она гасит всё, кроме выбранного окна, и панель
 # оболочки тоже; в Windows Alt+Tab так не делает.
 HighlightWindows=false
+
+[org.kde.kdecoration2]
+# Рамки окон — свои, по теме Sedmio (пакет sedmio-theme,
+# org.kde.kdecoration3/org.sedmio.decoration.so). Нет плагина — KWin
+# рисует Breeze.
+library=org.sedmio.decoration
+# Слева значок программы (меню окна), справа свернуть, развернуть, закрыть.
+ButtonsOnLeft=M
+ButtonsOnRight=IAX

@@ -1,0 +1,13 @@
+{
+    "KPlugin": {
+        "Name": "Sedmio",
+        "Description": "Window decoration drawn from the Sedmio theme",
+        "Description[ru]": "Рамки окон по теме Sedmio",
+        "License": "MIT",
+        "Version": "0.2.0"
+    },
+    "org.kde.kdecoration3": {
+        "blur": false,
+        "recommendedBorderSize": "None"
+    }
+}
