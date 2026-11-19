@@ -1,0 +1,7 @@
+# Win+R и Win+S — запуск программ, как «Выполнить» и поиск в Windows, для
+# каждого пользователя — один раз (kconf_update помнит Id в
+# ~/.config/kconf_updaterc). Пакет sedmio-shell.
+Version=6
+
+Id=sedmio-launcherkeys-1
+Script=sedmio-launcherkeys.sh,sh
