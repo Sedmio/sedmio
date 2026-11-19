@@ -127,9 +127,4 @@ Page {
         color: Theme.terracotta
         wrapMode: Text.Wrap
     }
-
-    SButton {
-        text: "Формат даты и времени — в параметрах KDE"
-        onClicked: App.openKde("kcm_regionandlang")
-    }
 }

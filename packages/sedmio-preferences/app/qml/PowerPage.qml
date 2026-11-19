@@ -99,7 +99,7 @@ Page {
     }
 
     SButton {
-        text: "Батарея, яркость и другое — в параметрах KDE"
+        text: "Батарея, яркость и другое…"
         onClicked: App.openKde("kcm_powerdevilprofilesconfig")
     }
 }

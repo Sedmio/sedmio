@@ -230,11 +230,6 @@ Page {
         wrapMode: Text.Wrap
     }
 
-    SButton {
-        text: "Ещё в параметрах KDE"
-        onClicked: App.openKde("kcm_users")
-    }
-
     FileDialog {
         id: avatarDialog
         title: "Картинка учётной записи"

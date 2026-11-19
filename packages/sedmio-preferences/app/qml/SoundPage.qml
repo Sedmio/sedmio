@@ -234,7 +234,7 @@ Page {
     }
 
     SButton {
-        text: "Ещё в параметрах KDE"
+        text: "Дополнительно…"
         onClicked: App.openKde("kcm_pulseaudio")
     }
 }

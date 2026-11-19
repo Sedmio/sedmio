@@ -91,30 +91,6 @@ ApplicationWindow {
                 }
             }
         }
-
-        Rectangle {
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 10 }
-            height: 36
-            radius: 9
-            color: kdeArea.containsMouse ? Theme.paper : "transparent"
-            SIcon {
-                id: kdeIcon
-                anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
-                name: "systemsettings"
-                size: 22
-            }
-            SText {
-                anchors { left: kdeIcon.right; leftMargin: 10; verticalCenter: parent.verticalCenter }
-                text: "Ещё в параметрах KDE"
-                color: Theme.inkSoft
-            }
-            MouseArea {
-                id: kdeArea
-                anchors.fill: parent
-                hoverEnabled: true
-                onClicked: App.openKde()
-            }
-        }
     }
 
     Loader {

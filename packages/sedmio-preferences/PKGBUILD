@@ -10,22 +10,21 @@
 # учётная запись — AccountsService, вход без пароля — sedmio-login,
 # ночная подсветка — kwinrc [NightColor] и knighttimerc (KWin и knighttimed).
 #
-# Разделы пока: Экран, Обои, Мышь и тачпад, Клавиатура, Звук, Питание, Программы
-# по умолчанию, Учётная запись, Дата и время, О системе. Остальное — кнопкой
-# «Ещё в параметрах KDE»: systemsettings остаётся в системе запасным путём.
+# Разделы пока: Экран, Обои, Мышь и тачпад, Клавиатура, Звук, Сеть, Bluetooth,
+# Питание, Программы по умолчанию, Автозапуск, Учётная запись, Дата и время,
+# О системе. «Параметров KDE» (systemsettings) нет — ушли с Plasma; кнопка
+# «Дополнительно» есть там, где раздел KDE остался в системе (звук,
+# питание, типы файлов): открывает его окном kcmshell6.
 #
 # Meta+P (и подключение второго экрана) показывает наш выбор режима экранов
 # (--display-switcher) вместо окна kscreen_osd_service: подмена через
 # drop-in к plasma-kscreen-osd.service, kscreen остаётся запасным.
 #
-# Параметры KDE в меню называются «Параметры KDE», Meta+I открывает наши
-# (files/usr/share/sedmio/xdg — перекрытия файлов KDE).
-#
 # Исходники — app/ рядом с этим файлом (src/ занята makepkg).
 
 pkgname=sedmio-preferences
 pkgver=0.1.0
-pkgrel=27
+pkgrel=28
 pkgdesc="Sedmio: приложение «Параметры» на QML"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -49,7 +48,7 @@ depends=(
   'kservice'
   'libxkbcommon'    # названия раскладок (xkbregistry)
   'icu'             # русские названия городов в часовых поясах
-  'systemsettings'  # «Ещё в параметрах KDE»
+  'kcmutils'        # kcmshell6: «Дополнительно» — раздел KDE окном
   'breeze-icons'
   # Шрифт Onest (sedmio-branding) и цвета (sedmio-theme, модуль Sedmio.Style)
   # сюда не вписаны: makepkg ставит зависимости компилируемого пакета на
@@ -71,7 +70,6 @@ build() {
 package() {
   DESTDIR="$pkgdir" cmake --install build
   cp -a "$startdir/files/." "$pkgdir/"
-  find "$pkgdir/usr/share/sedmio" "$pkgdir/usr/share/kglobalaccel" -type d -exec chmod 755 {} +
-  find "$pkgdir/usr/share/sedmio" -type f -exec chmod 644 {} +
+  find "$pkgdir/usr/share/kglobalaccel" -type d -exec chmod 755 {} +
   chmod 644 "$pkgdir/usr/lib/systemd/user/plasma-kscreen-osd.service.d/10-sedmio.conf"
 }

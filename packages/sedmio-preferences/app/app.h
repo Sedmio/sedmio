@@ -27,8 +27,9 @@ public:
 
     static QString normalizePage(const QString &page);
 
-    // Открыть раздел KDE, которого у нас пока нет (запасной путь).
-    Q_INVOKABLE void openKde(const QString &module = QString());
+    // Открыть раздел KDE, которого у нас пока нет (запасной путь):
+    // звук, сеть, Bluetooth, питание, типы файлов.
+    Q_INVOKABLE void openKde(const QString &module);
 
 public Q_SLOTS:
     void show(const QString &page, const QString &token);

@@ -30,7 +30,7 @@ Page {
     }
 
     SButton {
-        text: "Для отдельных типов файлов — в параметрах KDE"
+        text: "Для отдельных типов файлов…"
         onClicked: App.openKde("kcm_filetypes")
     }
 }

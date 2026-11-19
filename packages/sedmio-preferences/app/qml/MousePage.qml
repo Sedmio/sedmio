@@ -164,9 +164,4 @@ Page {
         color: Theme.terracotta
         wrapMode: Text.Wrap
     }
-
-    SButton {
-        text: "Другие параметры мыши — в параметрах KDE"
-        onClicked: App.openKde("kcm_mouse")
-    }
 }

@@ -96,8 +96,7 @@ void App::show(const QString &page, const QString &token)
 
 void App::openKde(const QString &module)
 {
-    QStringList args;
-    if (!module.isEmpty())
-        args << module;
-    QProcess::startDetached(QStringLiteral("systemsettings"), args);
+    // Окно одного раздела (kcmshell6 из kcmutils): «Параметров KDE»
+    // (systemsettings) в системе нет — они ушли вместе с Plasma.
+    QProcess::startDetached(QStringLiteral("kcmshell6"), {module});
 }
