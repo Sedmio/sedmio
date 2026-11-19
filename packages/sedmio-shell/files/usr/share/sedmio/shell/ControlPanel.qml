@@ -33,7 +33,7 @@ Item {
 
     // Запустить программу (параметры системы) и закрыть панель.
     function openExternal(command) {
-        Quickshell.execDetached(command);
+        ShellState.launch("", command);
         closeRequested(false);
     }
 

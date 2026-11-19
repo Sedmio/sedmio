@@ -12,7 +12,7 @@
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=19
+pkgrel=20
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -31,7 +31,7 @@ package() {
   cp -a "$startdir/files/." "$pkgdir/"
   find "$pkgdir" -type d -exec chmod 755 {} +
   find "$pkgdir" -type f -exec chmod 644 {} +
-  chmod 755 "$pkgdir/usr/lib/sedmio/shell-reload" "$pkgdir/usr/lib/sedmio/open-settings"
+  chmod 755 "$pkgdir/usr/lib/sedmio/shell-reload" "$pkgdir/usr/lib/sedmio/open-settings" "$pkgdir/usr/lib/sedmio/launch"
 
   # Включена для всех пользователей, как службы самого Plasma.
   install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"

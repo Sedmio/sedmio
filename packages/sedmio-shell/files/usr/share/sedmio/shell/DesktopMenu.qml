@@ -26,7 +26,7 @@ PopupWindow {
 
     function run(command) {
         visible = false;
-        Quickshell.execDetached(command);
+        ShellState.launch("", command);
     }
 
     anchor.window: window

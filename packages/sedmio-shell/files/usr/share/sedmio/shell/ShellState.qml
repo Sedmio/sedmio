@@ -23,6 +23,16 @@ Singleton {
     // у оболочки; отпустив её, KWin сам фокус не возвращает — возвращаем.
     property var windowBefore: null
 
+    // Запустить программу в своей группе systemd (/usr/lib/sedmio/launch):
+    // упадёт или перезапустится оболочка — программа живёт дальше.
+    // id — имя .desktop без расширения ("" — по имени команды).
+    function launch(id, command, workingDirectory) {
+        const args = ["/usr/lib/sedmio/launch", id || ""];
+        for (let i = 0; i < command.length; i++) args.push(command[i]);
+        if (workingDirectory) Quickshell.execDetached({ command: args, workingDirectory: workingDirectory });
+        else Quickshell.execDetached(args);
+    }
+
     function rememberFocus() {
         if (!anythingOpen) windowBefore = ToplevelManager.activeToplevel;
     }

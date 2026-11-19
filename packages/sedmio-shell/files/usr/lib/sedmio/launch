@@ -1,0 +1,34 @@
+#!/bin/sh
+# Запустить программу в своей группе systemd — app-<id>-<случайное>.scope
+# в app.slice, как запускают KDE и GNOME (соглашение XDG для systemd).
+#   launch <id программы> <команда> [аргументы...]
+#
+# Зовёт оболочка Sedmio (ShellState.launch). Без этого программа остаётся
+# в группе sedmio-shell.service, и перезапуск или падение оболочки
+# (Restart=on-failure) убивает все открытые из неё программы вместе с
+# несохранённым. В своей группе программа переживает оболочку, а
+# «Диспетчер задач» видит её отдельно и может завершить целиком.
+#
+# Нет менеджера systemd пользователя — запускаем как есть: программа
+# должна открыться в любом случае.
+id=$1
+shift
+[ $# -gt 0 ] || { echo "launch: нет команды" >&2; exit 2; }
+if [ -z "$id" ]; then
+  case $(basename -- "$1") in
+    open-settings) id=sedmio-preferences ;;  # наши «Параметры» (или KDE)
+    *) id=$(basename -- "$1") ;;
+  esac
+fi
+id=${id%.desktop}
+
+if [ -n "$XDG_RUNTIME_DIR" ] && [ -S "$XDG_RUNTIME_DIR/systemd/private" ] \
+   && command -v systemd-run >/dev/null 2>&1; then
+  escaped=$(systemd-escape -- "$id" 2>/dev/null)
+  random=$(od -An -N4 -tx4 /dev/urandom 2>/dev/null | tr -d ' \n')
+  if [ -n "$escaped" ] && [ -n "$random" ]; then
+    exec systemd-run --user --scope --quiet --collect --slice=app.slice \
+      --unit="app-$escaped-$random" -- "$@"
+  fi
+fi
+exec "$@"

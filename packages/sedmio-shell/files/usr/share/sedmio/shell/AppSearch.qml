@@ -34,7 +34,11 @@ Singleton {
         counts[entry.id] = (counts[entry.id] || 0) + 1;
         launches = counts;
         stateFile.setText(JSON.stringify({ launches: counts }, null, 2));
-        entry.execute();
+        // Terminal=true (консольные программы) — в Konsole.
+        const command = [];
+        if (entry.runInTerminal) command.push("konsole", "-e");
+        for (let i = 0; i < entry.command.length; i++) command.push(entry.command[i]);
+        ShellState.launch(entry.id, command, entry.workingDirectory);
     }
 
     // Запрос, набранный не в той раскладке: «ашкуащч» → «firefox».
