@@ -31,6 +31,7 @@ ShellRoot {
             Wallpaper { screen: perScreen.modelData }
             Exclusions { screen: perScreen.modelData }
             Frame { screen: perScreen.modelData }
+            FullscreenOsd { screen: perScreen.modelData }
         }
     }
 
