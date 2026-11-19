@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=Settings
+Name[ru]=Параметры
+GenericName=System Settings
+GenericName[ru]=Параметры системы
+Comment=Display, wallpaper, date and time, about this computer
+Comment[ru]=Экран, обои, дата и время, сведения о компьютере
+Icon=preferences-system
+Exec=sedmio-preferences %u
+Terminal=false
+Categories=Qt;KDE;Settings;
+Keywords=settings;preferences;display;screen;resolution;wallpaper;time;timezone;hostname;
+Keywords[ru]=параметры;настройки;экран;монитор;разрешение;масштаб;обои;фон;время;дата;часовой пояс;имя компьютера;о системе;
+StartupNotify=true
+# Как Win+I в Windows (раньше эти клавиши были у параметров KDE).
+X-KDE-Shortcuts=Meta+I
+X-KDE-Wayland-Interfaces=kde_output_management_v2,kde_output_device_v2

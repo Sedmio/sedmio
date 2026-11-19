@@ -1,0 +1,51 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# «Параметры» — настройки Sedmio вместо параметров системы KDE. Интерфейс на
+# QML в стиле оболочки; работа — те же движки, что у KDE: экраны —
+# libkscreen (применяет и запоминает KWin), время и имя компьютера —
+# systemd (timedated, hostnamed, пароль спрашивает polkit), обои — файл
+# ~/.config/sedmio/wallpaper.json, его читает оболочка.
+#
+# Разделы пока: Экран, Обои, Дата и время, О системе. Остальное — кнопкой
+# «Ещё в параметрах KDE»: systemsettings остаётся в системе запасным путём.
+#
+# Параметры KDE в меню называются «Параметры KDE», Meta+I открывает наши
+# (files/usr/share/sedmio/xdg — перекрытия файлов KDE).
+#
+# Исходники — app/ рядом с этим файлом (src/ занята makepkg).
+
+pkgname=sedmio-preferences
+pkgver=0.1.0
+pkgrel=3
+pkgdesc="Sedmio: приложение «Параметры» на QML"
+arch=('x86_64')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'qt6-base'
+  'qt6-declarative'
+  'kcoreaddons'
+  'kwindowsystem'
+  'libkscreen'
+  'icu'             # русские названия городов в часовых поясах
+  'systemsettings'  # «Ещё в параметрах KDE»
+  'breeze-icons'
+)
+makedepends=(
+  'cmake'
+  'ninja'
+)
+
+build() {
+  cmake -G Ninja -S "$startdir/app" -B build -W no-dev \
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+    -D CMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir/usr/share/sedmio" "$pkgdir/usr/share/kglobalaccel" -type d -exec chmod 755 {} +
+  find "$pkgdir/usr/share/sedmio" -type f -exec chmod 644 {} +
+}
