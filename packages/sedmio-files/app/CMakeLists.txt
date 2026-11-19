@@ -9,7 +9,7 @@ find_package(KF6CoreAddons 6.10 REQUIRED)
 find_package(KF6KIO 6.10 REQUIRED)
 find_package(KF6Service 6.10 REQUIRED)
 find_package(KF6Solid 6.10 REQUIRED)
-find_package(KF6WindowSystem 6.10 REQUIRED)
+find_package(KF6WindowSystem 6.19 REQUIRED) # KWaylandExtras::xdgActivationToken
 
 qt_standard_project_setup(REQUIRES 6.8)
 

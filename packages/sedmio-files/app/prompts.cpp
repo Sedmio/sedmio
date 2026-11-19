@@ -264,9 +264,9 @@ QVariantMap Prompts::current() const
     return m_queue.isEmpty() ? QVariantMap() : m_queue.constFirst().question;
 }
 
-void Prompts::ask(QObject *owner, const QVariantMap &question, const Reply &reply)
+void Prompts::ask(QObject *owner, const QVariantMap &question, const Reply &reply, QWindow *parent)
 {
-    m_queue.append({owner, question, reply});
+    m_queue.append({owner, question, reply, parent});
     // Задание отменили, пока вопрос висит, — снимаем его.
     connect(owner, &QObject::destroyed, this, &Prompts::ownerDestroyed, Qt::UniqueConnection);
     if (m_queue.size() == 1)
@@ -302,8 +302,12 @@ void Prompts::ownerDestroyed()
 
 void Prompts::showFirst()
 {
-    if (!m_queue.isEmpty())
-        m_parentWindow = App::instance() ? App::instance()->lastWindow() : nullptr;
+    if (!m_queue.isEmpty()) {
+        const Pending &first = m_queue.constFirst();
+        m_parentWindow = first.parent         ? first.parent.data()
+            : App::instance()                 ? App::instance()->lastWindow()
+                                              : nullptr;
+    }
     Q_EMIT currentChanged();
 }
 

@@ -3,6 +3,7 @@
 
 #include <KApplicationTrader>
 #include <KService>
+#include <KWaylandExtras>
 #include <KWindowSystem>
 
 #include <QCoreApplication>
@@ -12,6 +13,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFutureWatcher>
 #include <QMimeDatabase>
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -552,6 +554,13 @@ QWindow *FileChooserPortal::promptWindow()
             return nullptr;
         }
         QQmlEngine::setObjectOwnership(m_promptWindow, QQmlEngine::CppOwnership);
+        // Над чьим окном — свой у каждого вопроса, и меняется, только когда
+        // вопрос стал текущим (очередь). На X11 — через Prompts.parentWindow.
+        connect(Prompts::instance(), &Prompts::currentChanged, m_promptWindow, [window = m_promptWindow.data()] {
+            const QString parent = Prompts::instance()->current().value(QStringLiteral("parentWindow")).toString();
+            if (parent.startsWith(QLatin1String("wayland:")))
+                KWindowSystem::setMainWindow(window, parent.mid(8));
+        });
     }
     return m_promptWindow;
 }
@@ -568,11 +577,14 @@ void FileChooserPortal::chooseApplication(const QDBusMessage &call, const QDBusO
         return;
     }
 
-    // Подходящие программы: сначала выбранная в прошлый раз.
+    // Подходящие программы: сначала выбранная в прошлый раз (даже если её
+    // тогда нашли среди всех).
     const QString last = options.value(QStringLiteral("last_choice")).toString();
     QStringList ids = choices;
-    if (ids.removeAll(last) > 0)
+    if (!last.isEmpty()) {
+        ids.removeAll(last);
         ids.prepend(last);
+    }
     QVariantList apps;
     for (const QString &id : std::as_const(ids)) {
         const QVariantMap info = Prompts::applicationInfo(id);
@@ -589,6 +601,8 @@ void FileChooserPortal::chooseApplication(const QDBusMessage &call, const QDBusO
     if (name.isEmpty())
         name = uri.toString();
     const QMimeType mime = QMimeDatabase().mimeTypeForName(mimeType);
+    // «Всегда этой программой» — для файлов; браузер и почта — в «Параметрах».
+    const bool rememberable = !mimeType.isEmpty() && !mimeType.startsWith(QLatin1String("x-scheme-handler/"));
     const QVariantMap question{
         {QStringLiteral("kind"), QStringLiteral("openWith")},
         {QStringLiteral("mimeType"), mimeType},
@@ -596,8 +610,8 @@ void FileChooserPortal::chooseApplication(const QDBusMessage &call, const QDBusO
         {QStringLiteral("name"), name},
         {QStringLiteral("count"), 1},
         {QStringLiteral("apps"), apps},
-        // «Всегда этой программой» — для файлов; браузер и почта — в «Параметрах».
-        {QStringLiteral("remember"), !mimeType.isEmpty() && !mimeType.startsWith(QLatin1String("x-scheme-handler/"))},
+        {QStringLiteral("remember"), rememberable},
+        {QStringLiteral("parentWindow"), parentWindow},
     };
 
     // Владелец вопроса: исчезнет (портал отменил просьбу) — вопрос снимется.
@@ -617,24 +631,65 @@ void FileChooserPortal::chooseApplication(const QDBusMessage &call, const QDBusO
         finish(Cancelled, {});
     });
 
+    // X11: окно программы как родитель (Prompts.parentWindow → transientParent).
+    QWindow *x11Parent = nullptr;
+    if (parentWindow.startsWith(QLatin1String("x11:"))) {
+        bool ok = false;
+        const WId id = parentWindow.mid(4).toULongLong(&ok, 16);
+        if (ok) {
+            x11Parent = QWindow::fromWinId(id);
+            static_cast<QObject *>(x11Parent)->setParent(owner);
+        }
+    }
+
     ++m_open;
     m_idle.stop();
-    placeOver(window, parentWindow);
-    Prompts::instance()->ask(owner, question, [finish, mimeType](const QVariantMap &answer) {
-        QString id = answer.value(QStringLiteral("id")).toString();
-        const KService::Ptr service = KService::serviceByStorageId(id);
-        if (!service) {
-            finish(Cancelled, {});
-            return;
-        }
-        if (answer.value(QStringLiteral("remember")).toBool() && !mimeType.isEmpty())
-            KApplicationTrader::setPreferredService(mimeType, service);
-        // Порталу — имя без «.desktop».
-        id = service->storageId();
-        if (id.endsWith(QLatin1String(".desktop")))
-            id.chop(8);
-        finish(Success, {{QStringLiteral("choice"), id}});
-    });
+    // Токен от программы — чтобы окну дали фокус.
+    const QString token = options.value(QStringLiteral("activation_token")).toString();
+    if (!token.isEmpty())
+        KWindowSystem::setCurrentXdgActivationToken(token);
+    QPointer<QWindow> shown = window;
+    Prompts::instance()->ask(
+        owner,
+        question,
+        [finish, mimeType, rememberable, shown, owner](const QVariantMap &answer) {
+            QString id = answer.value(QStringLiteral("id")).toString();
+            const KService::Ptr service = KService::serviceByStorageId(id);
+            if (!service) {
+                finish(Cancelled, {});
+                return;
+            }
+            if (rememberable && answer.value(QStringLiteral("remember")).toBool())
+                KApplicationTrader::setPreferredService(mimeType, service);
+            // Порталу — имя без «.desktop».
+            id = service->storageId();
+            if (id.endsWith(QLatin1String(".desktop")))
+                id.chop(8);
+            const QVariantMap results{{QStringLiteral("choice"), id}};
+            if (!KWindowSystem::isPlatformWayland() || !shown) {
+                finish(Success, results);
+                return;
+            }
+            // Выбранной программе — токен активации от нашего окна (оно ещё
+            // показано), иначе KWin откроет её без фокуса. Не дали за
+            // секунду — отвечаем без него.
+            auto *watcher = new QFutureWatcher<QString>(owner);
+            QObject::connect(watcher, &QFutureWatcher<QString>::finished, owner, [finish, results, watcher] {
+                QVariantMap withToken = results;
+                const QString token = watcher->future().resultCount() > 0 ? watcher->result() : QString();
+                if (!token.isEmpty())
+                    withToken.insert(QStringLiteral("activation_token"), token);
+                finish(Success, withToken);
+            });
+            QTimer::singleShot(1000, owner, [finish, results] {
+                finish(Success, results);
+            });
+            watcher->setFuture(KWaylandExtras::xdgActivationToken(shown, id));
+        },
+        x11Parent);
+    // Вопрос не ждёт в очереди — поднять окно.
+    if (Prompts::instance()->current() == question && window->isVisible())
+        window->requestActivate();
 }
 
 void FileChooserPortal::windowsChanged()

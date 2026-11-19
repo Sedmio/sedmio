@@ -31,6 +31,13 @@ Window {
     minimumHeight: contentHeight
     maximumHeight: contentHeight
 
+    // Новый вопрос — вид с нуля: выбор, поиск и галочка прошлого вопроса
+    // не должны перейти на следующий (два «Чем открыть» подряд).
+    onQChanged: {
+        loader.active = false;
+        loader.active = true;
+    }
+
     // Закрыли крестиком — как «Отмена».
     onClosing: close => {
         close.accepted = false;
@@ -262,11 +269,15 @@ Window {
             }
             // Подходящих нет — ничего не выбрано заранее (не открыть Enter-ом
             // первым попавшимся); начали искать — первая найденная.
-            onRowsChanged: if (rows.length > 0 && !rows.some(r => r.id === selected)
-                               && (selected !== "" || search.text.trim() !== "")) selected = rows[0].id
+            onRowsChanged: {
+                if (rows.length === 0)
+                    selected = "";   // ничего не нашли — Enter не откроет невидимую
+                else if (!rows.some(r => r.id === selected) && (selected !== "" || search.text.trim() !== ""))
+                    selected = rows[0].id;
+            }
 
             function open() {
-                if (selected !== "") win.reply({ id: selected, remember: remember.checked });
+                if (selected !== "") win.reply({ id: selected, remember: remember.visible && remember.checked });
             }
             Keys.onEscapePressed: win.reply({ id: "" })
 

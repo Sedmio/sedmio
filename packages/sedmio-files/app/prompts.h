@@ -43,7 +43,8 @@ public:
 
     // Задать вопрос от имени owner (обработчик задания). Если owner
     // исчезнет раньше ответа (задание отменили из оболочки), вопрос снимется.
-    void ask(QObject *owner, const QVariantMap &question, const Reply &reply);
+    // parent — над каким окном спросить; нет — над последним окном «Файлов».
+    void ask(QObject *owner, const QVariantMap &question, const Reply &reply, QWindow *parent = nullptr);
 
     // Ответ на текущий вопрос.
     Q_INVOKABLE void answer(const QVariantMap &answer);
@@ -65,6 +66,7 @@ private:
         QPointer<QObject> owner;
         QVariantMap question;
         Reply reply;
+        QPointer<QWindow> parent;
     };
     void ownerDestroyed();
     void showFirst();
