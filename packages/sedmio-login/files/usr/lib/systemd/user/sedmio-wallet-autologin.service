@@ -3,7 +3,7 @@ Description=Sedmio: KDE wallet without a password prompt after autologin
 Documentation=https://github.com/Sedmio/sedmio
 # До всего, что может попросить пароли из бумажника. При входе с паролем
 # бумажник открывает pam_kwallet5, и помощник сразу выходит.
-Before=plasma-kwallet-pam.service plasma-kded6.service plasma-plasmashell.service sedmio-shell.service xdg-desktop-portal.service
+Before=plasma-kwallet-pam.service plasma-kded6.service sedmio-shell.service xdg-desktop-portal.service
 PartOf=graphical-session.target
 
 [Service]
@@ -13,4 +13,4 @@ TimeoutStartSec=30
 Slice=session.slice
 
 [Install]
-WantedBy=sedmio-session.target plasma-core.target
+WantedBy=sedmio-session.target

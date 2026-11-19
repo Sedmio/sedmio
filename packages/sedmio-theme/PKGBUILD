@@ -25,7 +25,7 @@
 
 pkgname=sedmio-theme
 pkgver=0.2.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Sedmio: темы оформления, модуль Sedmio.Style и рамки окон"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -52,9 +52,6 @@ build() {
 
 package() {
   DESTDIR="$pkgdir" cmake --install build
-  install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
-  ln -s ../sedmio-theme-sync.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-theme-sync.service"
-  # Сеанс Sedmio (sedmio-session); plasma-core.target — пока Plasma запасная.
   install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
   ln -s ../sedmio-theme-sync.service "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-theme-sync.service"
 }

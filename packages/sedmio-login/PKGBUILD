@@ -24,7 +24,7 @@
 
 pkgname=sedmio-login
 pkgver=0.1.0
-pkgrel=15
+pkgrel=16
 pkgdesc="Sedmio: экраны входа (greetd) и блокировки"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -62,9 +62,6 @@ package() {
   chmod 755 "$pkgdir/usr/lib/qt6/qml/Sedmio/Login/libsedmiologin.so" \
     "$pkgdir/usr/lib/sedmio/greeter/start" "$pkgdir/usr/lib/sedmio/wallet-autologin" \
     "$pkgdir/usr/lib/sedmio/set-autologin"
-  install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
-  ln -s ../sedmio-wallet-autologin.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-wallet-autologin.service"
-  # Сеанс Sedmio (sedmio-session); plasma-core.target — пока Plasma запасная.
   install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
   ln -s ../sedmio-wallet-autologin.service "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-wallet-autologin.service"
 }

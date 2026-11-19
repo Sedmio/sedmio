@@ -5,7 +5,7 @@
 [Unit]
 Description=Sedmio: цвета программ по теме
 PartOf=graphical-session.target
-After=sedmio-session.target plasma-core.target
+After=sedmio-session.target
 
 [Service]
 ExecStart=/usr/bin/sedmio-theme-sync

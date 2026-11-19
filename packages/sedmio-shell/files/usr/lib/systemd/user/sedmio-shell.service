@@ -1,10 +1,8 @@
 [Unit]
 Description=Sedmio shell: panel, screen frame and wallpaper
 Documentation=https://github.com/Sedmio/sedmio
-After=sedmio-kwin.service plasma-ksmserver.service plasma-kwin_wayland.service
+After=sedmio-kwin.service
 PartOf=graphical-session.target
-# Вернуться к plasmashell: touch ~/.config/sedmio/use-plasmashell
-ConditionPathExists=!%h/.config/sedmio/use-plasmashell
 StartLimitIntervalSec=60s
 StartLimitBurst=3
 # Упала насовсем (три раза за минуту) — аварийный режим: плашку с
@@ -22,4 +20,4 @@ Restart=on-failure
 Slice=session.slice
 
 [Install]
-WantedBy=sedmio-session.target plasma-core.target
+WantedBy=sedmio-session.target

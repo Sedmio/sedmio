@@ -4,7 +4,7 @@
 [Unit]
 Description=Sedmio: уведомления о флешках и дисках
 PartOf=graphical-session.target
-After=sedmio-session.target plasma-core.target
+After=sedmio-session.target
 
 [Service]
 ExecStart=/usr/bin/sedmio-devices

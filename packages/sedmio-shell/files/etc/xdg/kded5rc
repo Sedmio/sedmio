@@ -10,8 +10,6 @@
 #     мультимедиа, Meta+L и место на диске: свои в sedmio-session.
 # Не загружаются при входе. Выгружать их на ходу нельзя — kded6 падает.
 # Имя файла — kded5rc: kded6 читает настройки под старым именем.
-# Режим use-plasmashell загружает networkmanagement сам
-# (plasma-plasmashell.service.d).
 [Module-networkmanagement]
 autoload=false
 

@@ -4,8 +4,7 @@
 # отдаёт занятую клавишу тому, кто занял её первым, а на системе, где
 # раньше работала Plasma, Win и Alt+F1 записаны за меню plasmashell (а Win+S —
 # за «остановить комнату»), — и запуск оставался без Win. Забираем их у
-# plasmashell, только если там они
-# по умолчанию и Plasma не выбрана вместо нашей оболочки (use-plasmashell).
+# plasmashell, только если там они по умолчанию.
 # Потом Win+R («Выполнить») и Win+S (поиск). Win+R по
 # умолчанию у Spectacle: запись области экрана (у неё есть и Win+Shift+R —
 # его оставляем). Клавишу Spectacle забираем, только если у него
@@ -70,15 +69,8 @@ sorted_groups() { # $@ — «4 k 0 0 0 …»
     | sed "s/^4 285212706 /4 $meta /" | sort
 }
 
-# Можно ли забирать клавиши у plasmashell: Plasma не выбрана вместо нашей
-# оболочки (use-plasmashell).
-plasma_replaced() {
-  [ ! -e "${XDG_CONFIG_HOME:-$HOME/.config}/sedmio/use-plasmashell" ]
-}
-
 # Win и Alt+F1 — у меню plasmashell по умолчанию: забрать запуску.
 take_from_plasma() {
-  plasma_replaced || return 0
   plasma=$(keys_of plasmashell "$plasma_menu") || return 0
   # shellcheck disable=SC2086
   [ "$(sorted_groups $plasma)" = "$(sorted_groups 4 $meta 0 0 0 4 $alt_f1 0 0 0)" ] || return 0
@@ -130,7 +122,7 @@ run() {
     [ $? -ne 1 ] || retry
   fi
   # Win+S в старых Plasma — «остановить комнату» у plasmashell.
-  if [ "$(keys_of plasmashell "stop current activity")" = "4 $meta_s 0 0 0" ] && plasma_replaced; then
+  if [ "$(keys_of plasmashell "stop current activity")" = "4 $meta_s 0 0 0" ]; then
     call setForeignShortcutKeys "asa(ai)" 4 plasmashell "stop current activity" "" "" 0 >/dev/null
     if ! add $meta_s; then
       call setForeignShortcutKeys "asa(ai)" 4 plasmashell "stop current activity" "" "" 1 4 $meta_s 0 0 0 >/dev/null

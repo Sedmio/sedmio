@@ -10,9 +10,9 @@
 #
 # Выход, выключение, перезагрузка: sedmio-session-manager (app/) — службы
 # D-Bus org.kde.LogoutPrompt и org.kde.Shutdown, экран «Что сделать?»
-# (usr/share/sedmio/logout, вид общий с запасным окном Plasma) поверх всех
-# мониторов. KWin закрывает окна, logind выключает. Экран не загрузился —
-# простой встроенный (app/Fallback.qml).
+# (usr/share/sedmio/logout) поверх всех мониторов. KWin закрывает окна,
+# logind выключает. Экран не загрузился — простой встроенный
+# (app/Fallback.qml).
 #
 # Заставка при входе: sedmio-splash (app/splash.cpp, вид —
 # usr/share/sedmio/splash) вместо ksplashqml.
@@ -28,7 +28,7 @@
 
 pkgname=sedmio-session
 pkgver=0.1.0
-pkgrel=6
+pkgrel=7
 pkgdesc="Sedmio: сеанс — запуск, выход, выключение"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

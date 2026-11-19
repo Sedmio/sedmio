@@ -5,7 +5,7 @@
 # первым, и наши действия (/usr/share/kglobalaccel/sedmio-*.desktop) с теми
 # же клавишами по умолчанию оставались без них. Забираем: только если у
 # действия plasmashell ровно эта одна клавиша (не назначал ли пользователь
-# своё) и Plasma не выбрана вместо нашей оболочки (use-plasmashell). Свободную клавишу — просто нашему действию. Занятую чем-то
+# своё). Свободную клавишу — просто нашему действию. Занятую чем-то
 # ещё не трогаем. Не встало — возвращаем как было и повторяем при
 # следующем входе. Win и Alt+F1 у меню plasmashell забирает
 # sedmio-launcherkeys. Запускает kconf_update один раз при входе.
@@ -58,7 +58,6 @@ take() {
 }
 
 run() {
-  [ -e "${XDG_CONFIG_HOME:-$HOME/.config}/sedmio/use-plasmashell" ] && return 0
   # Наши действия kglobalaccel читает при старте — подождём.
   i=0
   until call allActionsForComponent as 1 sedmio-windows.desktop | grep -q '"_launch"'; do

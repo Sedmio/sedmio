@@ -2,17 +2,14 @@
 #
 # Оболочка Sedmio вместо plasmashell: обои, рамка вокруг экрана, панель
 # слева. Написана на Quickshell (наша сборка, packages/quickshell), лежит
-# в /usr/share/sedmio/shell. KWin, kded и остальной сеанс Plasma остаются.
+# в /usr/share/sedmio/shell.
 #
-# Запуск — служба sedmio-shell.service в сеансе Plasma. plasmashell
-# отключён drop-in файлом с условием; вернуть его (и убрать нашу
-# оболочку) можно без root:
-#   mkdir -p ~/.config/sedmio && touch ~/.config/sedmio/use-plasmashell
-# и перезайти. Удалить файл — снова Sedmio.
+# Запуск — служба sedmio-shell.service в сеансе Sedmio (sedmio-session).
+# Упала насовсем — аварийный режим (плашка от sedmio-session-manager).
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=47
+pkgrel=48
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -22,10 +19,10 @@ depends=(
   'sedmio-branding'     # шрифт Onest
   'sedmio-theme'        # цвета и прочее оформление (Sedmio.Style)
   'sedmio-settings'     # знак Sedmio в hicolor
-  'plasma-workspace'    # сеанс, в котором работает оболочка
+  'sedmio-session'      # сеанс, в котором работает оболочка
   'breeze-icons'
   'qt6-svg'
-  'libnotify'           # notify-send: сообщить, что включена запасная оболочка
+  'libnotify'           # notify-send: «Выполнить» не нашёл программу
 )
 
 package() {
@@ -34,11 +31,7 @@ package() {
   find "$pkgdir" -type f -exec chmod 644 {} +
   chmod 755 "$pkgdir/usr/lib/sedmio/shell-reload" "$pkgdir/usr/lib/sedmio/open-settings" "$pkgdir/usr/lib/sedmio/launch"
 
-  # Включена для всех пользователей, как службы самого Plasma.
-  install -dm755 "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants"
-  ln -s ../sedmio-shell.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-shell.service"
-  ln -s ../sedmio-agents.service "$pkgdir/usr/lib/systemd/user/plasma-core.target.wants/sedmio-agents.service"
-  # Сеанс Sedmio (sedmio-session); plasma-core.target — пока Plasma запасная.
+  # Включена для всех пользователей в сеансе Sedmio.
   install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
   ln -s ../sedmio-shell.service "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-shell.service"
   ln -s ../sedmio-agents.service "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-agents.service"

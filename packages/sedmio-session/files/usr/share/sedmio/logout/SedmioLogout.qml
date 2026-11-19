@@ -4,9 +4,8 @@ import "file:///usr/share/sedmio/login-ui"
 import Sedmio.Style
 
 // Экран выхода Sedmio. Его загружает sedmio-session-manager
-// (LogoutWindow.qml), а в запасном окне выхода Plasma — Logout.qml пакета
-// org.sedmio.shell. Свойства контекста — те же, что у
-// ksmserver-logout-greeter: sdtype (что просили), ShutdownType,
+// (LogoutWindow.qml). Свойства контекста — те же, что были у окна выхода
+// Plasma (ksmserver-logout-greeter): sdtype (что просили), ShutdownType,
 // maysd (можно выключать), canLogout, spdMethods (сон, гибернация),
 // softwareUpdatePending (есть обновление, ставится при перезагрузке).
 //
