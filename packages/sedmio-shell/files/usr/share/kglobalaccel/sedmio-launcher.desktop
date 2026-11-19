@@ -4,8 +4,9 @@
 # было «Meta, Alt+F1» для его меню), раздел ModifierOnlyShortcuts в kwinrc
 # KWin 6.8 уже не читает. Alt+Пробел и Alt+F2 были у KRunner — их у него
 # забирает /usr/share/sedmio/xdg/kglobalaccel/org.kde.krunner.desktop.
-# Оболочка не запущена (упала) — вместо нашего запуска открываем KRunner,
-# чтобы клавиша не была мёртвой.
+# Оболочка не запущена (упала) — клавиша ничего не делает: программы
+# тогда запускают из «Диспетчера задач» (Ctrl+Shift+Esc, «Запустить новую
+# задачу»), о чём говорит плашка аварийного режима.
 # NoDisplay ставить нельзя: такие файлы kglobalaccel отключает. В меню
 # программ файл и так не попадает — он не в /usr/share/applications.
 [Desktop Entry]
@@ -13,5 +14,5 @@ Type=Application
 Name=Sedmio launcher
 Name[ru]=Запуск программ Sedmio
 Icon=sedmio
-Exec=sh -c "quickshell ipc -p /usr/share/sedmio/shell call launcher toggle || exec krunner"
+Exec=quickshell ipc -p /usr/share/sedmio/shell call launcher toggle
 X-KDE-Shortcuts=Meta,Alt+F1,Alt+Space,Alt+F2,Search

@@ -47,7 +47,7 @@ Window {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: "Окна — Alt+Tab, программы — Alt+Пробел, диспетчер задач — Ctrl+Shift+Esc"
+            text: "Окна — Alt+Tab, запуск программ — Ctrl+Shift+Esc, «Запустить новую задачу»"
             color: "#c0ffffff"
             font.pixelSize: 14
             // Узкий экран — подсказка обрезается, кнопки остаются.

@@ -2,11 +2,13 @@
 #
 # «Диспетчер задач» (Ctrl+Shift+Esc): открытые программы — по их группам
 # systemd (процессор, память, «Завершить», «Закрыть принудительно»), части
-# системы отдельно, перезапуск и запуск упавшей оболочки. Отдельный пакет,
+# системы отдельно, перезапуск и запуск упавшей оболочки, «Запустить новую
+# задачу» (программа без оболочки — вместо KRunner). Отдельный пакет,
 # а не раздел «Параметров»: инструмент на случай, когда что-то сломалось,
-# не должен ломаться вместе с остальным. Зависит только от Qt и KService;
-# цвета — общий модуль Sedmio.Style (sedmio-theme), четыре файла
-# оформления — копия из sedmio-preferences.
+# не должен ломаться вместе с остальным. Зависит только от Qt и KDE
+# Frameworks (KService, KCoreAddons, KWindowSystem);
+# цвета — общий модуль Sedmio.Style (sedmio-theme), файлы
+# оформления (и поле ввода) — копия из sedmio-preferences.
 #
 # Ctrl+Shift+Esc — X-KDE-Shortcuts в .desktop; файл для kglobalaccel —
 # ссылка files/usr/share/kglobalaccel/sedmio-tasks.desktop.
@@ -15,7 +17,7 @@
 
 pkgname=sedmio-tasks
 pkgver=0.1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Sedmio: диспетчер задач"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -24,6 +26,7 @@ depends=(
   'qt6-base'
   'qt6-declarative'
   'kservice'
+  'kcoreaddons'     # KShell: разбор команды в «Запустить новую задачу»
   'kwindowsystem'
   'systemd'         # группы программ (cgroup), остановка через systemd --user
   # Шрифт Onest (sedmio-branding) и цвета (sedmio-theme, модуль Sedmio.Style)

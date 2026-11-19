@@ -5,6 +5,7 @@ import Sedmio.Style
 
 // «Диспетчер задач» (Ctrl+Shift+Esc): программы — сколько берут и
 // «Завершить»; ниже — части системы. Данные — Tasks (группы systemd).
+// «Запустить новую задачу» — Launcher: открыть программу без оболочки.
 ApplicationWindow {
     id: win
     width: 760
@@ -30,8 +31,32 @@ ApplicationWindow {
         onTriggered: win.restartingShell = false
     }
 
+    Launcher { id: launcher }
+    // Панель «Запустить новую задачу» открыта.
+    property bool runOpen: false
+    property var runMatches: []
+
+    function openRun() {
+        runOpen = true;
+        runField.text = "";
+        runField.forceActiveFocus();
+        flick.contentY = 0;
+    }
+    function closeRun() {
+        runOpen = false;
+        runField.text = "";
+    }
+    // Enter: выбранная программа из списка, иначе строка как команда.
+    function runSelected() {
+        const ok = runList.currentIndex >= 0 && runList.currentIndex < win.runMatches.length
+            ? launcher.launchApp(win.runMatches[runList.currentIndex].id)
+            : launcher.runCommand(runField.text);
+        if (ok)
+            closeRun();
+    }
+
     Shortcut { sequences: [StandardKey.Close, StandardKey.Quit]; onActivated: win.close() }
-    Shortcut { sequence: "Escape"; onActivated: win.close() }
+    Shortcut { sequence: "Escape"; onActivated: win.runOpen ? win.closeRun() : win.close() }
 
     function percent(value) {
         return value < 0.5 ? "0 %" : value < 10 ? value.toFixed(1).replace(".", ",") + " %" : Math.round(value) + " %";
@@ -58,10 +83,122 @@ ApplicationWindow {
             width: flick.width - 56
             spacing: 18
 
-            SText {
-                text: "Диспетчер задач"
-                size: 24
-                weight: 650
+            Item {
+                width: parent.width
+                height: Math.max(heading.height, runButton.height)
+                SText {
+                    id: heading
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Диспетчер задач"
+                    size: 24
+                    weight: 650
+                }
+                SButton {
+                    id: runButton
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !win.runOpen
+                    text: "Запустить новую задачу"
+                    onClicked: win.openRun()
+                }
+            }
+
+            Card {
+                title: "Запустить новую задачу"
+                visible: win.runOpen
+                Item {
+                    width: parent.width
+                    height: 34 + 28
+                    SField {
+                        id: runField
+                        anchors { left: parent.left; right: runGo.left; margins: 14; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                        placeholderText: "Название программы, команда или путь к файлу"
+                        onTextChanged: {
+                            launcher.clearError();
+                            win.runMatches = launcher.search(text);
+                            runList.currentIndex = win.runMatches.length > 0 ? 0 : -1;
+                        }
+                        Keys.onReturnPressed: win.runSelected()
+                        Keys.onEnterPressed: win.runSelected()
+                        Keys.onDownPressed: runList.currentIndex = Math.min(runList.currentIndex + 1, win.runMatches.length - 1)
+                        Keys.onUpPressed: runList.currentIndex = Math.max(runList.currentIndex - 1, -1)
+                    }
+                    SButton {
+                        id: runGo
+                        anchors { right: runCancel.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                        primary: true
+                        text: "Запустить"
+                        onClicked: win.runSelected()
+                    }
+                    SButton {
+                        id: runCancel
+                        anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                        text: "Отмена"
+                        onClicked: win.closeRun()
+                    }
+                }
+                SText {
+                    visible: launcher.error !== ""
+                    width: parent.width
+                    leftPadding: 16
+                    rightPadding: 16
+                    bottomPadding: 12
+                    text: launcher.error
+                    color: Theme.terracotta
+                    wrapMode: Text.Wrap
+                }
+                ListView {
+                    id: runList
+                    width: parent.width
+                    height: contentHeight
+                    interactive: false
+                    model: win.runMatches
+                    currentIndex: -1
+                    delegate: Rectangle {
+                        id: match
+                        required property var modelData
+                        required property int index
+                        width: runList.width
+                        height: 48
+                        color: runList.currentIndex === index ? Theme.paper : "transparent"
+                        Rectangle {
+                            anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: 16; rightMargin: 16 }
+                            height: 1
+                            color: Theme.line
+                        }
+                        SIcon {
+                            id: matchIcon
+                            anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
+                            size: 24
+                            name: match.modelData.icon
+                        }
+                        Column {
+                            anchors { left: matchIcon.right; leftMargin: 12; right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
+                            SText {
+                                width: parent.width
+                                text: match.modelData.name
+                                elide: Text.ElideRight
+                            }
+                            SText {
+                                width: parent.width
+                                visible: text !== ""
+                                text: match.modelData.comment
+                                size: Theme.fontSmall
+                                color: Theme.inkMuted
+                                elide: Text.ElideRight
+                            }
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: runList.currentIndex = match.index
+                            onClicked: {
+                                runList.currentIndex = match.index;
+                                win.runSelected();
+                            }
+                        }
+                    }
+                }
             }
 
             // Процессор и память всего.
