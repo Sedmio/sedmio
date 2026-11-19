@@ -190,7 +190,10 @@ void Updates::readUpgradeState()
             for (qsizetype i = lines.size() - 1; i >= 0; --i) {
                 const QString line = lines.at(i).trimmed();
                 if (line.startsWith(QStringLiteral("ошибка:")) || line.startsWith(QLatin1String("error:"))) {
-                    QStringList text{line.mid(line.indexOf(QLatin1Char(':')) + 1).trimmed()};
+                    QString first = line.mid(line.indexOf(QLatin1Char(':')) + 1).trimmed();
+                    if (!first.isEmpty())
+                        first[0] = first.at(0).toUpper();
+                    QStringList text{first};
                     for (qsizetype j = i + 1; j < lines.size() && text.size() < 4; ++j) {
                         const QString more = lines.at(j).trimmed();
                         if (more.startsWith(QLatin1String("::")))
