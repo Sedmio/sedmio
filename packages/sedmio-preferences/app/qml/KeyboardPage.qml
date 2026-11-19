@@ -4,7 +4,8 @@ import Sedmio.Preferences
 import Sedmio.Style
 
 // «Клавиатура»: раскладки по порядку переключения, добавить и убрать,
-// клавиши переключения, своя раскладка у каждого окна. Всё применяется сразу.
+// клавиши переключения, своя раскладка у каждого окна; повтор клавиш и
+// Num Lock — как в «Панели управления» Windows. Всё применяется сразу.
 Page {
     id: root
     title: "Клавиатура"
@@ -147,6 +148,46 @@ Page {
         }
     }
 
+    Card {
+        title: "Повтор клавиш"
+        Setting {
+            label: "Задержка перед повтором"
+            hint: keyboard.repeatDelay + " мс"
+            // Влево — длиннее, вправо — короче, как в Windows: 1000…200 мс.
+            SSlider {
+                width: 260
+                maximum: 1
+                value: (1000 - keyboard.repeatDelay) / 800
+                onMoved: value => keyboard.setRepeatDelay(Math.round((1000 - value * 800) / 10) * 10)
+            }
+        }
+        Setting {
+            label: "Скорость повтора"
+            hint: Math.round(keyboard.repeatRate) + " в секунду"
+            SSlider {
+                width: 260
+                maximum: 1
+                value: (keyboard.repeatRate - 2) / 38
+                onMoved: value => keyboard.setRepeatRate(Math.round(2 + value * 38))
+            }
+        }
+        Setting {
+            label: "Проверка"
+            SField {
+                placeholderText: "Удерживайте здесь клавишу"
+            }
+        }
+        Setting {
+            last: true
+            label: "Num Lock включён после входа"
+            hint: "Выключено — остаётся, как был при включении компьютера."
+            SSwitch {
+                checked: keyboard.numLockOn
+                onToggled: keyboard.setNumLockOn(!checked)
+            }
+        }
+    }
+
     SText {
         visible: keyboard.error !== ""
         width: parent.width
@@ -156,7 +197,7 @@ Page {
     }
 
     SButton {
-        text: "Повтор клавиш и другое — в параметрах KDE"
+        text: "Другие параметры клавиатуры — в параметрах KDE"
         onClicked: App.openKde("kcm_keyboard")
     }
 }

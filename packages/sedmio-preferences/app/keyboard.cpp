@@ -181,6 +181,76 @@ Keyboard::Keyboard(QObject *parent)
     : QObject(parent)
 {
     load();
+    loadRepeat();
+    m_repeatSave.setSingleShot(true);
+    m_repeatSave.setInterval(300);
+    connect(&m_repeatSave, &QTimer::timeout, this, &Keyboard::saveRepeat);
+}
+
+// Закрыли окно, пока ползунок ещё «остывал», — сохранить сразу.
+Keyboard::~Keyboard()
+{
+    if (m_repeatSave.isActive())
+        saveRepeat();
+}
+
+// Значения по умолчанию — как у KWin (RepeatDelay 600, RepeatRate 25,
+// NumLock 2 — «не трогать»; 0 — включить при входе, 1 — выключить).
+void Keyboard::loadRepeat()
+{
+    KConfig config(QStringLiteral("kcminputrc"), KConfig::FullConfig);
+    const KConfigGroup group(&config, QStringLiteral("Keyboard"));
+    m_repeatDelay = std::clamp(group.readEntry("RepeatDelay", 600), 100, 2000);
+    m_repeatRate = std::clamp(group.readEntry("RepeatRate", 25.0), 1.0, 100.0);
+    m_numLockOn = group.readEntry("NumLock", 2) == 0;
+    Q_EMIT repeatChanged();
+}
+
+void Keyboard::saveRepeat()
+{
+    KConfig config(QStringLiteral("kcminputrc"), KConfig::SimpleConfig);
+    KConfigGroup group(&config, QStringLiteral("Keyboard"));
+    // Notify — KWin перечитывает повтор сразу (KConfigWatcher).
+    const auto flags = KConfig::Notify | KConfig::Persistent;
+    group.writeEntry("RepeatDelay", m_repeatDelay, flags);
+    group.writeEntry("RepeatRate", m_repeatRate, flags);
+    if (m_numLockOn)
+        group.writeEntry("NumLock", 0, flags);
+    else
+        group.deleteEntry("NumLock", flags);
+    if (!config.sync()) {
+        m_error = QStringLiteral("Не удалось сохранить повтор клавиш.");
+        Q_EMIT changed();
+    }
+}
+
+void Keyboard::setRepeatDelay(int ms)
+{
+    ms = std::clamp(ms, 100, 2000);
+    if (ms == m_repeatDelay)
+        return;
+    m_repeatDelay = ms;
+    Q_EMIT repeatChanged();
+    m_repeatSave.start();
+}
+
+void Keyboard::setRepeatRate(double rate)
+{
+    rate = std::clamp(rate, 1.0, 100.0);
+    if (qFuzzyCompare(rate, m_repeatRate))
+        return;
+    m_repeatRate = rate;
+    Q_EMIT repeatChanged();
+    m_repeatSave.start();
+}
+
+void Keyboard::setNumLockOn(bool on)
+{
+    if (on == m_numLockOn)
+        return;
+    m_numLockOn = on;
+    Q_EMIT repeatChanged();
+    saveRepeat();
 }
 
 void Keyboard::load()
