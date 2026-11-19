@@ -1,0 +1,6 @@
+# Тема значков Sedmio для каждого пользователя — один раз (kconf_update
+# помнит Id в ~/.config/kconf_updaterc). Пакет sedmio-settings.
+Version=6
+
+Id=sedmio-icons-1
+Script=sedmio-icons.sh,sh

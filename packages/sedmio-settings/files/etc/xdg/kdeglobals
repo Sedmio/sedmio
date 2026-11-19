@@ -7,3 +7,10 @@ SingleClick=false
 # сверяет схему с ~/.config/kdeglobals и записывает туда её цвета.
 # Файла схемы нет — остаются прежние цвета (Breeze).
 ColorScheme=Sedmio
+
+[Icons]
+# Breeze с белыми знаками на папках (usr/share/icons/sedmio, собирается из
+# Breeze при сборке пакета: icons/make-theme.py). Нет темы — Breeze. В
+# сеансе Plasma это умолчание перекрывает ~/.config/kdedefaults, поэтому
+# тему пользователю ставит и kconf_update (sedmio-icons.upd).
+Theme=sedmio
