@@ -81,7 +81,9 @@ ApplicationWindow {
 
     // ---- Фильтр по виду файлов
 
-    readonly property var currentFilter: filterIndex >= 0 && filterIndex < filters.length ? filters[filterIndex] : null
+    function filterAt(index) {
+        return index >= 0 && index < filters.length ? filters[index] : null;
+    }
     // «*.png» → «png»; у фильтра без простого шаблона — пусто.
     function extensionOf(filter) {
         if (!filter) return "";
@@ -94,7 +96,8 @@ ApplicationWindow {
     // Сменили вид файлов при сохранении — сменить и расширение в имени.
     onFilterIndexChanged: {
         if (mode !== "save") return;
-        const ext = extensionOf(currentFilter);
+        // Фильтр — по индексу, а не привязкой: та может пересчитаться позже.
+        const ext = extensionOf(filterAt(filterIndex));
         const name = nameField.text;
         const dot = name.lastIndexOf(".");
         if (ext === "" || dot <= 0) return;
@@ -143,7 +146,7 @@ ApplicationWindow {
             nameField.forceActiveFocus();
             return;
         }
-        const ext = extensionOf(currentFilter);
+        const ext = extensionOf(filterAt(filterIndex));
         if (ext !== "" && name.indexOf(".") < 0) name += "." + ext;
         const target = session.resolve(folder.url, name);
         const kind = session.kind(target);
@@ -470,7 +473,7 @@ ApplicationWindow {
     }
 
     function applyFilter() {
-        const f = currentFilter;
+        const f = filterAt(filterIndex);
         folder.nameFilters = f ? f.patterns : [];
         folder.mimeFilters = f ? f.mimes : [];
     }
@@ -523,6 +526,11 @@ ApplicationWindow {
             required property int index
             required property var modelData
             width: combo.width
+            // Подсветка — с полями: не упирается в скруглённые углы списка.
+            leftInset: 4
+            rightInset: 4
+            topInset: 2
+            bottomInset: 2
             highlighted: combo.highlightedIndex === index
             contentItem: SText {
                 text: modelData
