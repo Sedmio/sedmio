@@ -32,7 +32,7 @@ BarButton {
     IconImage {
         anchors.centerIn: parent
         implicitSize: 20
-        source: Quickshell.iconPath(
+        source: Icons.path(
             !root.ready || root.muted ? "audio-volume-muted"
             : root.volume < 0.34 ? "audio-volume-low"
             : root.volume < 0.67 ? "audio-volume-medium"

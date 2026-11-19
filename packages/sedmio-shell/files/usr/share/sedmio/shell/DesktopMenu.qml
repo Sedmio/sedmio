@@ -72,7 +72,7 @@ PopupWindow {
                         id: rowIcon
                         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                         implicitSize: 18
-                        source: Quickshell.iconPath(row.modelData.icon, true)
+                        source: Icons.path(row.modelData.icon, true)
                     }
                     SText {
                         anchors { left: rowIcon.right; leftMargin: 10; right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }

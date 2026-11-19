@@ -35,7 +35,7 @@ PanelWindow {
         anchors.bottom: parent.bottom
         anchors.rightMargin: root.width * 0.08
         anchors.bottomMargin: root.height * 0.1
-        source: Quickshell.iconPath("sedmio", true)
+        source: Icons.path("sedmio", true)
         opacity: 0.13
         visible: layerA.status !== Image.Ready && layerB.status !== Image.Ready
     }

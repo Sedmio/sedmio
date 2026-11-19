@@ -17,7 +17,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         x: 16
         implicitSize: 24
-        source: OsdState.icon !== "" ? Quickshell.iconPath(OsdState.icon, "dialog-information") : ""
+        source: OsdState.icon !== "" ? Icons.path(OsdState.icon, "dialog-information") : ""
     }
 
     // Полоса

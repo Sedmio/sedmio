@@ -24,7 +24,7 @@ BarButton {
     IconImage {
         anchors.centerIn: parent
         implicitSize: 20
-        source: Quickshell.iconPath(root.device ? root.device.iconName : "", "battery-missing")
+        source: Icons.path(root.device ? root.device.iconName : "", "battery-missing")
     }
 
     // Мало заряда — подсветить

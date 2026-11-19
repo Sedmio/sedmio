@@ -60,7 +60,7 @@ Rectangle {
 
             IconImage {
                 implicitSize: 20
-                source: card.valid ? Quickshell.iconPath(JobsState.appIcon(card.job), "system-file-manager") : ""
+                source: card.valid ? Icons.path(JobsState.appIcon(card.job), "system-file-manager") : ""
             }
             SText {
                 Layout.fillWidth: true

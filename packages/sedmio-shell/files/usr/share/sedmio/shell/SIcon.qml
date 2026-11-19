@@ -11,7 +11,7 @@ IconImage {
     property bool light: false
 
     implicitSize: 20
-    source: name === "" ? "" : Quickshell.iconPath(name, fallback)
+    source: name === "" ? "" : Icons.path(name, fallback)
 
     layer.enabled: light
     layer.effect: MultiEffect {

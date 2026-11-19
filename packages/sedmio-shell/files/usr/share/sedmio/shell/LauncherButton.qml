@@ -19,6 +19,6 @@ BarButton {
     IconImage {
         anchors.centerIn: parent
         implicitSize: 24
-        source: Quickshell.iconPath("sedmio", "start-here")
+        source: Icons.path("sedmio", "start-here")
     }
 }

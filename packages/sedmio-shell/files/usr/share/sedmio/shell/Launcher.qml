@@ -60,7 +60,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             x: 16
             implicitSize: 20
-            source: Quickshell.iconPath("search")
+            source: Icons.path("search")
             opacity: 0.7
         }
 
@@ -151,7 +151,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 x: 12
                 implicitSize: 32
-                source: Quickshell.iconPath(row.modelData.icon, true) || Quickshell.iconPath("application-x-executable")
+                source: Icons.path(row.modelData.icon, true) || Icons.path("application-x-executable")
             }
 
             Column {

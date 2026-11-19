@@ -52,10 +52,10 @@ Rectangle {
         for (const name of [info.appIcon, imageIconName, entry ? entry.icon : ""]) {
             if (!name) continue;
             if (name.startsWith("/") || name.startsWith("file:")) return name;
-            const path = Quickshell.iconPath(name, true);
+            const path = Icons.path(name, true);
             if (path) return path;
         }
-        return Quickshell.iconPath("dialog-information");
+        return Icons.path("dialog-information");
     }
 
     implicitHeight: content.implicitHeight + 28

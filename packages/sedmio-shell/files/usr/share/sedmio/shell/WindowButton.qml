@@ -23,7 +23,7 @@ Item {
     readonly property var entry: DesktopEntries.applications.values.length >= 0
         ? DesktopEntries.heuristicLookup(first?.appId ?? "") : null
     readonly property string iconName: entry ? entry.icon : (first?.appId ?? "")
-    readonly property string iconSource: Quickshell.iconPath(iconName, true) || Quickshell.iconPath("application-x-executable")
+    readonly property string iconSource: Icons.path(iconName, true) || Icons.path("application-x-executable")
 
     function plural(n, one, few, many) {
         const n10 = n % 10, n100 = n % 100;
