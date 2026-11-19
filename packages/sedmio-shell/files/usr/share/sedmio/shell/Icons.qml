@@ -25,4 +25,12 @@ Singleton {
             url = name ? Quickshell.iconPath(name) : "";
         return url === "" ? "" : url + "?path=/palette-" + Theme.paletteSerial;
     }
+
+    // Готовый адрес значка от программы (трей): к «image://icon/имя» —
+    // тот же номер палитры. С «?path=» (своя папка значков программы) и
+    // картинки (image://qsimage) — как есть: их KDE не перекрашивает.
+    function themed(url) {
+        if (!url || !url.startsWith("image://icon/") || url.includes("?")) return url;
+        return url + "?path=/palette-" + Theme.paletteSerial;
+    }
 }

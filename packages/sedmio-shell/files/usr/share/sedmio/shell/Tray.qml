@@ -38,7 +38,7 @@ ColumnLayout {
             IconImage {
                 anchors.centerIn: parent
                 implicitSize: 20
-                source: item.modelData.icon
+                source: Icons.themed(item.modelData.icon)
             }
         }
     }
