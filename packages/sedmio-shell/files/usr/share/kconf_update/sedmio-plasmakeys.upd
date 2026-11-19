@@ -1,0 +1,7 @@
+# Наши клавиши, записанные за plasmashell (Win+1…9, Win+V, Win+A), — нашей
+# оболочке, для каждого пользователя один раз (kconf_update помнит Id в
+# ~/.config/kconf_updaterc). Пакет sedmio-shell.
+Version=6
+
+Id=sedmio-plasmakeys-1
+Script=sedmio-plasmakeys.sh,sh
