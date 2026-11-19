@@ -1,9 +1,11 @@
-// sedmio-theme-sync: цвета чужих программ (Qt/KDE, а через kde-gtk-config и
-// GTK) — из темы Sedmio. Пишет схему ~/.local/share/color-schemes/Sedmio.colors
-// (она перекрывает запасную /usr/share/color-schemes/Sedmio.colors из
-// sedmio-settings) и, если у пользователя выбрана схема Sedmio или никакая,
-// переносит её цвета в ~/.config/kdeglobals и сообщает запущенным программам.
-// Своя схема у пользователя — её не трогаем, только обновляем файл Sedmio.
+// sedmio-theme-sync: цвета и шрифт чужих программ (Qt/KDE, а через
+// kde-gtk-config и GTK) — из темы Sedmio. Пишет схему
+// ~/.local/share/color-schemes/Sedmio.colors (она перекрывает запасную
+// /usr/share/color-schemes/Sedmio.colors из sedmio-settings) и, если у
+// пользователя выбрана схема Sedmio или никакая, переносит её цвета в
+// ~/.config/kdeglobals и сообщает запущенным программам. Своя схема у
+// пользователя — её не трогаем, только обновляем файл Sedmio. Шрифт —
+// так же: свой у пользователя остаётся.
 //
 // Без аргументов — работает и следит за темой; --once — один раз и выйти.
 
@@ -241,11 +243,55 @@ void applyToKdeGlobals(const QList<std::pair<QString, Group>> &groups)
     QDBusConnection::sessionBus().send(message);
 }
 
+// Шрифт темы — и чужим программам (Qt/KDE, через kde-gtk-config и GTK).
+// Ключ, который пользователь поменял сам, не трогаем: что записали мы,
+// помним в [Sedmio] того же kdeglobals.
+void applyFont()
+{
+    const QString family = Sedmio::ThemeData::instance()->string(QStringLiteral("fontFamily"));
+    if (family.isEmpty() || family.contains(QLatin1Char(',')))
+        return;
+
+    KConfig config(QStringLiteral("kdeglobals"), KConfig::SimpleConfig);
+    KConfigGroup general = config.group(QStringLiteral("General"));
+    KConfigGroup ours = config.group(QStringLiteral("Sedmio"));
+    // Формат QFont::toString (Qt 6): семейство, пункты, пиксели, стиль...
+    const auto font = [&family](int points) {
+        return QStringLiteral("%1,%2,-1,5,400,0,0,0,0,0,0,0,0,0,0,1").arg(family).arg(points);
+    };
+    const QList<std::pair<QString, QString>> wanted{
+        {QStringLiteral("font"), font(10)},
+        {QStringLiteral("menuFont"), font(10)},
+        {QStringLiteral("toolBarFont"), font(10)},
+        {QStringLiteral("smallestReadableFont"), font(8)},
+    };
+    bool changed = false;
+    for (const auto &[key, value] : wanted) {
+        const QString current = general.readEntry(key, QString());
+        if (!current.isEmpty() && current != ours.readEntry(key, QString()))
+            continue; // выбран пользователем
+        if (current == value)
+            continue;
+        general.writeEntry(key, value, KConfig::Notify);
+        ours.writeEntry(key, value);
+        changed = true;
+    }
+    if (!changed)
+        return;
+    config.sync();
+
+    QDBusMessage message = QDBusMessage::createSignal(QStringLiteral("/KGlobalSettings"), QStringLiteral("org.kde.KGlobalSettings"),
+                                                      QStringLiteral("notifyChange"));
+    message.setArguments({1 /* FontChanged */, 0});
+    QDBusConnection::sessionBus().send(message);
+}
+
 void sync()
 {
     const auto groups = scheme();
     if (writeSchemeFile(groups))
         applyToKdeGlobals(groups);
+    applyFont();
 }
 
 } // namespace
