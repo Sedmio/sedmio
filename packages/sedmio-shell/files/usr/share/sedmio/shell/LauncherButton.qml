@@ -3,7 +3,7 @@ import Quickshell
 import Quickshell.Widgets
 
 // Знак Sedmio вверху панели: открывает и закрывает запуск программ.
-// То же делают Meta и Alt+F1 (usr/share/kglobalaccel/sedmio-launcher.desktop).
+// То же делает Meta (usr/share/kglobalaccel/sedmio-launcher.desktop).
 // Правый клик — меню быстрых ссылок (QuickMenu.qml), как Win+X.
 BarButton {
     id: root

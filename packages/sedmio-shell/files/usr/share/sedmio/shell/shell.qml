@@ -36,7 +36,7 @@ ShellRoot {
         }
     }
 
-    // Команды извне: клавиши Meta и Alt+F1 (usr/share/kglobalaccel/sedmio-launcher.desktop) —
+    // Команды извне: клавиша Meta (usr/share/kglobalaccel/sedmio-launcher.desktop) —
     //   quickshell ipc -p /usr/share/sedmio/shell call launcher toggle
     IpcHandler {
         target: "launcher"
@@ -52,12 +52,6 @@ ShellRoot {
     //   quickshell ipc -p /usr/share/sedmio/shell call control openSection sound
     IpcHandler {
         target: "control"
-        // Прежняя команда Meta+A: kglobalaccel помнит Exec из
-        // sedmio-control.desktop до перезахода — пусть и она открывает Пуск.
-        function toggle(): void {
-            if (ShellState.launcherScreen !== "") ShellState.closeAll();
-            else ShellState.openLauncher(ShellState.focusedScreen());
-        }
         // Раздел: network, brightness, sound, calendar, battery, bluetooth.
         function openSection(section: string): void { ShellState.openControl(ShellState.focusedScreen(), section); }
         function close(): void { ShellState.closeAll(); }

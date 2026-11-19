@@ -1,14 +1,13 @@
 #!/bin/sh
 # На системе, где раньше работала Plasma, kglobalaccel помнит клавиши
-# plasmashell: Win+1…9 (панель задач), Win+V (журнал буфера обмена), Win+A
-# (комнаты в старых версиях). Занятую клавишу он отдаёт тому, кто занял её
+# plasmashell: Win+1…9 (панель задач), Win+V (журнал буфера обмена).
+# Занятую клавишу он отдаёт тому, кто занял её
 # первым, и наши действия (/usr/share/kglobalaccel/sedmio-*.desktop) с теми
 # же клавишами по умолчанию оставались без них. Забираем: только если у
 # действия plasmashell ровно эта одна клавиша (не назначал ли пользователь
 # своё). Свободную клавишу — просто нашему действию. Занятую чем-то
 # ещё не трогаем. Не встало — возвращаем как было и повторяем при
-# следующем входе. Win и Alt+F1 у меню plasmashell забирает
-# sedmio-launcherkeys. Запускает kconf_update один раз при входе.
+# следующем входе. Win у меню plasmashell забирает sedmio-launcherkeys. Запускает kconf_update один раз при входе.
 
 call() {
   busctl --user --timeout=5 call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel "$@" 2>/dev/null
@@ -78,7 +77,6 @@ run() {
     n=$((n + 1))
   done
   take 268435542 sedmio-clipboard.desktop _launch show-on-mouse-pos   # Win+V
-  take 268435521 sedmio-control.desktop _launch "next activity"       # Win+A
 }
 
 # В фоне: kded ждёт kconf_update, прежде чем грузить модули.

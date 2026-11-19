@@ -1,9 +1,9 @@
-# Клавиши запуска программ: свои по умолчанию (Win, Alt+F1 — и у меню
-# plasmashell, если Plasma когда-то работала) и Win+R, Win+S, как
-# «Выполнить» и поиск в Windows, — для каждого пользователя один раз
-# (kconf_update помнит Id в ~/.config/kconf_updaterc). Id -2: прошлый
-# не возвращал клавиши по умолчанию — пройти ещё раз у всех. Пакет sedmio-shell.
+# Клавиша Пуска — только Win (и у меню plasmashell, если Plasma когда-то
+# работала); прежние лишние (Alt+F1, Alt+Пробел, Alt+F2, Search, Win+R,
+# Win+S, Win+A) убрать — для каждого пользователя один раз (kconf_update
+# помнит Id в ~/.config/kconf_updaterc). Id -3: Пуск только по Win —
+# пройти ещё раз у всех. Пакет sedmio-shell.
 Version=6
 
-Id=sedmio-launcherkeys-2
+Id=sedmio-launcherkeys-3
 Script=sedmio-launcherkeys.sh,sh

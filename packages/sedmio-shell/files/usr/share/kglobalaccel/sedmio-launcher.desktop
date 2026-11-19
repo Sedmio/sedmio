@@ -1,9 +1,9 @@
-# Глобальные клавиши запуска программ Sedmio. kglobalaccel читает файлы из
-# этого каталога при старте сеанса и выполняет Exec по клавише.
+# Клавиша Пуска Sedmio — только Win. kglobalaccel читает файлы из этого
+# каталога при старте сеанса и выполняет Exec по клавише.
 # Одиночный Meta в Plasma 6 — обычное сочетание kglobalaccel (у plasmashell
 # было «Meta, Alt+F1» для его меню), раздел ModifierOnlyShortcuts в kwinrc
-# KWin 6.8 уже не читает. Alt+Пробел и Alt+F2 были у KRunner (ушёл
-# вместе с plasma-workspace).
+# KWin 6.8 уже не читает. Лишние прежние клавиши у пользователей убирает
+# kconf_update sedmio-launcherkeys.
 # Оболочка не запущена (упала) — клавиша ничего не делает: программы
 # тогда запускают из «Диспетчера задач» (Ctrl+Shift+Esc, «Запустить новую
 # задачу»), о чём говорит плашка аварийного режима.
@@ -15,4 +15,4 @@ Name=Sedmio launcher
 Name[ru]=Запуск программ Sedmio
 Icon=sedmio
 Exec=quickshell ipc -p /usr/share/sedmio/shell call launcher toggle
-X-KDE-Shortcuts=Meta,Alt+F1,Alt+Space,Alt+F2,Search
+X-KDE-Shortcuts=Meta
