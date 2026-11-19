@@ -1,4 +1,5 @@
 pragma Singleton
+// Копия — в sedmio-tasks (app/qml): меняя оформление, менять и там.
 import QtQuick
 
 // Дизайн-система «Параметров» — та же, что у оболочки

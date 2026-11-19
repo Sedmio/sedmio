@@ -1,0 +1,46 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# «Диспетчер задач» (Ctrl+Shift+Esc): открытые программы — по их группам
+# systemd (процессор, память, «Завершить», «Закрыть принудительно»), части
+# системы отдельно, перезапуск и запуск упавшей оболочки. Отдельный пакет,
+# а не раздел «Параметров»: инструмент на случай, когда что-то сломалось,
+# не должен ломаться вместе с остальным. Зависит только от Qt и KService;
+# пять файлов оформления — копия из sedmio-preferences.
+#
+# Ctrl+Shift+Esc — X-KDE-Shortcuts в .desktop; файл для kglobalaccel —
+# ссылка files/usr/share/kglobalaccel/sedmio-tasks.desktop.
+#
+# Исходники — app/ рядом с этим файлом (src/ занята makepkg).
+
+pkgname=sedmio-tasks
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: диспетчер задач"
+arch=('x86_64')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'qt6-base'
+  'qt6-declarative'
+  'kservice'
+  'kwindowsystem'
+  'systemd'         # группы программ (cgroup), остановка через systemd --user
+  'sedmio-branding'  # шрифт Onest
+  'breeze-icons'
+)
+makedepends=(
+  'cmake'
+  'ninja'
+)
+
+build() {
+  cmake -G Ninja -S "$startdir/app" -B build -W no-dev \
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+    -D CMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  cp -a "$startdir/files/." "$pkgdir/"
+}

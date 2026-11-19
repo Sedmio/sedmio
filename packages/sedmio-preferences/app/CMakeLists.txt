@@ -45,7 +45,6 @@ qt_add_qml_module(sedmio-preferences
         sound.cpp sound.h
         account.cpp account.h
         nightlight.cpp nightlight.h
-        tasks.cpp tasks.h
         network.cpp network.h
         keyedmodel.cpp keyedmodel.h
     QML_FILES
@@ -74,7 +73,6 @@ qt_add_qml_module(sedmio-preferences
         qml/SSlider.qml
         qml/DateTimePage.qml
         qml/AboutPage.qml
-        qml/TasksWindow.qml
 )
 
 target_link_libraries(sedmio-preferences PRIVATE
@@ -99,4 +97,4 @@ target_link_libraries(sedmio-preferences PRIVATE
 )
 
 install(TARGETS sedmio-preferences RUNTIME DESTINATION bin)
-install(FILES sedmio-preferences.desktop sedmio-tasks.desktop DESTINATION share/applications)
+install(FILES sedmio-preferences.desktop DESTINATION share/applications)
