@@ -1,0 +1,78 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# plasma-nm без апплета plasmashell и без зависимости от plasma-workspace:
+# Plasma уходит из системы (docs/decisions.md, раздел 15). Остаётся:
+# разделы KDE «Wi‑Fi и сеть» (подключения, VPN — кнопка
+# «Дополнительно» в «Параметрах» и оболочке), модули VPN, агент паролей
+# Wi‑Fi (kded, запасной для sedmio-agents).
+# Код не меняется — в пакете Arch plasma-workspace нужна только апплету.
+#
+# Основа — PKGBUILD из Arch (extra/plasma-nm). [sedmio] стоит в pacman.conf
+# выше остальных. Обновлять вместе с Plasma (KWin): версии совпадают.
+
+pkgname=plasma-nm
+pkgver=6.8.3
+_dirver=$(echo $pkgver | cut -d. -f1-3)
+# Выше, чем у CachyOS (6.8.3-1.1): pacman -Syu не понижает версию.
+pkgrel=2
+pkgdesc='Network connections editor, VPN plugins (сборка Sedmio без апплета Plasma)'
+arch=(x86_64)
+url='https://kde.org/plasma-desktop/'
+license=(GPL-2.0-or-later)
+depends=(glib2
+         glibc
+         kcmutils
+         kcolorscheme
+         kcompletion
+         kconfig
+         kcoreaddons
+         kdbusaddons
+         kdeclarative
+         ki18n
+         kio
+         kirigami
+         kirigami-addons
+         kjobwidgets
+         knotifications
+         kquickcharts
+         kservice
+         kwidgetsaddons
+         kwindowsystem
+         libnm
+         libplasma
+         libstdc++
+         modemmanager-qt
+         networkmanager-qt
+         openssl
+         prison
+         qcoro
+         qt6-base
+         qt6-declarative
+         qtkeychain-qt6
+         solid)
+makedepends=(extra-cmake-modules
+             openconnect
+	     qt6-webengine)
+optdepends=('openconnect: Cisco AnyConnect VPN plugin'
+            'qrca: QR code scanner'
+            'qt6-webengine: Cisco AnyConnect VPN plugin')
+source=(https://download.kde.org/stable/plasma/$_dirver/$pkgname-$pkgver.tar.xz
+        no-applet.patch)
+sha256sums=('dd5e6e01efde63220110401f713165c77433ad7fb78664e3c94dc36bb4011554'
+            '30420bf9d960c4f4e154ff25ee5f07a9de1f486e4190bae924d9270eb1d1dd4a')
+
+prepare() {
+  # Апплет для plasmashell не собирается: ради него пакет Arch
+  # зависит от plasma-workspace.
+  patch -d $pkgname-$pkgver -Np1 -i ../no-applet.patch
+}
+
+build() {
+  cmake -B build  -S $pkgname-$pkgver \
+    -DBUILD_TESTING=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

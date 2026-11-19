@@ -309,8 +309,8 @@ Plasma строки сверять). Программы KDE/Qt сами спра
 Остаются: KWin и то, без чего он не ставится (libplasma, kscreenlocker,
 krunner, milou, layer-shell-qt), фреймворки KDE (kded, kglobalaccel,
 kwallet). Порядок: сеанс → заставка → аварийный режим вместо запасного
-plasmashell → powerdevil своей сборкой без plasma-workspace → сеть и звук
-без plasma-nm и plasma-pa →
+plasmashell → powerdevil своей сборкой без plasma-workspace → plasma-nm и
+plasma-pa своей сборкой без апплетов →
 plasma-integration и xdg-desktop-portal-kde своей сборкой без зависимости
 от plasma-workspace → удалить plasma-workspace, plasma-desktop,
 systemsettings.
@@ -377,4 +377,11 @@ plasma-shutdown и ksmserver-logout-greeter.
 блокировка — KWin. Апплеты батареи и яркости (только для plasmashell) не
 собираются. Версия — как у KWin; pkgrel выше, чем у CachyOS, иначе
 `pacman -Syu` оставил бы их пакет.
+
+**Сеть и звук — plasma-nm и plasma-pa своей сборкой без апплетов.** Их код
+от plasma-workspace не зависит: она в пакетах Arch только ради апплетов
+plasmashell. Остаётся то, чем пользуемся: клавиши громкости (модуль kded
+audioshortcutsservice, индикатор рисует оболочка), разделы KDE «Wi‑Fi и
+сеть» (подключения, VPN) и «Звук» за кнопкой «Дополнительно», модули VPN,
+агент паролей Wi‑Fi KDE — запасной для sedmio-agents.
 

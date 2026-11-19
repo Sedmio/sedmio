@@ -1,0 +1,64 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# plasma-pa без апплета plasmashell и без зависимости от plasma-workspace:
+# Plasma уходит из системы (docs/decisions.md, раздел 15). Остаётся:
+# клавиши громкости (модуль kded audioshortcutsservice, индикатор
+# рисует оболочка), раздел KDE «Звук» (кнопка «Дополнительно»).
+# Код не меняется — в пакете Arch plasma-workspace нужна только апплету.
+#
+# Основа — PKGBUILD из Arch (extra/plasma-pa). [sedmio] стоит в pacman.conf
+# выше остальных. Обновлять вместе с Plasma (KWin): версии совпадают.
+
+pkgname=plasma-pa
+pkgver=6.8.3
+_dirver=$(echo $pkgver | cut -d. -f1-3)
+# Выше, чем у CachyOS (6.8.3-1.1): pacman -Syu не понижает версию.
+pkgrel=2
+pkgdesc='Audio volume management (сборка Sedmio без апплета Plasma)'
+arch=(x86_64)
+url='https://kde.org/plasma-desktop/'
+license=(LGPL-2.0-or-later)
+depends=(glib2
+         glibc
+         kcmutils
+         kconfig
+         kcoreaddons
+         kdbusaddons
+         kdeclarative
+         kglobalaccel
+         ki18n
+         kirigami
+         kirigami-addons
+         kitemmodels
+         kstatusnotifieritem
+         ksvg
+         libcanberra
+         libplasma
+         libpulse
+         libstdc++
+         pulse-native-provider
+         pulseaudio-qt
+         qt6-base
+         qt6-declarative)
+makedepends=(extra-cmake-modules
+             kdoctools)
+source=(https://download.kde.org/stable/plasma/$_dirver/$pkgname-$pkgver.tar.xz
+        no-applet.patch)
+sha256sums=('25ec7e4f2d8104adb4583a30b5d516c699109bc2631b100e549ab1ea5b2607ff'
+            '7f36b103b2b5268bd9cdb6b93fa9293c6a799f2decb4cb2d5da60700583436be')
+
+prepare() {
+  # Апплет для plasmashell не собирается: ради него пакет Arch
+  # зависит от plasma-workspace.
+  patch -d $pkgname-$pkgver -Np1 -i ../no-applet.patch
+}
+
+build() {
+  cmake -B build  -S $pkgname-$pkgver \
+    -DBUILD_TESTING=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}
