@@ -17,6 +17,7 @@ ApplicationWindow {
 
     readonly property var pages: [
         { id: "display", title: "Экран", icon: "preferences-desktop-display" },
+        { id: "theme", title: "Тема", icon: "preferences-desktop-theme-global" },
         { id: "wallpaper", title: "Обои", icon: "preferences-desktop-wallpaper" },
         { id: "mouse", title: "Мышь и тачпад", icon: "preferences-desktop-mouse" },
         { id: "keyboard", title: "Клавиатура", icon: "preferences-desktop-keyboard" },
@@ -119,7 +120,8 @@ ApplicationWindow {
     Loader {
         id: page
         anchors { left: sidebar.right; right: parent.right; top: parent.top; bottom: parent.bottom }
-        sourceComponent: App.page === "wallpaper" ? wallpaperPage
+        sourceComponent: App.page === "theme" ? themePage
+                       : App.page === "wallpaper" ? wallpaperPage
                        : App.page === "mouse" ? mousePage
                        : App.page === "keyboard" ? keyboardPage
                        : App.page === "sound" ? soundPage
@@ -135,6 +137,7 @@ ApplicationWindow {
     }
 
     Component { id: displayPage; DisplayPage { displays: screens } }
+    Component { id: themePage; ThemePage {} }
     Component { id: wallpaperPage; WallpaperPage {} }
     Component { id: mousePage; MousePage {} }
     Component { id: keyboardPage; KeyboardPage {} }

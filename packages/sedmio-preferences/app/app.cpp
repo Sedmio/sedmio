@@ -10,7 +10,7 @@ namespace
 {
 const QString service = QStringLiteral("org.sedmio.Preferences");
 const QString path = QStringLiteral("/org/sedmio/Preferences");
-const QStringList pages = {QStringLiteral("display"), QStringLiteral("wallpaper"), QStringLiteral("mouse"), QStringLiteral("keyboard"),
+const QStringList pages = {QStringLiteral("display"), QStringLiteral("theme"), QStringLiteral("wallpaper"), QStringLiteral("mouse"), QStringLiteral("keyboard"),
                            QStringLiteral("sound"), QStringLiteral("network"), QStringLiteral("bluetooth"), QStringLiteral("power"), QStringLiteral("defaults"), QStringLiteral("autostart"), QStringLiteral("account"), QStringLiteral("datetime"), QStringLiteral("about")};
 } // namespace
 
@@ -27,6 +27,8 @@ QString App::normalizePage(const QString &page)
         {QStringLiteral("screen"), QStringLiteral("display")},
         {QStringLiteral("kcm_nightlight"), QStringLiteral("display")},
         {QStringLiteral("kcm_wallpaper"), QStringLiteral("wallpaper")},
+        {QStringLiteral("themes"), QStringLiteral("theme")},
+        {QStringLiteral("appearance"), QStringLiteral("theme")},
         {QStringLiteral("kcm_mouse"), QStringLiteral("mouse")},
         {QStringLiteral("kcm_touchpad"), QStringLiteral("mouse")},
         {QStringLiteral("kcm_keyboard"), QStringLiteral("keyboard")},
