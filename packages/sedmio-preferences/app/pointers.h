@@ -21,6 +21,9 @@ class Pointers : public QObject, protected QDBusContext
     Q_PROPERTY(QVariantMap mouse READ mouse NOTIFY changed)
     Q_PROPERTY(QVariantMap touchpad READ touchpad NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
+    // Размер указателя, пикселей (kcminputrc [Mouse] cursorSize, как у
+    // KDE; KWin и GTK через kde-gtk-config подхватывают сразу).
+    Q_PROPERTY(int cursorSize READ cursorSize NOTIFY cursorSizeChanged)
 
 public:
     explicit Pointers(QObject *parent = nullptr);
@@ -28,12 +31,15 @@ public:
     QVariantMap mouse() const { return summary(false); }
     QVariantMap touchpad() const { return summary(true); }
     QString error() const { return m_error; }
+    int cursorSize() const;
+    Q_INVOKABLE void setCursorSize(int size);
 
     // kind: "mouse" | "touchpad"; name — свойство KWin.
     Q_INVOKABLE void set(const QString &kind, const QString &name, const QVariant &value);
 
 Q_SIGNALS:
     void changed();
+    void cursorSizeChanged();
 
 private Q_SLOTS:
     void reload();

@@ -1,5 +1,8 @@
 #include "pointers.h"
 
+#include <KConfig>
+#include <KConfigGroup>
+
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -160,4 +163,32 @@ void Pointers::set(const QString &kind, const QString &name, const QVariant &val
         m_error.clear();
         Q_EMIT changed();
     }
+}
+
+int Pointers::cursorSize() const
+{
+    KConfig config(QStringLiteral("kcminputrc"), KConfig::FullConfig);
+    return KConfigGroup(&config, QStringLiteral("Mouse")).readEntry("cursorSize", 24);
+}
+
+void Pointers::setCursorSize(int size)
+{
+    if (size == cursorSize())
+        return;
+    KConfig config(QStringLiteral("kcminputrc"), KConfig::SimpleConfig);
+    KConfigGroup group(&config, QStringLiteral("Mouse"));
+    group.writeEntry("cursorSize", size, KConfig::Notify | KConfig::Persistent);
+    if (!config.sync()) {
+        m_error = QStringLiteral("Не удалось сохранить размер указателя.");
+        Q_EMIT changed();
+        return;
+    }
+    // Как модуль KDE: «указатель сменился» (KGlobalSettings, CursorChanged = 5)
+    // — по нему KWin и программы KDE перечитывают тему указателя.
+    QDBusMessage signal = QDBusMessage::createSignal(QStringLiteral("/KGlobalSettings"),
+                                                     QStringLiteral("org.kde.KGlobalSettings"),
+                                                     QStringLiteral("notifyChange"));
+    signal << 5 << 0;
+    bus().send(signal);
+    Q_EMIT cursorSizeChanged();
 }

@@ -3,7 +3,7 @@ import Sedmio.Preferences
 import Sedmio.Style
 
 // «Мышь и тачпад»: скорость указателя, повышенная точность, основная
-// кнопка, прокрутка; у тачпада — касание вместо нажатия и отключение при
+// кнопка, прокрутка, размер указателя; у тачпада — касание вместо нажатия и отключение при
 // наборе. Применяется сразу (KWin сам запоминает).
 Page {
     id: root
@@ -13,6 +13,10 @@ Page {
 
     readonly property var mouse: pointers.mouse
     readonly property var touchpad: pointers.touchpad
+
+    // Размеры, которые есть в теме указателей Breeze.
+    readonly property var cursorSizes: [24, 36, 48, 72]
+    readonly property var cursorLabels: ["Обычный", "Крупный", "Очень крупный", "Огромный"]
 
     readonly property var scrollSpeeds: [0.5, 1, 1.5, 2, 3]
     readonly property var scrollLabels: ["Медленно", "Обычно", "Быстрее", "Быстро", "Очень быстро"]
@@ -84,6 +88,24 @@ Page {
     }
 
     Card {
+        title: "Указатель"
+        Setting {
+            last: true
+            label: "Размер"
+            Choice {
+                model: root.cursorLabels
+                currentIndex: {
+                    let best = 0;
+                    for (let i = 0; i < root.cursorSizes.length; ++i)
+                        if (Math.abs(root.cursorSizes[i] - pointers.cursorSize) < Math.abs(root.cursorSizes[best] - pointers.cursorSize)) best = i;
+                    return best;
+                }
+                onActivated: index => pointers.setCursorSize(root.cursorSizes[index])
+            }
+        }
+    }
+
+    Card {
         visible: root.touchpad.present === true
         title: "Тачпад"
         Setting {
@@ -144,7 +166,7 @@ Page {
     }
 
     SButton {
-        text: "Курсор и другое — в параметрах KDE"
+        text: "Другие параметры мыши — в параметрах KDE"
         onClicked: App.openKde("kcm_mouse")
     }
 }
