@@ -42,6 +42,7 @@ qt_add_qml_module(sedmio-preferences
         displayswitcher.cpp displayswitcher.h
         sound.cpp sound.h
         account.cpp account.h
+        nightlight.cpp nightlight.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml

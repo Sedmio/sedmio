@@ -25,6 +25,7 @@ QString App::normalizePage(const QString &page)
     static const QHash<QString, QString> aliases = {
         {QStringLiteral("kcm_kscreen"), QStringLiteral("display")},
         {QStringLiteral("screen"), QStringLiteral("display")},
+        {QStringLiteral("kcm_nightlight"), QStringLiteral("display")},
         {QStringLiteral("kcm_wallpaper"), QStringLiteral("wallpaper")},
         {QStringLiteral("kcm_mouse"), QStringLiteral("mouse")},
         {QStringLiteral("kcm_touchpad"), QStringLiteral("mouse")},

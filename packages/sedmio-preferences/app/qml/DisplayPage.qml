@@ -210,6 +210,104 @@ Page {
         wrapMode: Text.Wrap
     }
 
+    // Ночная подсветка — для всех экранов сразу.
+    NightLight { id: night }
+    readonly property var halfHours: {
+        const list = [];
+        for (let m = 0; m < 24 * 60; m += 30)
+            list.push(String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"));
+        return list;
+    }
+    // Шаги и нынешнее значение, если его выставили где-то ещё.
+    function timeSteps(current) {
+        return halfHours.indexOf(current) >= 0 ? halfHours : halfHours.concat([current]).sort();
+    }
+    readonly property var nightModes: [
+        { id: "sunset", title: "От заката до рассвета" },
+        { id: "times", title: "По расписанию" },
+        { id: "always", title: "Всегда" }
+    ]
+
+    Card {
+        title: "Ночная подсветка"
+        visible: night.available
+        Setting {
+            label: "Тёплые цвета вечером"
+            hint: night.enabled && night.status !== "" ? night.status : "Меньше синего света — легче глазам и проще уснуть."
+            last: !night.enabled
+            SSwitch {
+                checked: night.enabled
+                onToggled: night.setEnabled(!checked)
+            }
+        }
+        Setting {
+            visible: night.enabled
+            label: "Когда"
+            hint: night.mode === "sunset" && night.place !== "" ? "Закат и рассвет — по часовому поясу (" + night.place + ")" : ""
+            Choice {
+                model: root.nightModes.map(m => m.title)
+                currentIndex: root.nightModes.findIndex(m => m.id === night.mode)
+                onActivated: index => night.setMode(root.nightModes[index].id)
+            }
+        }
+        Setting {
+            visible: night.enabled && night.mode === "times"
+            label: "Включать в"
+            Choice {
+                readonly property var steps: root.timeSteps(night.evening)
+                implicitWidth: 120
+                model: steps
+                currentIndex: steps.indexOf(night.evening)
+                onActivated: index => night.setTimes(steps[index], night.morning)
+            }
+        }
+        Setting {
+            visible: night.enabled && night.mode === "times"
+            label: "Выключать в"
+            Choice {
+                readonly property var steps: root.timeSteps(night.morning)
+                implicitWidth: 120
+                model: steps
+                currentIndex: steps.indexOf(night.morning)
+                onActivated: index => night.setTimes(night.evening, steps[index])
+            }
+        }
+        Setting {
+            visible: night.enabled
+            last: true
+            label: "Теплота"
+            hint: "Пока тянете — показывает, как будет"
+            Row {
+                spacing: 10
+                SText { anchors.verticalCenter: parent.verticalCenter; text: "Теплее"; color: Theme.inkSoft; size: Theme.fontSmall }
+                SSlider {
+                    id: warmth
+                    // Слева — тёплый (низкая температура), справа — почти белый.
+                    readonly property int coolest: 6000
+                    readonly property int warmest: 2000
+                    width: 200
+                    anchors.verticalCenter: parent.verticalCenter
+                    maximum: coolest - warmest
+                    step: 100
+                    value: night.temperature - warmest
+                    // Тянут — предпросмотр, отпустили — сохранить; колесо — сразу.
+                    onMoved: value => {
+                        const kelvin = Math.round((value + warmest) / 100) * 100;
+                        if (pressed) night.preview(kelvin);
+                        else night.setTemperature(kelvin);
+                    }
+                    onPressedChanged: {
+                        if (!pressed) {
+                            night.setTemperature(Math.round((dragValue + warmest) / 100) * 100);
+                            night.stopPreview();
+                        }
+                    }
+                }
+                SText { anchors.verticalCenter: parent.verticalCenter; text: "Холоднее"; color: Theme.inkSoft; size: Theme.fontSmall }
+            }
+        }
+    }
+
     footer: Rectangle {
         width: root.width
         height: root.waiting || root.displays.dirty ? 64 : 0

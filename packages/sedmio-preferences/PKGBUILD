@@ -7,7 +7,8 @@
 # ~/.config/sedmio/wallpaper.json, его читает оболочка; мышь — KWin,
 # раскладки — kxkbrc, питание — powerdevilrc (демоны остаются от KDE),
 # звук — PulseAudio API (pipewire-pulse) через pulseaudio-qt, как plasma-pa,
-# учётная запись — AccountsService, вход без пароля — sedmio-login.
+# учётная запись — AccountsService, вход без пароля — sedmio-login,
+# ночная подсветка — kwinrc [NightColor] и knighttimerc (KWin и knighttimed).
 #
 # Разделы пока: Экран, Обои, Мышь и тачпад, Клавиатура, Звук, Питание, Программы
 # по умолчанию, Учётная запись, Дата и время, О системе. Остальное — кнопкой
