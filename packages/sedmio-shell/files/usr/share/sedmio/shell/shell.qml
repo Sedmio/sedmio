@@ -7,6 +7,7 @@ import Quickshell.Services.Kde
 import Quickshell.Services.Polkit
 
 ShellRoot {
+    id: root
     // За файлами не следим: pacman обновляет их по одному, и оболочка
     // перечитала бы недописанный набор («Config reload failed» и старая
     // версия до перезахода). Перечитывает хук pacman, когда все файлы на
@@ -130,9 +131,26 @@ ShellRoot {
 
     // Заставка входа (KSplash) ждёт сигнала «рабочий стол готов»,
     // который раньше посылал plasmashell. Без него она висит до таймаута.
+    // Шлём, когда обои уже на экране (картинка грузится не сразу), но не
+    // позже чем через 4 секунды.
     Process {
-        running: true
+        id: splashDone
         command: ["busctl", "--user", "call", "org.kde.KSplash", "/KSplash",
                   "org.kde.KSplash", "setStage", "s", "desktop"]
+    }
+    property bool splashSent: false
+    function sendSplashDone() {
+        if (splashSent) return;
+        splashSent = true;
+        splashDone.running = true;
+    }
+    Connections {
+        target: WallpaperState
+        function onShownChanged() { if (WallpaperState.shown) root.sendSplashDone(); }
+    }
+    Timer {
+        interval: 4000
+        running: true
+        onTriggered: root.sendSplashDone()
     }
 }

@@ -49,6 +49,7 @@ PanelWindow {
         if (wanted === "") {
             layerA.source = "";
             layerB.source = "";
+            if (WallpaperState.loaded) WallpaperState.shown = true;
         } else if (back.source.toString() === wanted && back.status === Image.Ready) {
             front = 1 - front;
         } else {
@@ -56,6 +57,10 @@ PanelWindow {
         }
     }
     onWantedChanged: show()
+    Connections {
+        target: WallpaperState
+        function onLoadedChanged() { root.show(); }
+    }
     // Старая картинка уже не видна — отпустить её память.
     onFrontChanged: dropBack.restart()
     Timer {
@@ -81,12 +86,14 @@ PanelWindow {
         onStatusChanged: {
             if (source.toString() !== root.wanted)
                 return;
-            if (status === Image.Ready && !isFront) {
-                root.front = number;
+            if (status === Image.Ready) {
+                if (!isFront) root.front = number;
+                WallpaperState.shown = true;
             } else if (status === Image.Error) {
                 console.warn("Обои не открылись:", source);
                 layerA.source = "";
                 layerB.source = "";
+                WallpaperState.shown = true;
             }
         }
     }

@@ -16,7 +16,7 @@
 
 pkgname=sedmio-preferences
 pkgver=0.1.0
-pkgrel=3
+pkgrel=5
 pkgdesc="Sedmio: приложение «Параметры» на QML"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

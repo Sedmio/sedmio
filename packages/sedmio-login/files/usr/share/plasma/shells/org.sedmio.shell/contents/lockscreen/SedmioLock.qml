@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import org.kde.plasma.private.sessions as Sessions
 import "file:///usr/share/sedmio/login-ui"
@@ -13,7 +14,12 @@ Item {
     implicitWidth: 800
     implicitHeight: 600
 
-    Backdrop { anchors.fill: parent }
+    // Обои пользователя, размытые: ссылку на картинку держат «Параметры».
+    Backdrop {
+        anchors.fill: parent
+        image: StandardPaths.writableLocation(StandardPaths.GenericStateLocation) + "/sedmio/wallpaper"
+        dimmed: true
+    }
 
     Sessions.SessionManagement { id: session }
 

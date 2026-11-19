@@ -13,6 +13,8 @@
 #include <QStandardPaths>
 #include <QUrl>
 
+#include <cstdio>
+
 namespace
 {
 QString configPath()
@@ -52,6 +54,31 @@ QString bestIn(const QString &dir)
     return best;
 }
 
+// Ссылка на выбранную картинку для экрана блокировки и заставки входа: они
+// работают от имени пользователя, но прочитать wallpaper.json из своего QML
+// не могут, а картинку по постоянному адресу — могут. Пусто — ссылки нет.
+QString linkPath()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/sedmio/wallpaper");
+}
+
+void syncLink(const QString &image)
+{
+    const QString link = linkPath();
+    if (image.isEmpty()) {
+        QFile::remove(link);
+        return;
+    }
+    if (QFileInfo(link).symLinkTarget() == image)
+        return;
+    QDir().mkpath(QFileInfo(link).path());
+    // Подменяем разом: экран блокировки не увидит «ссылки нет».
+    const QString temporary = link + QStringLiteral(".new");
+    QFile::remove(temporary);
+    if (QFile::link(image, temporary))
+        ::rename(QFile::encodeName(temporary).constData(), QFile::encodeName(link).constData());
+}
+
 QString prettyName(const QString &base)
 {
     QString name = base;
@@ -80,6 +107,7 @@ void Wallpapers::readCurrent()
     QString image;
     if (file.open(QIODevice::ReadOnly))
         image = QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("image")).toString();
+    syncLink(image);
     if (image != m_current) {
         m_current = image;
         Q_EMIT currentChanged();
@@ -112,8 +140,11 @@ void Wallpapers::rescan()
             continue;
         for (const QFileInfo &entry : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
             const QString images = entry.filePath() + QStringLiteral("/contents/images");
-            if (QDir(images).exists())
-                add(bestIn(images), prettyName(entry.fileName()));
+            if (!QDir(images).exists())
+                continue;
+            // Выбрана картинка из этого набора — плитка набора она и есть.
+            const bool chosenHere = m_current.startsWith(images + QLatin1Char('/')) && QFileInfo::exists(m_current);
+            add(chosenHere ? m_current : bestIn(images), prettyName(entry.fileName()));
         }
         QDirIterator it(root, imageFilters, QDir::Files, QDirIterator::Subdirectories);
         while (it.hasNext()) {
@@ -162,6 +193,7 @@ void Wallpapers::choose(const QString &pathOrUrl)
         Q_EMIT currentChanged();
         return;
     }
+    syncLink(path);
     m_error.clear();
     m_current = path;
     Q_EMIT currentChanged();

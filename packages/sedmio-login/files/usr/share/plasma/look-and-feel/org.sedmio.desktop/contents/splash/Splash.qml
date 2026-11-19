@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import "file:///usr/share/sedmio/login-ui"
 
@@ -13,6 +14,8 @@ import "file:///usr/share/sedmio/login-ui"
 Backdrop {
     id: root
     property int stage
+    // Обои пользователя, как на рабочем столе (ссылку держат «Параметры»).
+    image: StandardPaths.writableLocation(StandardPaths.GenericStateLocation) + "/sedmio/wallpaper"
 
     Column {
         id: center

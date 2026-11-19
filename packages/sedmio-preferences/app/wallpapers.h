@@ -8,6 +8,8 @@
 // Обои: какие картинки есть и какая выбрана. Выбор — в
 // ~/.config/sedmio/wallpaper.json ({"image": "/путь"}), его читает оболочка
 // (Wallpaper.qml) и сразу меняет обои. Пустой путь — обои Sedmio по умолчанию.
+// Рядом — ссылка ~/.local/state/sedmio/wallpaper на ту же картинку для
+// экрана блокировки и заставки.
 class Wallpapers : public QObject
 {
     Q_OBJECT
