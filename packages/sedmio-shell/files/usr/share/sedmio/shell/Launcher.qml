@@ -47,7 +47,8 @@ Item {
     }
     Connections {
         target: AppSearch
-        function onExecutablesChanged() { if (root.open && search.text !== "") root.refresh(); }
+        // Не сбивать выбор, если по списку уже пошли стрелками.
+        function onExecutablesChanged() { if (root.open && search.text !== "" && list.currentIndex === 0) root.refresh(); }
     }
 
     // Поле поиска

@@ -80,10 +80,31 @@ Singleton {
         if (/^(~|\/|www\.|[a-z][a-z0-9+.-]*:\/\/)/i.test(text))
             return { run: true, open: true, text: text, name: text, genericName: "Открыть",
                      icon: /^(\/|~)/.test(text) ? "folder" : "internet-web-browser" };
-        if (!executables[text.split(/\s+/)[0]]) return null;
+        if (!Object.prototype.hasOwnProperty.call(executables, text.split(/\s+/)[0])) return null;
         return { run: true, open: false, text: text, name: text,
                  genericName: "Выполнить · Ctrl+Enter — в терминале", icon: "utilities-terminal" };
     }
+
+    // Как «Выполнить» в Windows. $1 — open (путь или адрес) или command,
+    // $2 — путь (~ раскрыта), $3 — набранное. Адрес — в браузере; путь к
+    // программе (ELF или скрипт с #!) — запустить; к другому файлу или папке
+    // — открыть в своей программе (бит «исполняемый» у всех файлов флешки
+    // NTFS/exFAT — не повод выполнять документ). Такого пути нет — это
+    // команда с параметрами. Команды не нашлось — сказать об этом.
+    readonly property string runScript: 'if [ "$1" = open ]; then ' +
+        'case "$2" in *://*) exec xdg-open "$2" ;; esac; ' +
+        'if [ -e "$2" ]; then ' +
+            'if [ -f "$2" ] && [ -x "$2" ]; then ' +
+                'case "$(head -c 2 -- "$2")" in "#!") exec "$2" ;; esac; ' +
+                '[ "$(head -c 4 -- "$2" | tail -c 3)" = ELF ] && exec "$2"; ' +
+            'fi; ' +
+            'exec xdg-open "$2"; ' +
+        'fi; ' +
+    'fi; ' +
+    'sh -c "$3"; rc=$?; ' +
+    '[ "$rc" -ne 127 ] || notify-send -a "Выполнить" -i dialog-error "Не удаётся найти «$3»" ' +
+        '"Проверьте, правильно ли набрано имя."; ' +
+    'exit "$rc"'
 
     function run(entry, inTerminal) {
         const home = Quickshell.env("HOME");
@@ -91,22 +112,17 @@ Singleton {
         recent.unshift(entry.text);
         commands = recent.slice(0, 30);
         save();
-        if (entry.open) {
-            let target = entry.text.replace(/^~(?=\/|$)/, home);
-            if (/^www\./i.test(target)) target = "https://" + target;
-            // Адрес — в браузере; путь: исполняемый файл — запустить, другой
-            // файл или папку — в своей программе; такого пути нет — это
-            // команда с параметрами («/usr/bin/firefox --private-window»).
-            ShellState.launch("xdg-open", ["sh", "-c",
-                'case "$1" in *://*) exec xdg-open "$1" ;; esac; ' +
-                'if [ -e "$1" ]; then [ -f "$1" ] && [ -x "$1" ] && exec "$1"; exec xdg-open "$1"; fi; ' +
-                'exec sh -c "$2"', "sh", target, entry.text], home);
+        // Своя группа в «Диспетчере задач» — по имени программы
+        // («/usr/bin/firefox --private-window» → firefox).
+        const first = entry.text.split(/\s+/)[0].replace(/\/+$/, "");
+        const id = /:\/\/|^www\./i.test(first) ? "xdg-open" : (first.split("/").pop() || "xdg-open");
+        if (inTerminal && !entry.open) {
+            ShellState.launch(id, ["konsole", "--hold", "-e", "sh", "-c", entry.text], home);
             return;
         }
-        const id = entry.text.split(/\s+/)[0].split("/").pop();
-        const command = inTerminal ? ["konsole", "--hold", "-e", "sh", "-c", entry.text]
-                                   : ["sh", "-c", entry.text];
-        ShellState.launch(id, command, home);
+        let target = entry.text.replace(/^~(?=\/|$)/, home);
+        if (/^www\./i.test(target)) target = "https://" + target;
+        ShellState.launch(id, ["sh", "-c", runScript, "sh", entry.open ? "open" : "command", target, entry.text], home);
     }
 
     // Запрос, набранный не в той раскладке: «ашкуащч» → «firefox».

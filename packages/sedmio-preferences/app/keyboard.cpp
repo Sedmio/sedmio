@@ -284,6 +284,7 @@ void Keyboard::load()
             m_switchKey = kwinKey;
     }
     m_perWindow = group.readEntry("SwitchMode", QStringLiteral("Global")) == QLatin1String("Window");
+    m_savedSwitchKey = m_switchKey;
     Q_EMIT changed();
 }
 
@@ -328,7 +329,10 @@ void Keyboard::save()
         return;
     }
     m_error.clear();
-    if (keepSwitch) {
+    const bool switchChanged = m_switchKey != m_savedSwitchKey;
+    if (!keepSwitch)
+        m_savedSwitchKey = m_switchKey;
+    if (keepSwitch && switchChanged) {
         load(); // показать клавишу, которая осталась
         m_error = QStringLiteral("Не удалось сменить клавиши переключения языка. Попробуйте ещё раз.");
     }

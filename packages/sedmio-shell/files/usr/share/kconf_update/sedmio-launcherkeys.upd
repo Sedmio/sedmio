@@ -3,5 +3,5 @@
 # ~/.config/kconf_updaterc). Пакет sedmio-shell.
 Version=6
 
-Id=sedmio-launcherkeys-2
+Id=sedmio-launcherkeys-1
 Script=sedmio-launcherkeys.sh,sh

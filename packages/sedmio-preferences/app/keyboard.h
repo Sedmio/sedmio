@@ -71,6 +71,7 @@ private:
     QList<Layout> m_layouts;
     QStringList m_otherOptions; // параметры xkb, кроме переключения, — не трогаем
     QString m_switchKey;
+    QString m_savedSwitchKey; // как сейчас в kxkbrc
     bool m_perWindow = true;
     QString m_error;
     int m_repeatDelay = 600;
