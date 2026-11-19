@@ -58,6 +58,10 @@ ApplicationWindow {
 
     readonly property FolderModel folder: tab.folder
     readonly property bool localFolder: folder.url.toString().startsWith("file:")
+    // Папка на месте (не удалена, флешку не вынули).
+    function folderExists() {
+        return session.kind(folder.url) === 2;
+    }
 
     // ---- Ответ
 
@@ -111,6 +115,10 @@ ApplicationWindow {
             showError("Выберите папку на этом компьютере.");
             return;
         }
+        if (choosingFolder && !folderExists()) {
+            showError("Этой папки нет. Выберите другую.");
+            return;
+        }
         if (mode === "open" && directory) {
             const rows = folder.selectedUrls();
             const one = folder.selectedCount === 1 && folder.isDirAt(folder.firstSelected());
@@ -129,7 +137,7 @@ ApplicationWindow {
             return;
         }
         if (mode === "saveFiles") {
-            const targets = win.files.map(name => session.resolve(folder.url, name));
+            const targets = win.files.map(name => session.child(folder.url, name));
             const existing = targets.filter(u => session.kind(u) !== 0);
             if (existing.length === 0) {
                 finish(targets);
@@ -181,6 +189,8 @@ ApplicationWindow {
             tab.navigate(folder.urlAt(row));
             return;
         }
+        // Enter на строке под курсором — выбрать именно её, а не выделенную раньше.
+        if (!folder.isSelected(row)) folder.select(row, 0);
         if (mode === "open" && !directory) {
             accept();
         } else if (mode === "save") {
@@ -224,7 +234,12 @@ ApplicationWindow {
 
     // ---- Клавиши
 
-    Shortcut { sequence: "Escape"; onActivated: win.cancel() }
+    // Escape в поле адреса или имени папки — отменить правку, а не весь выбор.
+    Shortcut {
+        sequence: "Escape"
+        enabled: !pathBar.editing && tab.view.renamingRow < 0
+        onActivated: win.cancel()
+    }
     Shortcut { sequence: "Ctrl+L"; onActivated: pathBar.edit() }
     Shortcut { sequences: ["Alt+Left", "Back"]; onActivated: tab.back() }
     Shortcut { sequences: ["Alt+Right", "Forward"]; onActivated: tab.forward() }
@@ -339,8 +354,9 @@ ApplicationWindow {
                     id: tab
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    startUrl: win.startFolder.toString() !== "" ? win.startFolder
-                            : chooserSettings.lastFolder !== "" ? chooserSettings.lastFolder
+                    // Первая из папок, что есть на месте.
+                    startUrl: win.session.kind(win.startFolder) === 2 ? win.startFolder
+                            : win.session.kind(chooserSettings.lastFolder) === 2 ? chooserSettings.lastFolder
                             : FileOps.homeUrl
                     mode: viewSettings.mode
                     showHidden: viewSettings.showHidden

@@ -102,6 +102,7 @@ private:
     // Своё окно не создалось — отдать просьбу окну KDE и вернуть его ответ.
     void forwardToKde(const QDBusMessage &call, const QDBusObjectPath &handle);
     void windowsChanged();
+    void idleQuit();
 
     QQmlEngine *m_engine;
     int m_open = 0;

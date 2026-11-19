@@ -199,6 +199,7 @@ public:
     }
 
     void setWindow(QQuickWindow *window) { m_window = window; }
+    void setWritable(bool writable) { m_writable = writable; }
     // Ответит кто-то другой (окно KDE).
     void forgetReply() { m_replied = true; }
 
@@ -212,6 +213,9 @@ public:
             for (const QVariant &uri : uris)
                 list << uri.toUrl().toString(QUrl::FullyEncoded);
             QVariantMap results{{QStringLiteral("uris"), list}};
+            // Иначе портал отдаст песочнице (Flatpak) файл только для чтения.
+            if (m_writable)
+                results.insert(QStringLiteral("writable"), true);
             if (filterIndex >= 0 && filterIndex < m_filters.size())
                 results.insert(QStringLiteral("current_filter"), QVariant::fromValue(m_filters.at(filterIndex)));
             if (!choices.isEmpty()) {
@@ -253,6 +257,12 @@ public:
         return QUrl::fromLocalFile(QDir::cleanPath(path));
     }
 
+    // Имя от программы (SaveFiles) — как есть: без «~», пробелов по краям и путей.
+    Q_INVOKABLE QUrl child(const QUrl &folder, const QString &name) const
+    {
+        return QUrl::fromLocalFile(folder.toLocalFile() + QLatin1Char('/') + name);
+    }
+
     Q_INVOKABLE QUrl parentOf(const QUrl &url) const
     {
         return QUrl::fromLocalFile(QFileInfo(url.toLocalFile()).absolutePath());
@@ -272,6 +282,10 @@ private:
 
     void close()
     {
+        // Close от портала может прийти и после ответа — второй раз не считать.
+        if (m_closed)
+            return;
+        m_closed = true;
         if (m_window) {
             m_window->hide();
             m_window->deleteLater();
@@ -284,6 +298,8 @@ private:
     QList<Filter> m_filters;
     QPointer<QQuickWindow> m_window;
     bool m_replied = false;
+    bool m_closed = false;
+    bool m_writable = false;
 };
 
 // ---- Request
@@ -314,7 +330,7 @@ FileChooserPortal::FileChooserPortal(QQmlEngine *engine)
     registerTypes();
     m_idle.setSingleShot(true);
     m_idle.setInterval(idleTimeout);
-    connect(&m_idle, &QTimer::timeout, qApp, &QCoreApplication::quit);
+    connect(&m_idle, &QTimer::timeout, this, &FileChooserPortal::idleQuit);
     m_idle.start();
 }
 
@@ -356,10 +372,13 @@ void FileChooserPortal::show(const QString &mode, const QDBusObjectPath &handle,
     setDelayedReply(true);
     const QDBusMessage call = message();
 
-    const QList<Filter> filters = option<QList<Filter>>(options, "filters");
+    QList<Filter> filters = option<QList<Filter>>(options, "filters");
     int currentFilter = filters.isEmpty() ? -1 : 0;
     if (options.contains(QStringLiteral("current_filter"))) {
         const Filter current = option<Filter>(options, "current_filter");
+        // Без списка current_filter действует всегда (так в описании портала).
+        if (filters.isEmpty() && !current.rules.isEmpty())
+            filters << current;
         for (int i = 0; i < filters.size(); ++i) {
             if (filters.at(i).name == current.name) {
                 currentFilter = i;
@@ -376,16 +395,20 @@ void FileChooserPortal::show(const QString &mode, const QDBusObjectPath &handle,
         folder = info.absolutePath();
         name = info.fileName();
     }
+    // Ответ — в том же порядке, что имена: негодное имя заменить, а не выкинуть.
     QStringList files;
     for (const QByteArray &bytes : option<QList<QByteArray>>(options, "files")) {
         QByteArray b = bytes;
         while (b.endsWith('\0'))
             b.chop(1);
-        if (!b.isEmpty())
-            files << QFileInfo(QFile::decodeName(b)).fileName();
+        QString fileName = QFileInfo(QFile::decodeName(b)).fileName();
+        if (fileName.isEmpty() || fileName == QLatin1String(".") || fileName == QLatin1String(".."))
+            fileName = QStringLiteral("Без имени %1").arg(files.size() + 1);
+        files << fileName;
     }
 
     auto *session = new ChooserSession(call, filters, this);
+    session->setWritable(mode == QLatin1String("open"));
     auto *request = new PortalRequest(handle, session);
     connect(request, &PortalRequest::closeRequested, session, &ChooserSession::cancel);
 
@@ -468,6 +491,21 @@ void FileChooserPortal::forwardToKde(const QDBusMessage &call, const QDBusObject
         watcher->deleteLater();
         --m_open;
         windowsChanged();
+    });
+}
+
+// Сначала отдать имя: новые просьбы пойдут новому процессу. Те, что успели
+// прийти до этого, ещё обработаем — выходим, только если окон так и нет.
+void FileChooserPortal::idleQuit()
+{
+    QDBusConnection::sessionBus().unregisterService(serviceName);
+    QTimer::singleShot(1000, this, [this] {
+        if (m_open <= 0) {
+            QCoreApplication::quit();
+            return;
+        }
+        // Пришла просьба — работаем дальше (если имя ещё свободно — снова его).
+        QDBusConnection::sessionBus().registerService(serviceName);
     });
 }
 
