@@ -3,8 +3,11 @@
 // timedated, hostnamed). Чего у нас пока нет, открывается в параметрах KDE.
 //
 //   sedmio-preferences [раздел]   display | wallpaper | mouse | keyboard | power | defaults | datetime | about
+//   sedmio-preferences --display-switcher   выбор режима экранов (Meta+P) вместо
+//                                           kscreen_osd_service, см. displayswitcher.h
 
 #include "app.h"
+#include "displayswitcher.h"
 
 #include <QApplication>
 #include <QIcon>
@@ -53,6 +56,24 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("preferences-system")));
 
     const QStringList args = app.arguments().mid(1);
+    QQuickStyle::setStyle(QStringLiteral("Basic"));
+
+    if (args.contains(QStringLiteral("--display-switcher"))) {
+        DisplaySwitcher switcher;
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("Switcher"), &switcher);
+        engine.loadFromModule("Sedmio.Preferences", "DisplaySwitcher");
+        // Окно не загрузилось — выходим, не заняв имя на шине: служба
+        // запустит вместо нас kscreen_osd_service (plasma-kscreen-osd.service.d).
+        if (engine.rootObjects().isEmpty())
+            return 1;
+        switcher.setWindow(qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst()));
+        if (!switcher.registerOnBus())
+            return 1;
+        app.setQuitOnLastWindowClosed(false);
+        return app.exec();
+    }
+
     const QString page = args.isEmpty() ? QString() : args.constFirst();
 
     App preferences;
@@ -64,7 +85,6 @@ int main(int argc, char *argv[])
     if (!page.isEmpty())
         preferences.setPage(page);
 
-    QQuickStyle::setStyle(QStringLiteral("Basic"));
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("icon"), new IconProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("App"), &preferences);

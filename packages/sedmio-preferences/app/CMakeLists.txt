@@ -10,6 +10,8 @@ find_package(KF6WindowSystem 6.10 REQUIRED)
 find_package(KF6Config 6.10 REQUIRED)
 find_package(KF6Service 6.10 REQUIRED)
 find_package(KF6Screen 6.3 REQUIRED)
+# Окно выбора режима экранов — слой поверх всего (как у kscreen).
+find_package(LayerShellQt 6.3 REQUIRED)
 # Русские названия городов в часовых поясах.
 find_package(ICU REQUIRED COMPONENTS i18n uc)
 # Названия раскладок клавиатуры.
@@ -33,6 +35,7 @@ qt_add_qml_module(sedmio-preferences
         pointers.cpp pointers.h
         defaults.cpp defaults.h
         power.cpp power.h
+        displayswitcher.cpp displayswitcher.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -51,6 +54,7 @@ qt_add_qml_module(sedmio-preferences
         qml/MousePage.qml
         qml/DefaultsPage.qml
         qml/PowerPage.qml
+        qml/DisplaySwitcher.qml
         qml/SSlider.qml
         qml/DateTimePage.qml
         qml/AboutPage.qml
@@ -67,6 +71,7 @@ target_link_libraries(sedmio-preferences PRIVATE
     KF6::Screen
     KF6::ConfigCore
     KF6::Service
+    LayerShellQt::Interface
     PkgConfig::XKBREGISTRY
     ICU::i18n
     ICU::uc

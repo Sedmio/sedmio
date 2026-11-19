@@ -11,6 +11,10 @@
 # по умолчанию, Дата и время, О системе. Остальное — кнопкой
 # «Ещё в параметрах KDE»: systemsettings остаётся в системе запасным путём.
 #
+# Meta+P (и подключение второго экрана) показывает наш выбор режима экранов
+# (--display-switcher) вместо окна kscreen_osd_service: подмена через
+# drop-in к plasma-kscreen-osd.service, kscreen остаётся запасным.
+#
 # Параметры KDE в меню называются «Параметры KDE», Meta+I открывает наши
 # (files/usr/share/sedmio/xdg — перекрытия файлов KDE).
 #
@@ -18,7 +22,7 @@
 
 pkgname=sedmio-preferences
 pkgver=0.1.0
-pkgrel=9
+pkgrel=10
 pkgdesc="Sedmio: приложение «Параметры» на QML"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -30,6 +34,8 @@ depends=(
   'kwindowsystem'
   'libkscreen'
   'kconfig'
+  'layer-shell-qt'  # окно выбора режима экранов поверх всего
+  'kscreen'         # kded зовёт наш выбор режима экранов (plasma-kscreen-osd.service.d)
   'kservice'
   'libxkbcommon'    # названия раскладок (xkbregistry)
   'icu'             # русские названия городов в часовых поясах
@@ -53,4 +59,5 @@ package() {
   cp -a "$startdir/files/." "$pkgdir/"
   find "$pkgdir/usr/share/sedmio" "$pkgdir/usr/share/kglobalaccel" -type d -exec chmod 755 {} +
   find "$pkgdir/usr/share/sedmio" -type f -exec chmod 644 {} +
+  chmod 644 "$pkgdir/usr/lib/systemd/user/plasma-kscreen-osd.service.d/10-sedmio.conf"
 }
