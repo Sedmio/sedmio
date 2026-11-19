@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Task Manager
+Name[ru]=Диспетчер задач
+GenericName=Task Manager
+GenericName[ru]=Диспетчер задач
+Comment=Running programs, processor and memory; close a frozen program
+Comment[ru]=Открытые программы, процессор и память; закрыть зависшую программу
+Icon=utilities-system-monitor
+Exec=sedmio-preferences --tasks
+Terminal=false
+Categories=Qt;KDE;System;Monitor;
+Keywords=task manager;processes;memory;cpu;kill;frozen;
+Keywords[ru]=диспетчер задач;процессы;память;процессор;завершить;зависла;не отвечает;
+StartupNotify=true
+# Как в Windows.
+X-KDE-Shortcuts=Ctrl+Shift+Esc

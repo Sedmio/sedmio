@@ -5,9 +5,11 @@
 //   sedmio-preferences [раздел]   display | wallpaper | mouse | keyboard | sound | bluetooth | power | defaults | account | datetime | about
 //   sedmio-preferences --display-switcher   выбор режима экранов (Meta+P) вместо
 //                                           kscreen_osd_service, см. displayswitcher.h
+//   sedmio-preferences --tasks              «Диспетчер задач» (Ctrl+Shift+Esc), см. tasks.h
 
 #include "app.h"
 #include "displayswitcher.h"
+#include "tasks.h"
 
 #include <QApplication>
 #include <QIcon>
@@ -71,6 +73,26 @@ int main(int argc, char *argv[])
         if (!switcher.registerOnBus())
             return 1;
         app.setQuitOnLastWindowClosed(false);
+        return app.exec();
+    }
+
+    if (args.contains(QStringLiteral("--tasks"))) {
+        app.setApplicationDisplayName(QStringLiteral("Диспетчер задач"));
+        app.setDesktopFileName(QStringLiteral("sedmio-tasks"));
+        app.setWindowIcon(QIcon::fromTheme(QStringLiteral("utilities-system-monitor")));
+        TasksHost host;
+        if (!host.registerOnBus()) {
+            if (TasksHost::forward())
+                return 0;
+            // Запущенный не ответил (завис?) — открываем своё окно.
+        }
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("icon"), new IconProvider);
+        engine.loadFromModule("Sedmio.Preferences", "TasksWindow");
+        if (engine.rootObjects().isEmpty())
+            return 1;
+        host.setWindow(qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst()));
+        qunsetenv("XDG_ACTIVATION_TOKEN");
         return app.exec();
     }
 
