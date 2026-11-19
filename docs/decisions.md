@@ -400,3 +400,15 @@ audioshortcutsservice, индикатор рисует оболочка), раз
   QML plasma-workspace (keyboardindicator, keyboardlayout, sessions) —
   теперь свой модуль `Sedmio.Login` (sedmio-login, app/): KModifierKeyInfo,
   раскладки KWin по D-Bus, logind.
+- Модули kded из plasma-workspace. Клавиши мультимедиа (mprisservice) —
+  `/usr/lib/sedmio/media` по MPRIS: команда плееру, который играет, иначе
+  тому, что на паузе. Meta+L и Screensaver (plasma_session_shortcuts) —
+  блокировка через org.freedesktop.ScreenSaver. Мало места на диске
+  (freespacenotifier) — `/usr/lib/sedmio/freespace` по таймеру раз в 5
+  минут, уведомление при < 5 %. Всё в sedmio-session; клавиши у компонентов
+  Plasma забирает kconf_update sedmio-sessionkeys (только не изменённые
+  пользователем). Модули Plasma выключены в kded5rc. Без замены: ktimezoned
+  и geotimezoned (смена пояса — Qt видит сам; автоопределение пояса),
+  oom_notifier (уведомление «программу убили — не хватило памяти»),
+  devicenotifications (звук подключения устройства), desktopnotifier,
+  soliduiserver (пароль к зашифрованному диску при подключении — в планы).

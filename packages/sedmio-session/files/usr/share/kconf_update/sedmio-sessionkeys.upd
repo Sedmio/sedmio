@@ -1,6 +1,6 @@
-# Ctrl+Alt+Del — нашему экрану выхода, для каждого пользователя один раз
+# Клавиши сеанса (выход, блокировка, мультимедиа) — нашим действиям, для каждого пользователя один раз
 # (kconf_update помнит Id в ~/.config/kconf_updaterc). Пакет sedmio-session.
 Version=6
 
-Id=sedmio-sessionkeys-1
+Id=sedmio-sessionkeys-2
 Script=sedmio-sessionkeys.sh,sh

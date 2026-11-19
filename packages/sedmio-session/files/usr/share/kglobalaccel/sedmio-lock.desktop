@@ -1,0 +1,12 @@
+# Заблокировать экран: Meta+L (как Win+L в Windows) и клавиша Screensaver —
+# вместо действия «Lock Session» компонента ksmserver (модуль kded
+# plasma_session_shortcuts из plasma-workspace). Блокирует KWin. Клавиши
+# у ksmserver забирает kconf_update sedmio-sessionkeys.
+# NoDisplay ставить нельзя: такие файлы kglobalaccel отключает.
+[Desktop Entry]
+Type=Application
+Name=Sedmio lock screen
+Name[ru]=Блокировка экрана Sedmio
+Icon=system-lock-screen
+Exec=busctl --user call org.freedesktop.ScreenSaver /ScreenSaver org.freedesktop.ScreenSaver Lock
+X-KDE-Shortcuts=Meta+L,Screensaver

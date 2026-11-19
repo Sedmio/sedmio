@@ -1,0 +1,30 @@
+#!/bin/sh
+# Мало места на диске — уведомление (sedmio-freespace.timer, раз в 5
+# минут) вместо модуля kded freespacenotifier из plasma-workspace.
+# Смотрит домашнюю папку и корень; места меньше 5 % — уведомляет один раз,
+# снова — только когда место освободилось и опять кончилось.
+
+state=${XDG_RUNTIME_DIR:-/tmp}/sedmio-freespace
+
+# Висит, пока не закроют (срок 0).
+notify() { # заголовок текст
+  busctl --user --timeout=5 call org.freedesktop.Notifications /org/freedesktop/Notifications \
+    org.freedesktop.Notifications Notify "susssasa{sv}i" \
+    "Sedmio" 0 drive-harddisk "$1" "$2" 0 2 urgency y 2 desktop-entry s org.kde.dolphin 0 >/dev/null
+}
+
+for dir in "$HOME" /; do
+  # Точка монтирования, доля свободного, свободно в ГиБ.
+  set -- $(df -P -B1 "$dir" 2>/dev/null | awk 'NR == 2 { printf "%s %d %.1f", $6, $4 * 100 / $2, $4 / 1073741824 }')
+  [ $# -eq 3 ] || continue
+  mount=$1 percent=$2 gib=$(echo "$3" | tr . ,)
+  flag="$state$(echo "$mount" | tr / _)"
+  if [ "$percent" -ge 5 ]; then
+    rm -f "$flag"
+    continue
+  fi
+  [ -e "$flag" ] && continue
+  if [ "$mount" = / ]; then where="на системном диске"; else where="в домашней папке"; fi
+  notify "Мало места на диске" "Свободно $where: $gib ГиБ ($percent %). Удалите ненужные файлы." && : >"$flag"
+done
+exit 0

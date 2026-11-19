@@ -5,7 +5,9 @@
 #   plasma_accentcolor_service — акцентный цвет из обоев (цвета у нас свои);
 #   lookandfeelautoswitcher    — смена темы Plasma по времени суток;
 #   kded_accounts     — сетевые учётные записи KDE (KAccounts);
-#   remotenotifier    — обновление папки remote:/ в Dolphin.
+#   remotenotifier    — обновление папки remote:/ в Dolphin;
+#   mprisservice, plasma_session_shortcuts, freespacenotifier — клавиши
+#     мультимедиа, Meta+L и место на диске: свои в sedmio-session.
 # Не загружаются при входе. Выгружать их на ходу нельзя — kded6 падает.
 # Имя файла — kded5rc: kded6 читает настройки под старым именем.
 # Режим use-plasmashell загружает networkmanagement сам
@@ -29,4 +31,13 @@ autoload=false
 autoload=false
 
 [Module-remotenotifier]
+autoload=false
+
+[Module-mprisservice]
+autoload=false
+
+[Module-plasma_session_shortcuts]
+autoload=false
+
+[Module-freespacenotifier]
 autoload=false

@@ -1,0 +1,38 @@
+#!/bin/sh
+# Клавиши мультимедиа (sedmio-media.desktop в /usr/share/kglobalaccel) —
+# вместо модуля kded mprisservice из plasma-workspace. Команда — плееру
+# через MPRIS: тому, что играет; если никто не играет — тому, что на паузе;
+# иначе первому. Работает и без оболочки.
+#
+#   media playpause | pause | stop | previous | next | forward | rewind
+
+player_status() { # $1 — имя на шине
+  busctl --user --timeout=2 get-property "$1" /org/mpris/MediaPlayer2 \
+    org.mpris.MediaPlayer2.Player PlaybackStatus 2>/dev/null | sed -n 's/^s "\(.*\)"$/\1/p'
+}
+
+players=$(busctl --user --no-legend list 2>/dev/null | awk '{print $1}' | grep '^org\.mpris\.MediaPlayer2\.')
+[ -n "$players" ] || exit 0
+
+chosen=
+for wanted in Playing Paused; do
+  for p in $players; do
+    if [ "$(player_status "$p")" = "$wanted" ]; then chosen=$p; break 2; fi
+  done
+done
+[ -n "$chosen" ] || chosen=$(echo "$players" | head -1)
+
+call() {
+  busctl --user --timeout=2 call "$chosen" /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player "$@"
+}
+
+case "$1" in
+  playpause) call PlayPause ;;
+  pause)     call Pause ;;
+  stop)      call Stop ;;
+  previous)  call Previous ;;
+  next)      call Next ;;
+  forward)   call Seek x 5000000 ;;   # на 5 с, как в Plasma
+  rewind)    call Seek x -5000000 ;;
+  *) echo "media: неизвестная команда: $1" >&2; exit 2 ;;
+esac

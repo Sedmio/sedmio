@@ -1,0 +1,12 @@
+# Проверка места на диске раз в 5 минут, пока идёт сеанс Sedmio
+# (вместо модуля kded freespacenotifier из plasma-workspace).
+[Unit]
+Description=Sedmio session: low disk space check
+PartOf=graphical-session.target
+
+[Timer]
+OnActiveSec=1min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=sedmio-session.target

@@ -1,0 +1,10 @@
+# Мало места на диске — уведомление: /usr/lib/sedmio/freespace, по
+# sedmio-freespace.timer.
+[Unit]
+Description=Sedmio session: low disk space warning
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/sedmio/freespace
+Slice=background.slice

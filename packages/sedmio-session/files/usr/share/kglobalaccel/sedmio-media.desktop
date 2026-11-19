@@ -1,0 +1,53 @@
+# Клавиши мультимедиа: играть/пауза, стоп, назад, вперёд, перемотка —
+# /usr/lib/sedmio/media (MPRIS), вместо модуля kded mprisservice из
+# plasma-workspace (компонент mediacontrol). Клавиши у mediacontrol
+# забирает kconf_update sedmio-sessionkeys.
+# NoDisplay ставить нельзя: такие файлы kglobalaccel отключает.
+[Desktop Entry]
+Type=Application
+Name=Sedmio media keys
+Name[ru]=Клавиши мультимедиа Sedmio
+Icon=media-playback-start
+Actions=PlayPause;Pause;Stop;Previous;Next;Forward;Rewind
+
+[Desktop Action PlayPause]
+Name=Play/Pause
+Name[ru]=Играть или пауза
+Exec=/usr/lib/sedmio/media playpause
+X-KDE-Shortcuts=Media Play,Toggle Media Play/Pause
+
+[Desktop Action Pause]
+Name=Pause
+Name[ru]=Пауза
+Exec=/usr/lib/sedmio/media pause
+X-KDE-Shortcuts=Media Pause
+
+[Desktop Action Stop]
+Name=Stop
+Name[ru]=Остановить
+Exec=/usr/lib/sedmio/media stop
+X-KDE-Shortcuts=Media Stop
+
+[Desktop Action Previous]
+Name=Previous track
+Name[ru]=Предыдущая дорожка
+Exec=/usr/lib/sedmio/media previous
+X-KDE-Shortcuts=Media Previous
+
+[Desktop Action Next]
+Name=Next track
+Name[ru]=Следующая дорожка
+Exec=/usr/lib/sedmio/media next
+X-KDE-Shortcuts=Media Next
+
+[Desktop Action Forward]
+Name=Seek forward
+Name[ru]=Вперёд на 5 с
+Exec=/usr/lib/sedmio/media forward
+X-KDE-Shortcuts=Media Fast Forward
+
+[Desktop Action Rewind]
+Name=Seek backward
+Name[ru]=Назад на 5 с
+Exec=/usr/lib/sedmio/media rewind
+X-KDE-Shortcuts=Media Rewind
