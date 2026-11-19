@@ -13,10 +13,10 @@
 
 namespace
 {
-// Заставка входа (ksplashqml) закрывается, когда соберёт все этапы. Этапы
-// «startPlasma» и «ksmserver» слали startplasma и ksmserver, которых у нас
-// нет, — шлём сами («desktop» шлёт оболочка). Заставка может появиться на
-// шине позже нас — тогда как только появится.
+// Заставка входа (sedmio-splash, на шине — как ksplash) закрывается, когда
+// соберёт все этапы. «startPlasma» и «ksmserver» шлём мы («desktop» —
+// оболочка). Заставка может появиться на шине позже нас — тогда как
+// только появится.
 void feedSplash(QObject *parent)
 {
     auto send = [] {
@@ -31,7 +31,7 @@ void feedSplash(QObject *parent)
     QObject::connect(watcher, &QDBusServiceWatcher::serviceRegistered, parent, send);
     if (QDBusConnection::sessionBus().interface()->isServiceRegistered(QStringLiteral("org.kde.KSplash")))
         send();
-    // Заставка живёт не дольше 40 с (plasma-ksplash.service) — дальше не ждём.
+    // Заставка живёт не дольше 30 с — дальше не ждём.
     QTimer::singleShot(60000, watcher, &QObject::deleteLater);
 }
 } // namespace

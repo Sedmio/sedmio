@@ -1,0 +1,13 @@
+# Заставка при входе (sedmio-splash): запускает /usr/bin/sedmio-session
+# вместе с KWin. Пока она на экране, служба «запускается» (oneshot) —
+# по этому оболочка знает, что её надо дождаться.
+[Unit]
+Description=Sedmio session: splash screen
+PartOf=graphical-session.target
+After=sedmio-kwin.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/sedmio/splash
+TimeoutStartSec=40
+Slice=session.slice

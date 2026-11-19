@@ -131,19 +131,18 @@ ShellRoot {
         JobsState.active;
     }
 
-    // Заставка входа (KSplash) ждёт сигнала «рабочий стол готов»,
-    // который раньше посылал plasmashell. Без него она висит до таймаута.
-    // Шлём, когда обои уже на экране (картинка грузится не сразу), но не
-    // позже чем через 4 секунды. Заставка ещё не на шине, но её служба
-    // идёт — через D-Bus-активацию (plasma_waitforname дождётся её). Ни
-    // того, ни другого (оболочку перезапустили посреди сеанса) — не будить:
-    // иначе минуту висел бы plasma_waitforname и падал.
+    // Заставка входа (sedmio-splash, на шине — как KSplash) ждёт сигнала
+    // «рабочий стол готов», иначе висит до своего таймаута. Шлём, когда
+    // обои уже на экране (картинка грузится не сразу), но не позже чем
+    // через 4 секунды. Заставка ещё не успела встать на шину, а её служба
+    // запускается — пробуем ещё пару секунд. Службы нет (оболочку
+    // перезапустили посреди сеанса) — сразу выходим.
     Process {
         id: splashDone
         command: ["sh", "-c",
-            'call() { busctl --user "$@" call org.kde.KSplash /KSplash org.kde.KSplash setStage s desktop; }; ' +
-            'call --auto-start=no 2>/dev/null || { ' +
-            '[ "$(systemctl --user show -p ActiveState --value plasma-ksplash.service)" = activating ] && call; }']
+            'i=0; until busctl --user --auto-start=no call org.kde.KSplash /KSplash org.kde.KSplash setStage s desktop 2>/dev/null; do ' +
+            '[ "$(systemctl --user show -p ActiveState --value sedmio-splash.service)" = activating ] || exit 0; ' +
+            'i=$((i + 1)); [ $i -ge 12 ] && exit 0; sleep 0.25; done']
     }
     property bool splashSent: false
     function sendSplashDone() {

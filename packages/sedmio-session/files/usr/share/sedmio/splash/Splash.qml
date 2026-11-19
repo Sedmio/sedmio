@@ -3,15 +3,14 @@ import QtQuick
 import "file:///usr/share/sedmio/login-ui"
 import Sedmio.Style
 
-// Заставка при входе (ksplashqml, тема выбрана в /etc/xdg/ksplashrc).
+// Заставка при входе (sedmio-splash, пакет sedmio-session).
 // Фон — те же обои, что у оболочки и экранов входа и блокировки: после
 // экрана входа (он гаснет в бумагу) и до рабочего стола всё одного цвета.
 // В середине — знак и тонкая полоса загрузки; к концу они гаснут, и
 // рабочий стол появляется без скачка.
 //
-// stage от ksplash: 1…5 по мере запуска сеанса, на 6-й окно закрывается.
-// Не загрузится эта тема — ksplash возьмёт запасную (Breeze), а сам
-// закроется не позже чем через 30 секунд.
+// stage — сколько этапов запуска сеанса прошло: 3…5, на 6-м окно
+// закрывается. Не загрузится этот файл — заставки просто нет.
 Backdrop {
     id: root
     property int stage
@@ -40,7 +39,7 @@ Backdrop {
             source: "file:///usr/share/icons/hicolor/scalable/apps/sedmio.svg"
         }
 
-        // Полоса загрузки: растёт по этапам ksplash.
+        // Полоса загрузки: растёт по этапам запуска.
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 160

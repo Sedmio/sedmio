@@ -14,6 +14,9 @@
 # мониторов. KWin закрывает окна, logind выключает. Экран не загрузился —
 # простой встроенный (app/Fallback.qml).
 #
+# Заставка при входе: sedmio-splash (app/splash.cpp, вид —
+# usr/share/sedmio/splash) вместо ksplashqml.
+#
 # Сеанс не запоминает открытые программы (как Windows): вход — только
 # автозапуск.
 #
@@ -21,7 +24,7 @@
 
 pkgname=sedmio-session
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Sedmio: сеанс — запуск, выход, выключение"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

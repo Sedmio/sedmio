@@ -28,3 +28,13 @@ target_link_libraries(sedmio-session-manager PRIVATE
 
 set_target_properties(sedmio-session-manager PROPERTIES OUTPUT_NAME session-manager)
 install(TARGETS sedmio-session-manager RUNTIME DESTINATION lib/sedmio)
+
+# Заставка при входе (вместо ksplashqml) — отдельная маленькая программа.
+qt_add_executable(sedmio-splash splash.cpp)
+target_link_libraries(sedmio-splash PRIVATE
+    Qt6::DBus
+    Qt6::Quick
+    LayerShellQt::Interface
+)
+set_target_properties(sedmio-splash PROPERTIES OUTPUT_NAME splash)
+install(TARGETS sedmio-splash RUNTIME DESTINATION lib/sedmio)

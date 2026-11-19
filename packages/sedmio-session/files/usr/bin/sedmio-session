@@ -79,13 +79,10 @@ env -u _ -u SHLVL -u SHELL -u PWD -u OLDPWD dbus-update-activation-environment -
 systemctl --user reset-failed
 systemctl --user daemon-reload
 
-# Заставка (ksplashqml) — пока её не заменили своей. Ей нужен KWin:
-# After=sedmio-kwin.service (plasma-ksplash.service.d) действует, только
-# если KWin запускается тем же вызовом, — поэтому оба сразу.
-if [ "$(kreadconfig6 --file ksplashrc --group KSplash --key Engine --default KSplashQML)" = KSplashQML ] \
-  && systemctl --user cat plasma-ksplash.service >/dev/null 2>&1; then
-  systemctl --user start --no-block sedmio-kwin.service plasma-ksplash.service
-fi
+# Заставка (sedmio-splash). Ей нужен KWin: After=sedmio-kwin.service
+# действует, только если KWin запускается тем же вызовом, — поэтому оба
+# сразу.
+systemctl --user start --no-block sedmio-kwin.service sedmio-splash.service
 
 cleanup() {
   trap - EXIT HUP INT TERM

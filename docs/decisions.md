@@ -151,7 +151,8 @@ Server = https://github.com/Sedmio/sedmio/releases/download/$arch
   Выйти» (ksmserver-logout-greeter) берёт `logout/Logout.qml` из того же
   `org.sedmio.shell` (заменено: экран выхода показывает
   sedmio-session-manager, окно Plasma — запасное, раздел 15); заставку при входе (ksplashqml) — из пакета
-  Plasma/LookAndFeel `org.sedmio.desktop`, выбран в `/etc/xdg/ksplashrc`.
+  Plasma/LookAndFeel `org.sedmio.desktop`, выбран в `/etc/xdg/ksplashrc`
+  (заменено: своя программа sedmio-splash, раздел 15).
 - **Бумажник KDE не спрашивает пароль.** При входе с паролем бумажник
   создаёт и открывает pam_kwallet5. При автовходе пароля нет, и первая
   программа с паролями открывала окно «придумайте пароль бумажника», а
@@ -341,9 +342,12 @@ plasma-shutdown и ksmserver-logout-greeter.
   (залипание клавиш KWin делает сам), xembedsniproxy (значки в трее
   старых программ X11 — своё взамен в дорожной карте, README),
   gmenudbusmenuproxy (глобальное меню).
-- Заставка — пока ksplashqml: запускается вместе с KWin, этапы
+- Заставка — своя маленькая программа `sedmio-splash` (вместо ksplashqml,
+  тот же вид `/usr/share/sedmio/splash/Splash.qml`) поверх всех мониторов,
+  клавиатуру не берёт. На шине — как ksplash (`org.kde.KSplash setStage`):
   «startPlasma» и «ksmserver» шлёт sedmio-session-manager, «desktop» —
-  оболочка.
+  оболочка, когда обои на экране; шесть этапов — закрывается. Вид не
+  загрузился — заставки нет; этап не пришёл — закрывается сама через 30 с.
 - Запасные пути: экран выхода не загрузился — простой встроенный (только
   Qt Quick); служба не отвечает на Ctrl+Alt+Del — клавиша перезапускает
   её; пока Plasma в системе, без нашей службы шина поднимает окно выхода
