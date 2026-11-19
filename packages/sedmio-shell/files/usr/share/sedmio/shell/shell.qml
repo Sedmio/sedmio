@@ -123,11 +123,16 @@ ShellRoot {
     // Заставка входа (KSplash) ждёт сигнала «рабочий стол готов»,
     // который раньше посылал plasmashell. Без него она висит до таймаута.
     // Шлём, когда обои уже на экране (картинка грузится не сразу), но не
-    // позже чем через 4 секунды.
+    // позже чем через 4 секунды. Заставка ещё не на шине, но её служба
+    // идёт — через D-Bus-активацию (plasma_waitforname дождётся её). Ни
+    // того, ни другого (оболочку перезапустили посреди сеанса) — не будить:
+    // иначе минуту висел бы plasma_waitforname и падал.
     Process {
         id: splashDone
-        command: ["busctl", "--user", "call", "org.kde.KSplash", "/KSplash",
-                  "org.kde.KSplash", "setStage", "s", "desktop"]
+        command: ["sh", "-c",
+            'call() { busctl --user "$@" call org.kde.KSplash /KSplash org.kde.KSplash setStage s desktop; }; ' +
+            'call --auto-start=no 2>/dev/null || { ' +
+            '[ "$(systemctl --user show -p ActiveState --value plasma-ksplash.service)" = activating ] && call; }']
     }
     property bool splashSent: false
     function sendSplashDone() {
