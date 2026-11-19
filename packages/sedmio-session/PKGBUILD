@@ -28,7 +28,7 @@
 
 pkgname=sedmio-session
 pkgver=0.1.0
-pkgrel=14
+pkgrel=15
 pkgdesc="Sedmio: сеанс — запуск, выход, выключение"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

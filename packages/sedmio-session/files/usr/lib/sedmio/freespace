@@ -10,7 +10,7 @@ state=${XDG_RUNTIME_DIR:-/tmp}/sedmio-freespace
 notify() { # заголовок текст
   busctl --user --timeout=5 call org.freedesktop.Notifications /org/freedesktop/Notifications \
     org.freedesktop.Notifications Notify "susssasa{sv}i" \
-    "Sedmio" 0 drive-harddisk "$1" "$2" 0 2 urgency y 2 desktop-entry s org.kde.dolphin 0 >/dev/null
+    "Sedmio" 0 drive-harddisk "$1" "$2" 0 2 urgency y 2 desktop-entry s sedmio-files 0 >/dev/null
 }
 
 for dir in "$HOME" /; do

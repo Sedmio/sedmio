@@ -7,5 +7,7 @@ PartOf=graphical-session.target
 
 [Service]
 ExecStart=/usr/bin/kwin_wayland_wrapper --xwayland
-BusName=org.kde.KWinWrapper
+# Без BusName=org.kde.KWinWrapper: то же имя у plasma-kwin_wayland.service
+# (пакет kwin), и systemd при каждой перезагрузке настроек ругался на обе.
+# Тип службы simple — имя на шине systemd ни к чему.
 Slice=session.slice
