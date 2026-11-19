@@ -217,9 +217,10 @@ void Keyboard::save()
     }
     // Сначала клавиша KWin, потом параметр xkb: встала — xkb не нужен (иначе
     // язык переключался бы дважды); не встала — переключает xkb, как раньше.
+    // kglobalaccel не ответил и прежнее сочетание KWin снять не вышло —
+    // переключение не трогаем: с параметром xkb язык мог бы меняться дважды.
     const bool viaKWin = kwinSwitchKeys.contains(m_switchKey) && setLayoutShortcut(kwinSwitchKeys.value(m_switchKey));
-    if (!viaKWin)
-        setLayoutShortcut(0);
+    const bool keepSwitch = !viaKWin && !setLayoutShortcut(0);
     QStringList options = m_otherOptions;
     if (!viaKWin && switchOptions.contains(m_switchKey))
         options << switchOptions.value(m_switchKey);
@@ -231,11 +232,13 @@ void Keyboard::save()
     group.writeEntry("LayoutList", layouts.join(QLatin1Char(',')), flags);
     group.writeEntry("VariantList", variants.join(QLatin1Char(',')), flags);
     group.writeEntry("ResetOldOptions", true, flags);
-    group.writeEntry("Options", options.join(QLatin1Char(',')), flags);
-    if (viaKWin)
-        group.writeEntry("SwitchKey", m_switchKey, flags);
-    else
-        group.deleteEntry("SwitchKey", flags);
+    if (!keepSwitch) {
+        group.writeEntry("Options", options.join(QLatin1Char(',')), flags);
+        if (viaKWin)
+            group.writeEntry("SwitchKey", m_switchKey, flags);
+        else
+            group.deleteEntry("SwitchKey", flags);
+    }
     group.writeEntry("SwitchMode", m_perWindow ? QStringLiteral("Window") : QStringLiteral("Global"), flags);
     if (!config.sync()) {
         m_error = QStringLiteral("Не удалось сохранить раскладки.");
@@ -243,6 +246,10 @@ void Keyboard::save()
         return;
     }
     m_error.clear();
+    if (keepSwitch) {
+        load(); // показать клавишу, которая осталась
+        m_error = QStringLiteral("Не удалось сменить клавиши переключения языка. Попробуйте ещё раз.");
+    }
 
     // Старый способ (KWin до 6.x перечитывал по этому сигналу) — не мешает.
     QDBusConnection::sessionBus().send(

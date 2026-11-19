@@ -10,6 +10,33 @@ call() {
   busctl --user --timeout=5 call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel "$@" 2>/dev/null
 }
 
+# Клавиши из ответа «a(ai) N 4 k 0 0 0 …» — по группе в строке, по порядку
+# (kglobalaccel может вернуть их в другом порядке, чем назначали).
+groups() {
+  # shellcheck disable=SC2086
+  set -- $1
+  [ $# -ge 2 ] || return 0
+  shift 2
+  while [ $# -ge 5 ]; do echo "$1 $2 $3 $4 $5"; shift 5; done | sort
+}
+
+has() { # $1 $2 — компонент и действие, $3 — «N 4 k 0 0 0 …»: у действия ровно эти клавиши
+  [ "$(groups "$(call shortcutKeys as 4 "$1" "$2" "" "")")" = "$(groups "a(ai) $3")" ]
+}
+
+# Передать клавиши $5 от действия $1 $2 действию $3 $4. Не встали (kglobalaccel
+# не ответил) — вернуть прежнему, чтобы клавиши не остались ни за чем, и
+# повторить при следующем входе.
+give() {
+  call setForeignShortcutKeys "asa(ai)" 4 "$1" "$2" "" "" 0 >/dev/null
+  # shellcheck disable=SC2086
+  call setForeignShortcutKeys "asa(ai)" 4 "$3" "$4" "" "" $5 >/dev/null
+  has "$3" "$4" "$5" && return 0
+  # shellcheck disable=SC2086
+  call setForeignShortcutKeys "asa(ai)" 4 "$1" "$2" "" "" $5 >/dev/null
+  retry=1
+}
+
 # Meta+Shift+S = Qt::META | Qt::SHIFT | Qt::Key_S, Print = Qt::Key_Print.
 keys="2 4 301989971 0 0 0 4 16777225 0 0 0"
 
@@ -32,10 +59,9 @@ run() {
       return 0 ;;
   esac
 
-  if [ "$(call shortcutKeys as 4 org.kde.spectacle.desktop _launch "" "")" = "a(ai) $keys" ]; then
-    call setForeignShortcutKeys "asa(ai)" 4 org.kde.spectacle.desktop _launch "" "" 0 >/dev/null
-    # shellcheck disable=SC2086
-    call setForeignShortcutKeys "asa(ai)" 4 sedmio-screenshot.desktop _launch "" "" $keys >/dev/null
+  retry=
+  if has org.kde.spectacle.desktop _launch "$keys"; then
+    give org.kde.spectacle.desktop _launch sedmio-screenshot.desktop _launch "$keys"
   fi
 
   case "$actions" in
@@ -48,10 +74,10 @@ run() {
       return 0 ;;
   esac
   # Meta+Print = Qt::META | Qt::Key_Print.
-  if [ "$(call shortcutKeys as 4 org.kde.spectacle.desktop ActiveWindowScreenShot "" "")" = "a(ai) 1 4 285212681 0 0 0" ]; then
-    call setForeignShortcutKeys "asa(ai)" 4 org.kde.spectacle.desktop ActiveWindowScreenShot "" "" 0 >/dev/null
-    call setForeignShortcutKeys "asa(ai)" 4 sedmio-screenshot.desktop Screen "" "" 1 4 285212681 0 0 0 >/dev/null
+  if has org.kde.spectacle.desktop ActiveWindowScreenShot "1 4 285212681 0 0 0"; then
+    give org.kde.spectacle.desktop ActiveWindowScreenShot sedmio-screenshot.desktop Screen "1 4 285212681 0 0 0"
   fi
+  [ -z "$retry" ] || kwriteconfig6 --file kconf_updaterc --group sedmio-screenshotkeys.upd --key done --delete
 }
 
 # В фоне: kded ждёт kconf_update, прежде чем грузить модули.

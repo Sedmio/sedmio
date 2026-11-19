@@ -14,15 +14,41 @@ call() {
   busctl --user --timeout=5 call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel "$@" 2>/dev/null
 }
 
+# Клавиши из ответа «a(ai) N 4 k 0 0 0 …» — по группе в строке, по порядку
+# (kglobalaccel может вернуть их в другом порядке, чем назначали).
+groups() {
+  # shellcheck disable=SC2086
+  set -- $1
+  [ $# -ge 2 ] || return 0
+  shift 2
+  while [ $# -ge 5 ]; do echo "$1 $2 $3 $4 $5"; shift 5; done | sort
+}
+
+has() { # $1 $2 — компонент и действие, $3 — «N 4 k 0 0 0 …»: у действия ровно эти клавиши
+  [ "$(groups "$(call shortcutKeys as 4 "$1" "$2" "" "")")" = "$(groups "a(ai) $3")" ]
+}
+
+# Передать клавиши $5 от действия $1 $2 действию $3 $4. Не встали (kglobalaccel
+# не ответил) — вернуть прежнему, чтобы клавиши не остались ни за чем, и
+# повторить при следующем входе.
+give() {
+  call setForeignShortcutKeys "asa(ai)" 4 "$1" "$2" "" "" 0 >/dev/null
+  # shellcheck disable=SC2086
+  call setForeignShortcutKeys "asa(ai)" 4 "$3" "$4" "" "" $5 >/dev/null
+  has "$3" "$4" "$5" && return 0
+  # shellcheck disable=SC2086
+  call setForeignShortcutKeys "asa(ai)" 4 "$1" "$2" "" "" $5 >/dev/null
+  retry=1
+}
+
 # Meta+Up = Qt::META | Qt::Key_Up, Meta+Down = Qt::META | Qt::Key_Down.
 # Нашего действия ещё нет (пакет обновили в открытом сеансе, KWin не
 # перечитал скрипт) — клавишу не трогаем, иначе она осталась бы ни за чем,
 # а повторяем при следующем входе (retry).
 move() { # $1 — действие KWin, $2 — наше, $3 — клавиша
-  [ "$(call shortcutKeys as 4 kwin "$1" "" "")" = "a(ai) 1 4 $3 0 0 0" ] || return 0
+  has kwin "$1" "1 4 $3 0 0 0" || return 0
   case "$actions" in *"\"$2\""*) ;; *) retry=1; return 0 ;; esac
-  call setForeignShortcutKeys "asa(ai)" 4 kwin "$1" "" "" 0 >/dev/null
-  call setForeignShortcutKeys "asa(ai)" 4 kwin "$2" "" "" 1 4 "$3" 0 0 0 >/dev/null
+  give kwin "$1" kwin "$2" "1 4 $3 0 0 0"
 }
 
 run() {
@@ -47,10 +73,16 @@ run() {
   move "Window Quick Tile Bottom" "Sedmio Window Down" 285212693
   move "Window Close" "Sedmio Window Close" 150994995   # Alt+F4
   # Meta+Tab = Qt::META | Qt::Key_Tab, Alt+Tab, Meta+W — у обзора по умолчанию.
-  if [ "$(call shortcutKeys as 4 kwin "Walk Through Windows" "" "")" = "a(ai) 2 4 285212673 0 0 0 4 150994945 0 0 0" ] \
-    && [ "$(call shortcutKeys as 4 kwin Overview "" "")" = "a(ai) 1 4 268435543 0 0 0" ]; then
+  if has kwin "Walk Through Windows" "2 4 285212673 0 0 0 4 150994945 0 0 0" \
+    && has kwin Overview "1 4 268435543 0 0 0"; then
     call setForeignShortcutKeys "asa(ai)" 4 kwin "Walk Through Windows" "" "" 1 4 150994945 0 0 0 >/dev/null
     call setForeignShortcutKeys "asa(ai)" 4 kwin Overview "" "" 2 4 268435543 0 0 0 4 285212673 0 0 0 >/dev/null
+    # Обзор не взял Win+Tab — вернуть перебору окон, как было.
+    if ! has kwin Overview "2 4 268435543 0 0 0 4 285212673 0 0 0"; then
+      call setForeignShortcutKeys "asa(ai)" 4 kwin Overview "" "" 1 4 268435543 0 0 0 >/dev/null
+      call setForeignShortcutKeys "asa(ai)" 4 kwin "Walk Through Windows" "" "" 2 4 285212673 0 0 0 4 150994945 0 0 0 >/dev/null
+      retry=1
+    fi
   fi
   # Повторить при следующем входе: снять отметку kconf_update.
   [ -z "$retry" ] || kwriteconfig6 --file kconf_updaterc --group sedmio-windowkeys.upd --key done --delete

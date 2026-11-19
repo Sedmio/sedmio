@@ -46,10 +46,18 @@ registerShortcut("Sedmio Window Close", "Закрыть окно, а на пус
 // в спрятанное окно, а Alt+F4 закрыл бы его. Как в Windows, фокус —
 // рабочему столу, то есть никому. Состояние «рабочий стол показан» скрипту
 // не видно — спрашиваем KWin по D-Bus, когда окна прячутся или возвращаются.
+// Ответ приходит позже: верим только ответу на последний вопрос и только
+// если активное окно с тех пор то же (новое окно открылось сразу после
+// Win+D — фокус остаётся ему).
+let asked = 0;
 function showDesktopChanged() {
+    const question = ++asked;
+    const before = workspace.activeWindow;
     callDBus("org.kde.KWin", "/KWin", "org.freedesktop.DBus.Properties", "Get",
              "org.kde.KWin", "showingDesktop", function (showing) {
         const w = workspace.activeWindow;
+        if (question !== asked || w !== before)
+            return;
         if (showing === true && w && !w.desktopWindow && !w.dock)
             workspace.activeWindow = null;
     });

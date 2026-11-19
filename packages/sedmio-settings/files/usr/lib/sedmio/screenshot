@@ -12,8 +12,25 @@ case "$1" in
   *) what=--region gui=-r ;;
 esac
 
+# «%XX» → байт: Spectacle хранит папку адресом (file:///…/50%25 → 50%).
+urldecode() {
+  printf '%s\n' "$1" | LC_ALL=C awk '{
+    out = ""
+    while (match($0, /%[0-9A-Fa-f][0-9A-Fa-f]/)) {
+      hex = tolower(substr($0, RSTART + 1, 2))
+      out = out substr($0, 1, RSTART - 1) \
+        sprintf("%c", (index("0123456789abcdef", substr(hex, 1, 1)) - 1) * 16 \
+                      + index("0123456789abcdef", substr(hex, 2, 1)) - 1)
+      $0 = substr($0, RSTART + 3)
+    }
+    print out $0
+  }'
+}
+
 dir=$(kreadconfig6 --file spectaclerc --group ImageSave --key imageSaveLocation 2>/dev/null)
-dir=${dir#file://}
+case "$dir" in
+  file://*) dir=$(urldecode "${dir#file://}") ;;
+esac
 if [ -z "$dir" ]; then
   pictures=$(xdg-user-dir PICTURES 2>/dev/null)
   [ -n "$pictures" ] && [ "$pictures" != "$HOME" ] || pictures="$HOME/Изображения"
