@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import QtQuick.Dialogs
 import QtQuick.Effects
@@ -238,7 +239,8 @@ Page {
         id: avatarDialog
         title: "Картинка учётной записи"
         nameFilters: ["Картинки (*.png *.jpg *.jpeg *.webp *.bmp *.gif)"]
-        currentFolder: "file:///usr/share/plasma/avatars"
+        // Свои фото — в «Изображениях», а не набор Konqi из Plasma.
+        currentFolder: StandardPaths.writableLocation(StandardPaths.PicturesLocation)
         onAccepted: account.setAvatar(selectedFile)
     }
 }
