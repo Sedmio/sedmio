@@ -15,7 +15,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_executable(sedmio-files main.cpp images.cpp)
 
-set_source_files_properties(qml/Theme.qml qml/Format.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Format.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(sedmio-files
     URI Sedmio.Files
@@ -29,7 +29,6 @@ qt_add_qml_module(sedmio-files
         properties.cpp properties.h
     QML_FILES
         qml/Main.qml
-        qml/Theme.qml
         qml/Format.qml
         qml/SText.qml
         qml/SIcon.qml

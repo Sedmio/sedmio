@@ -1,5 +1,6 @@
 import QtQuick
 import org.kde.bluezqt as BluezQt
+import Sedmio.Style
 
 // «Bluetooth»: включить, как компьютер называется и виден ли он другим,
 // свои устройства (подключить, отключить, забыть) и новые рядом. Всё через

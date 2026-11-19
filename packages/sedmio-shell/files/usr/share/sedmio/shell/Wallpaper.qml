@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Обои под всеми окнами: картинка, выбранная в «Параметрах»
 // (WallpaperState), или свои обои Sedmio — мягкий градиент и знак. Новая
@@ -21,9 +22,9 @@ PanelWindow {
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#E8EDE3" }
-            GradientStop { position: 0.55; color: "#D6E1D0" }
-            GradientStop { position: 1.0; color: "#B9CCB3" }
+            GradientStop { position: 0.0; color: Theme.wallpaperTop }
+            GradientStop { position: 0.55; color: Theme.wallpaperMiddle }
+            GradientStop { position: 1.0; color: Theme.wallpaperBottom }
         }
     }
 

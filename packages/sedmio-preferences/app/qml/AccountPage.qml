@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Dialogs
 import QtQuick.Effects
 import Sedmio.Preferences
+import Sedmio.Style
 
 // «Учётная запись»: картинка и имя (их показывают экран входа и экран
 // блокировки), пароль, вход без пароля.

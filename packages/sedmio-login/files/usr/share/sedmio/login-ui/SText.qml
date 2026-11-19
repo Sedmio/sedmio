@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Текст: Onest нужной насыщенности (ось wght — font.weight её не меняет).
 Text {

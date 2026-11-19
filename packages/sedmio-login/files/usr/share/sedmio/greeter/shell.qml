@@ -8,6 +8,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Greetd
 import "file:///usr/share/sedmio/login-ui"
+import Sedmio.Style
 
 ShellRoot {
     id: root

@@ -1,5 +1,6 @@
 import QtQuick
 import org.kde.plasma.workspace.keyboardlayout as Keyboard
+import Sedmio.Style
 
 // Текущая раскладка (её держит KWin); клик — следующая.
 Item {

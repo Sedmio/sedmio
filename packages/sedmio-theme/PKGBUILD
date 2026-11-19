@@ -1,0 +1,42 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Темы Sedmio: откуда все наши программы (оболочка, окна паролей, вход и
+# блокировка, «Параметры», «Файлы», диспетчер задач) берут цвета, шрифт,
+# скругления и движение. QML-модуль Sedmio.Style (синглтон Theme) читает
+# файл выбранной темы и следит за ним — тема меняется на ходу.
+#
+#   /usr/share/sedmio/themes/<тема>/theme.json   — темы (и ~/.local/share)
+#   ~/.config/sedmio/theme                      — выбор (первая строка);
+#                                                  по умолчанию /etc/xdg/sedmio/theme,
+#                                                  нет и его — «sedmio»
+#
+# Тема по умолчанию вшита в модуль: файла нет или он битый — берётся она.
+#
+# Исходники — module/ и themes/ рядом с этим файлом (src/ занята makepkg).
+
+pkgname=sedmio-theme
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: темы оформления и модуль Sedmio.Style"
+arch=('x86_64')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'qt6-base'
+  'qt6-declarative'
+)
+makedepends=(
+  'cmake'
+  'ninja'
+)
+
+build() {
+  cmake -G Ninja -S "$startdir/module" -B build \
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+    -D CMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Sedmio.Style
 
 // Заголовок страницы панели управления: «назад», название, переключатель.
 RowLayout {

@@ -5,7 +5,8 @@
 # системы отдельно, перезапуск и запуск упавшей оболочки. Отдельный пакет,
 # а не раздел «Параметров»: инструмент на случай, когда что-то сломалось,
 # не должен ломаться вместе с остальным. Зависит только от Qt и KService;
-# пять файлов оформления — копия из sedmio-preferences.
+# цвета — общий модуль Sedmio.Style (sedmio-theme), четыре файла
+# оформления — копия из sedmio-preferences.
 #
 # Ctrl+Shift+Esc — X-KDE-Shortcuts в .desktop; файл для kglobalaccel —
 # ссылка files/usr/share/kglobalaccel/sedmio-tasks.desktop.
@@ -14,7 +15,7 @@
 
 pkgname=sedmio-tasks
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Sedmio: диспетчер задач"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -25,7 +26,10 @@ depends=(
   'kservice'
   'kwindowsystem'
   'systemd'         # группы программ (cgroup), остановка через systemd --user
-  'sedmio-branding'  # шрифт Onest
+  # Шрифт Onest (sedmio-branding) и цвета (sedmio-theme, модуль Sedmio.Style)
+  # сюда не вписаны: makepkg ставит зависимости компилируемого пакета на
+  # машину сборки, а наших пакетов в репозиториях Arch нет. Их тянет
+  # sedmio-base.
   'breeze-icons'
 )
 makedepends=(

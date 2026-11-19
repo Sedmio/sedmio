@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Sedmio.Style
 
 // Календарь на месяц: неделя с понедельника, сегодня выделено.
 // Стрелки листают месяцы, клик по названию — вернуться к сегодня.

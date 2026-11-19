@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Квадратная кнопка со значком: назад, вперёд, вид…
 Rectangle {

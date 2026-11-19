@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Sedmio.Tasks
+import Sedmio.Style
 
 // «Диспетчер задач» (Ctrl+Shift+Esc): программы — сколько берут и
 // «Завершить»; ниже — части системы. Данные — Tasks (группы systemd).

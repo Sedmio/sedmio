@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Содержимое запуска программ: поле поиска и список. Подложку рисует
 // DrawerShape в слое рамки, здесь только то, что на ней.

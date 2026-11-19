@@ -6,6 +6,7 @@ import Quickshell.Networking
 import Quickshell.Services.Kde
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
+import Sedmio.Style
 
 // Содержимое панели управления: дата и календарь, плитки (сеть, Bluetooth,
 // «Не беспокоить», режим питания), громкость, микрофон, яркость и кнопки

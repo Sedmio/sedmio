@@ -12,7 +12,7 @@
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=25
+pkgrel=26
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -20,6 +20,7 @@ license=('MIT')
 depends=(
   'quickshell>=0.3.2-8' # наша сборка: список окон под KWin, службы Plasma, буфер обмена, ход копирования
   'sedmio-branding'     # шрифт Onest
+  'sedmio-theme'        # цвета и прочее оформление (Sedmio.Style)
   'sedmio-settings'     # знак Sedmio в hicolor
   'plasma-workspace'    # сеанс, в котором работает оболочка
   'breeze-icons'

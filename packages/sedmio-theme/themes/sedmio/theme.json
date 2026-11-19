@@ -1,0 +1,53 @@
+{
+    "name": "Седум",
+    "description": "Светлая: бумага, зелень седума, терракота",
+
+    "colors": {
+        "paper": "#EEF1EA",
+        "paperDeep": "#E3E8DE",
+        "surface": "#F8FAF5",
+        "line": "#D5DCCF",
+        "lineStrong": "#B7C2B0",
+
+        "ink": "#1B251F",
+        "inkSoft": "#4B5A50",
+        "inkMuted": "#7E8A81",
+
+        "green": "#2F5D46",
+        "greenWash": "#DCE7DA",
+        "greenSelect": "#C9DCC8",
+        "textOnGreen": "#F4F7F1",
+        "leaf": "#6E9C74",
+
+        "terracotta": "#C8643B",
+        "terracottaSoft": "#F0D8C8",
+
+        "shadow": "#1D2420"
+    },
+
+    "wallpaper": {
+        "wallpaperTop": "#E8EDE3",
+        "wallpaperMiddle": "#D6E1D0",
+        "wallpaperBottom": "#B9CCB3"
+    },
+
+    "fonts": {
+        "fontFamily": "Onest",
+        "fontSmall": 12,
+        "fontBody": 14,
+        "fontLarge": 15
+    },
+
+    "shapes": {
+        "radius": 11,
+        "barWidth": 48,
+        "border": 6,
+        "frameRadius": 18,
+        "buttonSize": 36
+    },
+
+    "motion": {
+        "animFast": 140,
+        "animNormal": 260
+    }
+}

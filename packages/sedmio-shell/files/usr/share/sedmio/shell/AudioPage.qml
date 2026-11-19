@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Pipewire
+import Sedmio.Style
 
 // Страница «Звук»: куда выводить звук и откуда брать микрофон.
 ColumnLayout {

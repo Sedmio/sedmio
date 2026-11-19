@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Networking
+import Sedmio.Style
 
 // Страница «Сеть»: проводное подключение и сети Wi‑Fi. Клик по сети —
 // подключиться; к новой защищённой сети пароль вводится прямо в строке.

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Меню по правому клику на рабочем столе (Wallpaper.qml), как в Windows.
 // Параметры открываются через open-settings: без «Параметров» Sedmio —

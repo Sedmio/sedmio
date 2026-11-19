@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import Sedmio.Style
 
 // Выпадающий список: model — массив строк, currentIndex — выбранная.
 // activated(index) — выбрали другую строку (сам currentIndex не меняет:

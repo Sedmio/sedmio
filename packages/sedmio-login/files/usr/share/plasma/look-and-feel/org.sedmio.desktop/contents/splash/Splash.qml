@@ -1,6 +1,7 @@
 import QtCore
 import QtQuick
 import "file:///usr/share/sedmio/login-ui"
+import Sedmio.Style
 
 // Заставка при входе (ksplashqml, тема выбрана в /etc/xdg/ksplashrc).
 // Фон — те же обои, что у оболочки и экранов входа и блокировки: после

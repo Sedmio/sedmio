@@ -14,8 +14,6 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_executable(sedmio-tasks main.cpp)
 
-set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
-
 qt_add_qml_module(sedmio-tasks
     URI Sedmio.Tasks
     VERSION 1.0
@@ -24,7 +22,6 @@ qt_add_qml_module(sedmio-tasks
         keyedmodel.cpp keyedmodel.h
     QML_FILES
         qml/TasksWindow.qml
-        qml/Theme.qml
         qml/SText.qml
         qml/SIcon.qml
         qml/SButton.qml

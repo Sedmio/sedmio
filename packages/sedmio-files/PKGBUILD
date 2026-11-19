@@ -16,7 +16,7 @@
 
 pkgname=sedmio-files
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Sedmio: файловый менеджер «Файлы» на QML и KIO"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -31,9 +31,10 @@ depends=(
   'solid'
   'kwindowsystem'
   'breeze-icons'
-  # Шрифт Onest из sedmio-branding сюда не вписан: makepkg ставит зависимости
-  # компилируемого пакета на машину сборки, а нашего пакета в репозиториях
-  # Arch нет. Его и так тянет sedmio-shell.
+  # Шрифт Onest (sedmio-branding) и цвета (sedmio-theme, модуль Sedmio.Style)
+  # сюда не вписаны: makepkg ставит зависимости компилируемого пакета на
+  # машину сборки, а наших пакетов в репозиториях Arch нет. Их тянет
+  # sedmio-base.
 )
 makedepends=(
   'cmake'

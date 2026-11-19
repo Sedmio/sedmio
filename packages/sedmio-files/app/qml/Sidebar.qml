@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Sedmio.Files
+import Sedmio.Style
 
 // Места слева: свои папки и корзина, сеть, диски и флешки. Флешку
 // перед открытием подключаем; у подключённой — кнопка «Извлечь».

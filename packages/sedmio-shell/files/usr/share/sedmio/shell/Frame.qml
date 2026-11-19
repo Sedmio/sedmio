@@ -3,6 +3,7 @@ import QtQuick.Effects
 import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
+import Sedmio.Style
 
 // Рамка вокруг экрана со скруглёнными внутренними углами, слева в неё
 // встроена панель. Из рамки выезжают: запуск программ (сверху слева),

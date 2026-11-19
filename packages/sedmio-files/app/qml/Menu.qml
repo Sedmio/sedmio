@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import Sedmio.Style
 
 // Всплывающее меню. Пункты — список объектов:
 //   { text, icon, shortcut, enabled, checked, action: function, items: [...] }

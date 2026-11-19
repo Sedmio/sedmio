@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Sedmio.Preferences
+import Sedmio.Style
 
 // Окно «Параметров»: разделы слева, раздел справа. Внизу слева — параметры
 // KDE для всего, чего у нас пока нет.

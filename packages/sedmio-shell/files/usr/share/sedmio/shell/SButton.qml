@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Кнопка с текстом. primary — зелёная, danger — терракотовая.
 Rectangle {

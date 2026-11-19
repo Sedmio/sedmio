@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Sedmio.Style
 
 // Панель слева, часть рамки. Сверху знак Sedmio и открытые окна,
 // снизу трей, раскладка, батарея, звук, уведомления и часы.

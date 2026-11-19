@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Polkit
 import Quickshell.Wayland
+import Sedmio.Style
 
 // Запрос пароля администратора (polkit): программа просит права на
 // действие. Вместо polkit-kde-agent.

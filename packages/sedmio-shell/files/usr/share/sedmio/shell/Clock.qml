@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Sedmio.Style
 
 // Часы столбиком: часы над минутами. Дата — в подсказке,
 // клик — панель управления с календарём.

@@ -2,8 +2,8 @@
 // сопряжение Bluetooth (BlueZ). Отдельный процесс от оболочки — служба
 // sedmio-agents.service: упадёт или перезапустится панель, а запрос
 // пароля, открытый в этот момент, не пропадёт и новые будут работать.
-// Оформление — общие с оболочкой файлы (Theme, SText… — ссылки на
-// ../shell).
+// Оформление: цвета — Sedmio.Style (sedmio-theme), SText, SButton,
+// SIcon — ссылки на ../shell.
 import QtQuick
 import Quickshell
 import Quickshell.Io

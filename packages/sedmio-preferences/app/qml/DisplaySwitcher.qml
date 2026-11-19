@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Window
 import Sedmio.Preferences
+import Sedmio.Style
 
 // Выбор режима экранов (Meta+P): только первый, повторять, расширить,
 // только второй. Стрелки и Tab — выбор, Enter — применить, Esc — закрыть.

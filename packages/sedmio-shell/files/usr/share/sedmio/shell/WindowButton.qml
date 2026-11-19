@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Программа на панели: все её окна в одной кнопке.
 // Одно окно: клик — показать, по активному — свернуть, средняя кнопка —

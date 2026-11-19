@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Sedmio.Files
+import Sedmio.Style
 
 // Вопросы заданий: «здесь уже есть такой файл», «не получилось —
 // пропустить?», «чем открыть?». Одно окно на программу, над тем окном

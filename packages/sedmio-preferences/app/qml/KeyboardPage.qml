@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Sedmio.Preferences
+import Sedmio.Style
 
 // «Клавиатура»: раскладки по порядку переключения, добавить и убрать,
 // клавиши переключения, своя раскладка у каждого окна. Всё применяется сразу.

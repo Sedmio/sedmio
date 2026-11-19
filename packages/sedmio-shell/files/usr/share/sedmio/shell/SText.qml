@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Текст оболочки: Onest нужной насыщенности.
 Text {

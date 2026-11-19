@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Bluetooth
+import Sedmio.Style
 
 // Страница «Bluetooth»: свои устройства (подключить/отключить) и найденные
 // рядом (клик — сопрячь и подключить). Пока открыта, адаптер ищет устройства.

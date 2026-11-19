@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Карточка с параметрами: строки (Setting) друг под другом, между ними линия.
 Rectangle {

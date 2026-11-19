@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Круглая кнопка со значком; подпись появляется под ней при наведении.
 Item {
@@ -23,7 +24,7 @@ Item {
             width: 20
             height: 20
             sourceSize: Qt.size(40, 40)
-            source: root.icon ? Theme.icon(root.icon) : ""
+            source: root.icon ? Icons.path(root.icon) : ""
         }
     }
 

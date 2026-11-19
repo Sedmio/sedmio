@@ -23,7 +23,7 @@
 
 pkgname=sedmio-login
 pkgver=0.1.0
-pkgrel=8
+pkgrel=9
 pkgdesc="Sedmio: экраны входа (greetd) и блокировки"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -40,6 +40,7 @@ depends=(
   'polkit'              # pkexec set-autologin
   'breeze-icons'
   'sedmio-branding'     # шрифт Onest
+  'sedmio-theme'        # цвета (модуль Sedmio.Style)
   'sedmio-settings'     # знак Sedmio, раскладки (/etc/xdg/kxkbrc)
 )
 backup=('etc/greetd/sedmio.toml')

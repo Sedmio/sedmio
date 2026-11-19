@@ -2,6 +2,7 @@ import QtCore
 import QtQuick
 import QtQuick.Dialogs
 import Sedmio.Preferences
+import Sedmio.Style
 
 // «Обои»: миниатюры картинок из системы и «Изображений», первая — обои
 // Sedmio. Щелчок — сразу на рабочий стол (оболочка следит за выбором).
@@ -65,9 +66,9 @@ Page {
                         anchors.margins: parent.border.width
                         radius: Theme.radius - 2
                         gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#E8EDE3" }
-                            GradientStop { position: 0.55; color: "#D6E1D0" }
-                            GradientStop { position: 1.0; color: "#B9CCB3" }
+                            GradientStop { position: 0.0; color: Theme.wallpaperTop }
+                            GradientStop { position: 0.55; color: Theme.wallpaperMiddle }
+                            GradientStop { position: 1.0; color: Theme.wallpaperBottom }
                         }
                         SIcon {
                             anchors { right: parent.right; bottom: parent.bottom; margins: parent.height * 0.12 }

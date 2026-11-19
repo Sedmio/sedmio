@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Window
 import Sedmio.Preferences
+import Sedmio.Style
 
 // «Звук»: куда выводить и откуда брать звук, громкость, звук отдельных
 // программ, режим звуковых карт. Всё применяется сразу.

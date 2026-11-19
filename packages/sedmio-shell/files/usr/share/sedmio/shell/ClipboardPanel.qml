@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Sedmio.Style
 
 // История буфера обмена: поиск, список скопированного (текст, картинки,
 // файлы); записи со звёздочкой «Очистить» не трогает. Enter или клик кладёт

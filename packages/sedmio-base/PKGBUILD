@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=11
+pkgrel=12
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -16,6 +16,7 @@ license=('MIT')
 depends=(
   'sedmio-settings'
   'sedmio-keyring'          # ключ подписи пакетов [sedmio]
+  'sedmio-theme'            # темы: цвета всех наших программ (модуль Sedmio.Style)
   'sedmio-shell'            # своя оболочка вместо plasmashell (тянет форк quickshell)
   'sedmio-login'            # экраны входа (greetd вместо SDDM) и блокировки
 

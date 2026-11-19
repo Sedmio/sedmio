@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Sedmio.Style
 
 // Невидимые полосы по краям экрана. Сама рамка (Frame) занимает весь
 // экран и место не резервирует, а эти полосы резервируют: развёрнутые

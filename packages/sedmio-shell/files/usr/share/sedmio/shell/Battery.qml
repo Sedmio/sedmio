@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Батарея ноутбука (UPower). На компьютере без батареи не видна.
 BarButton {

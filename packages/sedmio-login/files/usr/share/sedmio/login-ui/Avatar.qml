@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import Sedmio.Style
 
 // Круглая картинка пользователя; нет картинки — первая буква имени.
 Item {

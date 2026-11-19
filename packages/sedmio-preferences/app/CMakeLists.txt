@@ -28,8 +28,6 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_executable(sedmio-preferences main.cpp app.cpp app.h)
 
-set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
-
 qt_add_qml_module(sedmio-preferences
     URI Sedmio.Preferences
     VERSION 1.0
@@ -50,7 +48,6 @@ qt_add_qml_module(sedmio-preferences
         autostart.cpp autostart.h
     QML_FILES
         qml/Main.qml
-        qml/Theme.qml
         qml/SText.qml
         qml/SIcon.qml
         qml/SButton.qml

@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Notifications
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Карточка уведомления: значок программы, заголовок, текст, кнопки действий.
 // Клик — действие по умолчанию. Всплывающая сама прячется по таймеру, если

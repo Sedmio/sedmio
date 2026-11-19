@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Поле пароля: точки вместо букв, глазок — показать набранное.
 Rectangle {

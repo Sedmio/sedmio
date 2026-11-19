@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import QtQuick.Layouts
+import Sedmio.Style
 
 // Спросить перед тем, что не отменить: удалить навсегда, очистить корзину.
 Popup {

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Содержимое всплывающего индикатора: значок, полоса и проценты или
 // значок и подпись. Подложку рисует EdgeDrawerShape в слое рамки.

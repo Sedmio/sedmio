@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Переключатель вкл/выкл.
 Rectangle {

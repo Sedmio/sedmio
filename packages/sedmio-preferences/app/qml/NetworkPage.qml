@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Dialogs
 import QtCore
+import Sedmio.Style
 
 // «Сеть»: что подключено сейчас и с какими адресами; сохранённые сети —
 // подключаться ли самой, лимитная ли, пароль, свой IP-адрес и DNS, забыть;

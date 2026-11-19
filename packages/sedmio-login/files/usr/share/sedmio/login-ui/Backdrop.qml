@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import Sedmio.Style
 
 // Фон — как обои оболочки (sedmio-shell, Wallpaper.qml): мягкий
 // градиент и знак Sedmio в углу.
@@ -16,9 +17,9 @@ Rectangle {
     readonly property bool hasImage: photo.status === Image.Ready
 
     gradient: Gradient {
-        GradientStop { position: 0.0; color: "#E8EDE3" }
-        GradientStop { position: 0.55; color: "#D6E1D0" }
-        GradientStop { position: 1.0; color: "#B9CCB3" }
+        GradientStop { position: 0.0; color: Theme.wallpaperTop }
+        GradientStop { position: 0.55; color: Theme.wallpaperMiddle }
+        GradientStop { position: 1.0; color: Theme.wallpaperBottom }
     }
 
     Image {
@@ -62,7 +63,7 @@ Rectangle {
         Rectangle {
             anchors.fill: parent
             visible: root.dimmed
-            color: "#EEF1EA"
+            color: Theme.paper
             opacity: 0.5
         }
     }

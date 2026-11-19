@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Sedmio.Files
+import Sedmio.Style
 
 // Окно «Свойства»: что это, где лежит, сколько весит (папки считаются
 // на ходу), даты, чем открывается и кому что можно. Для нескольких

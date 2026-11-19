@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Карточка операции программы (копирование, перемещение, удаление,
 // распаковка): что и куда, полоса хода, объём, скорость, сколько осталось.

@@ -25,7 +25,7 @@
 
 pkgname=sedmio-preferences
 pkgver=0.1.0
-pkgrel=17
+pkgrel=18
 pkgdesc="Sedmio: приложение «Параметры» на QML"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -51,6 +51,10 @@ depends=(
   'icu'             # русские названия городов в часовых поясах
   'systemsettings'  # «Ещё в параметрах KDE»
   'breeze-icons'
+  # Шрифт Onest (sedmio-branding) и цвета (sedmio-theme, модуль Sedmio.Style)
+  # сюда не вписаны: makepkg ставит зависимости компилируемого пакета на
+  # машину сборки, а наших пакетов в репозиториях Arch нет. Их тянет
+  # sedmio-base.
 )
 makedepends=(
   'cmake'

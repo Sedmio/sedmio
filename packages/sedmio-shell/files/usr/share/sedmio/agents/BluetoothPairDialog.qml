@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Bluetooth
 import Quickshell.Services.Kde
 import Quickshell.Wayland
+import Sedmio.Style
 
 // Сопряжение Bluetooth: сверить код, ввести код с устройства, набрать код
 // на клавиатуре устройства или разрешить подключение. Вместо окон bluedevil.

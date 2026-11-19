@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Sedmio.Files
+import Sedmio.Style
 
 // Просмотр по пробелу: картинка, текст или большая миниатюра (видео, PDF)
 // поверх папки. Стрелки — соседние файлы, пробел или Esc — закрыть,

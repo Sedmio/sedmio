@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Sedmio.Files
+import Sedmio.Style
 
 // Окно «Файлов»: места слева, сверху навигация, строка адреса, поиск по
 // папке и вид; посередине папка; внизу — сколько всего и сколько выбрано.

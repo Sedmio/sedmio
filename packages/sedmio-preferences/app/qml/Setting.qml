@@ -1,4 +1,5 @@
 import QtQuick
+import Sedmio.Style
 
 // Строка параметра: подпись (и пояснение) слева, управление справа.
 Item {

@@ -1,7 +1,8 @@
 # Общий вид экранов входа (greetd, Quickshell) и блокировки (kscreenlocker).
 # Только QtQuick и модули KDE из сеанса — без Quickshell: блокировку
-# рисует kscreenlocker_greet, у него свой движок QML.
-singleton Theme 1.0 Theme.qml
+# рисует kscreenlocker_greet, у него свой движок QML. Цвета — модуль
+# Sedmio.Style (sedmio-theme), как у всех наших программ.
+singleton Icons 1.0 Icons.qml
 SText 1.0 SText.qml
 Backdrop 1.0 Backdrop.qml
 ClockBlock 1.0 ClockBlock.qml

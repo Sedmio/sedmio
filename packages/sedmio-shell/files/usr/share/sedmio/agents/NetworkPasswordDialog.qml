@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Kde
 import Quickshell.Wayland
+import Sedmio.Style
 
 // Пароль от сети, когда его просит NetworkManager: новая сеть, сменили
 // пароль или прежний не подошёл. Вместо окна plasma-nm.

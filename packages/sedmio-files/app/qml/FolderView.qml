@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Sedmio.Files
+import Sedmio.Style
 
 // Содержимое папки: плитки (grid) или таблица (list). Выделение мышью —
 // как в проводнике Windows: клик, Ctrl — добавить или убрать, Shift —

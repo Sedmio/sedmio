@@ -1,5 +1,6 @@
 import QtQuick
 import Sedmio.Preferences
+import Sedmio.Style
 
 // «Питание»: когда затемнять и гасить экран, когда засыпать; что делают
 // кнопка питания и крышка. Применяется сразу.

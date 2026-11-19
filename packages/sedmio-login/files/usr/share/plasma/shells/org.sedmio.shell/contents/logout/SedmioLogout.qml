@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import "file:///usr/share/sedmio/login-ui"
+import Sedmio.Style
 
 // Экран выхода Sedmio (его загружает Logout.qml). Свойства контекста —
 // от ksmserver-logout-greeter: sdtype (что просили), ShutdownType,
@@ -196,7 +197,7 @@ Item {
                 width: 26
                 height: 26
                 sourceSize: Qt.size(52, 52)
-                source: Theme.icon(option.icon)
+                source: Icons.path(option.icon)
                 visible: !option.primary
             }
             MultiEffect {

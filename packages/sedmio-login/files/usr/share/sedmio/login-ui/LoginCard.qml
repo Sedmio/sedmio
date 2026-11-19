@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 import org.kde.plasma.private.keyboardindicator as KeyboardIndicator
+import Sedmio.Style
 
 // Кто входит: аватар, имя, поле пароля и строка сообщения под ним.
 // Сам пароль никуда не отправляет — submitted(password), дальше решает

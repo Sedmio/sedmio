@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Services.Kde
+import Sedmio.Style
 
 // Текущая раскладка (RU, US...) из KWin. Клик — следующая.
 // Видна, только если раскладок больше одной.

@@ -3,6 +3,7 @@ import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
+import Sedmio.Style
 
 // Окно-запрос посередине экрана, с которым сейчас работают: затемнение и
 // карточка со значком, заголовком и содержимым. Пока открыто, клавиатура

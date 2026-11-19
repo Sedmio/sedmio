@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import Sedmio.Style
 
 // Поле ввода в стиле «Параметров».
 TextField {

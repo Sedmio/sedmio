@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Sedmio.Preferences
+import Sedmio.Style
 
 // «Дата и время»: часы, автоматическое время, часовой пояс с поиском.
 // Смена пояса и синхронизации спрашивает пароль (polkit).

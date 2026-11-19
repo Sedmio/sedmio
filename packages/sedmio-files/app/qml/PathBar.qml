@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Sedmio.Files
+import Sedmio.Style
 
 // Строка адреса: путь кусочками (Домашняя папка › Фото › 2026), каждый
 // кликабелен. Клик по пустому месту или Ctrl+L — ввести путь текстом.
