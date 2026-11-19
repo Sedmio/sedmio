@@ -10,8 +10,10 @@ Item {
     readonly property bool progress: OsdState.mode === "progress"
 
     // Ширина по содержимому: полосе нужно место, подписи — сколько займёт
-    // (отступы 16, значок 24, промежуток 12, отступ 16).
-    readonly property real wantedWidth: progress ? 300 : Math.max(120, Math.min(420, label.implicitWidth + 68))
+    // (отступы 16, значок 24, промежуток 12, отступ 16 и запас 4). Вверх
+    // до целого: окно округляет ширину вниз, и подпись без запаса
+    // обрезалась многоточием.
+    readonly property real wantedWidth: progress ? 300 : Math.max(120, Math.min(420, Math.ceil(label.implicitWidth) + 72))
 
     IconImage {
         id: icon
