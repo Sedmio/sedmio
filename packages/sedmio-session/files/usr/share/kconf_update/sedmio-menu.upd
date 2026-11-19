@@ -1,0 +1,7 @@
+# Кэш меню программ — пересобрать под меню Sedmio, для каждого
+# пользователя один раз (kconf_update помнит Id в ~/.config/kconf_updaterc).
+# Пакет sedmio-session.
+Version=6
+
+Id=sedmio-menu-1
+Script=sedmio-menu.sh,sh

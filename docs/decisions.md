@@ -425,3 +425,10 @@ audioshortcutsservice, индикатор рисует оболочка), раз
   экраны, типы файлов) открываются окном kcmshell6.
 - Режим «вернуть plasmashell» (~/.config/sedmio/use-plasmashell) и
   ссылки наших служб в plasma-core.target убраны: сеанса Plasma больше нет.
+- Меню программ для KDE (окно «Открыть с помощью») — своё
+  `/etc/xdg/menus/sedmio-applications.menu` (XDG_MENU_PREFIX=sedmio-):
+  плоский список всех программ без разделов — подписи разделов тоже были
+  в plasma-workspace. Кэш KService один раз пересобирает kconf_update
+  sedmio-menu. Цвета схемы Sedmio в kdeglobals переносит
+  sedmio-theme-sync, а не plasma-apply-colorscheme. Скрипт панели
+  plasmashell (закреплённые программы) убран.

@@ -1,0 +1,34 @@
+<!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN"
+ "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">
+<!--
+  Меню программ Sedmio (XDG_MENU_PREFIX=sedmio-, ставит /usr/bin/sedmio-session)
+  вместо plasma-applications.menu из plasma-workspace. Нужно окну KDE
+  «Открыть с помощью» (KOpenWithDialog) и всему, что читает дерево меню
+  через KService. Наш запуск программ и «Файлы» меню не читают.
+  Плоский список всех программ, без разделов: подписи разделов
+  (desktop-directories) тоже были в plasma-workspace.
+-->
+<Menu>
+	<Name>Applications</Name>
+	<DefaultAppDirs/>
+	<DefaultDirectoryDirs/>
+	<Include>
+		<All/>
+	</Include>
+	<Exclude>
+		<!-- Разделы настроек KDE (kcm_*) — не программы. -->
+		<Category>X-KDE-settings-hardware</Category>
+		<Category>X-KDE-settings-accessibility</Category>
+		<Category>X-KDE-settings-components</Category>
+		<Category>X-KDE-settings-desktop</Category>
+		<Category>X-KDE-settings-looknfeel</Category>
+		<Category>X-KDE-settings-network</Category>
+		<Category>X-KDE-settings-webbrowsing</Category>
+		<Category>X-KDE-settings-peripherals</Category>
+		<Category>X-KDE-settings-power</Category>
+		<Category>X-KDE-settings-security</Category>
+		<Category>X-KDE-settings-sound</Category>
+		<Category>X-KDE-settings-system</Category>
+		<Category>X-KDE-information</Category>
+	</Exclude>
+</Menu>

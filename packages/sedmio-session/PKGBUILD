@@ -28,7 +28,7 @@
 
 pkgname=sedmio-session
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Sedmio: сеанс — запуск, выход, выключение"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -58,9 +58,10 @@ build() {
 package() {
   DESTDIR="$pkgdir" cmake --install build
   cp -a "$startdir/files/." "$pkgdir/"
-  find "$pkgdir/usr/share" "$pkgdir/usr/lib/systemd" -type f -exec chmod 644 {} +
+  find "$pkgdir/usr/share" "$pkgdir/usr/lib/systemd" "$pkgdir/etc" -type f -exec chmod 644 {} +
   chmod 755 "$pkgdir/usr/bin/sedmio-session" "$pkgdir/usr/share/kconf_update/sedmio-sessionkeys.sh" \
-    "$pkgdir/usr/lib/sedmio/media" "$pkgdir/usr/lib/sedmio/freespace"
+    "$pkgdir/usr/lib/sedmio/media" "$pkgdir/usr/lib/sedmio/freespace" \
+    "$pkgdir/usr/share/kconf_update/sedmio-menu.sh"
   install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
   ln -s ../sedmio-freespace.timer "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-freespace.timer"
 }

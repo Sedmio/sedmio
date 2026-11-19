@@ -53,8 +53,9 @@ KDE_SESSION_UID=$(id -u)
 export KDE_SESSION_UID
 # Каждая программа — своя группа systemd (диспетчер задач их так и видит).
 export KDE_APPLICATIONS_AS_SCOPE=1
-# Меню программ для KDE (KService): файл из plasma-workspace.
-export XDG_MENU_PREFIX=plasma-
+# Меню программ для KDE (KService, окно «Открыть с помощью»):
+# /etc/xdg/menus/sedmio-applications.menu.
+export XDG_MENU_PREFIX=sedmio-
 # KWin перезапустился — программы переподключаются, а не падают.
 export QT_WAYLAND_RECONNECT=1
 # Java (через Xwayland) рисует пустые окна без этого.

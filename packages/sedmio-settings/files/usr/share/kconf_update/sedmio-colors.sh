@@ -1,7 +1,7 @@
 #!/bin/sh
 # Схема цветов Sedmio (/usr/share/color-schemes/Sedmio.colors) вместо
-# Breeze — если пользователь сам схему не выбирал. Plasma берёт схему
-# только из ~/.config/kdeglobals, умолчание в /etc/xdg она не видит.
+# Breeze — если пользователь сам схему не выбирал. Программы KDE берут
+# цвета только из ~/.config/kdeglobals, умолчание в /etc/xdg не видят.
 # Запускает kconf_update один раз при входе в сеанс.
 [ -r /usr/share/color-schemes/Sedmio.colors ] || exit 0
 
@@ -12,8 +12,10 @@ case $current in
   *) exit 0 ;;   # выбрана своя — не трогаем
 esac
 
-# Применить сразу (и сообщить запущенным программам). Не вышло — хотя бы
-# записать выбор: при следующем входе Plasma применит схему сама.
-plasma-apply-colorscheme Sedmio >/dev/null 2>&1 ||
-  kwriteconfig6 --file "$conf" --group General --key ColorScheme Sedmio
+# Записать выбор и перенести цвета в kdeglobals (так программы KDE их
+# видят) с сообщением запущенным программам — это делает sedmio-theme-sync
+# (пакет sedmio-theme) для схемы Sedmio. Нет его — цвета перенесёт он же,
+# когда появится; plasma-apply-colorscheme ушёл вместе с Plasma.
+kwriteconfig6 --file "$conf" --group General --key ColorScheme Sedmio
+command -v sedmio-theme-sync >/dev/null 2>&1 && sedmio-theme-sync --once >/dev/null 2>&1
 exit 0
