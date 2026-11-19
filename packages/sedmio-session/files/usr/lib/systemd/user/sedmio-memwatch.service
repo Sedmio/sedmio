@@ -4,7 +4,9 @@
 [Unit]
 Description=Sedmio session: low memory warnings
 PartOf=graphical-session.target
-After=graphical-session.target
+# Не After=graphical-session.target: та сама After=sedmio-session.target,
+# а цель ждёт свои службы — замкнутый круг, и служба не запускалась.
+After=sedmio-kwin.service
 
 [Service]
 ExecStart=/usr/lib/sedmio/memwatch
