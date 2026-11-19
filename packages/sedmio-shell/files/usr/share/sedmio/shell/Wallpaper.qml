@@ -35,4 +35,16 @@ PanelWindow {
         source: Quickshell.iconPath("sedmio", true)
         opacity: 0.13
     }
+
+    // Правый клик — меню рабочего стола.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.RightButton
+        onClicked: event => desktopMenu.openAt(event.x, event.y)
+    }
+
+    DesktopMenu {
+        id: desktopMenu
+        window: root
+    }
 }
