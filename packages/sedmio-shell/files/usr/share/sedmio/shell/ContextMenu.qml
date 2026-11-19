@@ -96,7 +96,7 @@ PopupWindow {
                         visible: !row.modelData.separator
                         anchors.fill: parent
                         radius: 8
-                        color: menu.current === row.index ? Theme.paperDeep : "transparent"
+                        color: menu.current === row.index ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                         IconImage {

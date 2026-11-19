@@ -16,7 +16,9 @@ Rectangle {
     implicitWidth: Theme.buttonSize
     implicitHeight: Theme.buttonSize
     radius: Theme.radius
-    color: active ? Theme.greenWash : (hovered ? Theme.paperDeep : "transparent")
+    // Не "transparent": это прозрачный чёрный, и переход от него к
+    // светлому на полпути даёт тёмную вспышку. Прозрачный — того же тона.
+    color: active ? Theme.greenWash : (hovered ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0))
     Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
     function showHint() {

@@ -77,7 +77,7 @@ Rectangle {
         Rectangle {
             anchors { fill: parent; margins: 6; leftMargin: 4 }
             radius: 11
-            color: moreArea.containsMouse ? (root.active ? Qt.rgba(1, 1, 1, 0.14) : Theme.paperDeep) : "transparent"
+            color: moreArea.containsMouse ? (root.active ? Qt.rgba(1, 1, 1, 0.14) : Theme.paperDeep) : Qt.alpha(root.active ? "white" : Theme.paperDeep, 0)
         }
         SIcon {
             anchors.centerIn: parent

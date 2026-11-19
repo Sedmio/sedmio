@@ -156,7 +156,7 @@ Item {
                         height: 38
                         radius: 9
                         color: modelData?.activated ? Theme.greenWash
-                             : rowArea.containsMouse ? Theme.paperDeep : "transparent"
+                             : rowArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                         Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
                         MouseArea {
@@ -201,7 +201,7 @@ Item {
                             height: 26
                             radius: 7
                             visible: rowArea.containsMouse || closeArea.containsMouse
-                            color: closeArea.containsMouse ? Theme.terracottaSoft : "transparent"
+                            color: closeArea.containsMouse ? Theme.terracottaSoft : Qt.alpha(Theme.terracottaSoft, 0)
                             SText {
                                 anchors.centerIn: parent
                                 size: 12

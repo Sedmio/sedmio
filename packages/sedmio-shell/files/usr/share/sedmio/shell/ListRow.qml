@@ -19,7 +19,7 @@ Rectangle {
 
     implicitHeight: 48 + (extraColumn.visibleChildren.length > 0 ? extraColumn.implicitHeight + 10 : 0)
     radius: 12
-    color: selected ? Theme.greenWash : (area.containsMouse ? Theme.paperDeep : "transparent")
+    color: selected ? Theme.greenWash : (area.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0))
     Behavior on color { ColorAnimation { duration: Theme.animFast } }
 
     MouseArea {

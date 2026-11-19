@@ -293,7 +293,7 @@ Item {
                 implicitWidth: settingsRow.implicitWidth + 20
                 implicitHeight: 38
                 radius: 12
-                color: settingsArea.containsMouse ? Theme.paperDeep : "transparent"
+                color: settingsArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
                 RowLayout {
                     id: settingsRow
                     anchors.centerIn: parent
@@ -320,7 +320,7 @@ Item {
                     implicitWidth: 38
                     implicitHeight: 38
                     radius: 12
-                    color: asking ? Theme.terracotta : (actionArea.containsMouse ? Theme.paperDeep : "transparent")
+                    color: asking ? Theme.terracotta : (actionArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0))
                     Behavior on color { ColorAnimation { duration: Theme.animFast } }
                     SIcon {
                         anchors.centerIn: parent
