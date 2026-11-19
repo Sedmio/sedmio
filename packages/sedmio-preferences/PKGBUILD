@@ -25,7 +25,7 @@
 
 pkgname=sedmio-preferences
 pkgver=0.1.0
-pkgrel=12
+pkgrel=13
 pkgdesc="Sedmio: приложение «Параметры» на QML"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -42,6 +42,7 @@ depends=(
   'pulseaudio-qt'   # «Звук»: устройства, громкость, профили карт
   'libpulse'        # уровень микрофона
   'pipewire'        # pw-play — «Проверить звук»
+  'bluez-qt'        # «Bluetooth» (модуль QML org.kde.bluezqt)
   'accountsservice' # имя, картинка и пароль учётной записи
   'libxcrypt'       # хэш нового пароля
   'kservice'

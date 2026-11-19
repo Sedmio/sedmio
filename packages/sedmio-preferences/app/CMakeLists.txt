@@ -62,6 +62,7 @@ qt_add_qml_module(sedmio-preferences
         qml/DefaultsPage.qml
         qml/PowerPage.qml
         qml/SoundPage.qml
+        qml/BluetoothPage.qml
         qml/AccountPage.qml
         qml/DisplaySwitcher.qml
         qml/SSlider.qml

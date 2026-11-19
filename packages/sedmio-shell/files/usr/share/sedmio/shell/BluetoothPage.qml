@@ -121,6 +121,6 @@ ColumnLayout {
         Layout.fillWidth: true
         icon: "configure"
         title: "Параметры Bluetooth"
-        onClicked: page.openExternal(["systemsettings", "kcm_bluetooth"])
+        onClicked: page.openExternal(["/usr/lib/sedmio/open-settings", "bluetooth", "kcm_bluetooth"])
     }
 }
