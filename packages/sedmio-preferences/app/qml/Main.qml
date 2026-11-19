@@ -24,6 +24,7 @@ ApplicationWindow {
         { id: "bluetooth", title: "Bluetooth", icon: "preferences-system-bluetooth" },
         { id: "power", title: "Питание", icon: "preferences-system-power-management" },
         { id: "defaults", title: "Программы по умолчанию", icon: "preferences-desktop-default-applications" },
+        { id: "autostart", title: "Автозапуск", icon: "system-run" },
         { id: "account", title: "Учётная запись", icon: "system-users" },
         { id: "datetime", title: "Дата и время", icon: "preferences-system-time" },
         { id: "about", title: "О системе", icon: "help-about" }
@@ -125,6 +126,7 @@ ApplicationWindow {
                        : App.page === "bluetooth" ? bluetoothPage
                        : App.page === "power" ? powerPage
                        : App.page === "defaults" ? defaultsPage
+                       : App.page === "autostart" ? autostartPage
                        : App.page === "account" ? accountPage
                        : App.page === "datetime" ? dateTimePage
                        : App.page === "about" ? aboutPage
@@ -140,6 +142,7 @@ ApplicationWindow {
     Component { id: bluetoothPage; BluetoothPage {} }
     Component { id: powerPage; PowerPage {} }
     Component { id: defaultsPage; DefaultsPage {} }
+    Component { id: autostartPage; AutostartPage {} }
     Component { id: accountPage; AccountPage {} }
     Component { id: dateTimePage; DateTimePage {} }
     Component { id: aboutPage; AboutPage {} }

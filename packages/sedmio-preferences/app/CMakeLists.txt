@@ -47,6 +47,7 @@ qt_add_qml_module(sedmio-preferences
         nightlight.cpp nightlight.h
         network.cpp network.h
         keyedmodel.cpp keyedmodel.h
+        autostart.cpp autostart.h
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
@@ -68,6 +69,7 @@ qt_add_qml_module(sedmio-preferences
         qml/SoundPage.qml
         qml/BluetoothPage.qml
         qml/NetworkPage.qml
+        qml/AutostartPage.qml
         qml/AccountPage.qml
         qml/DisplaySwitcher.qml
         qml/SSlider.qml
