@@ -7,12 +7,14 @@ PartOf=graphical-session.target
 
 [Service]
 ExecStart=/usr/bin/kwin_wayland_wrapper --xwayland
-# Готова, когда обёртка заняла имя на шине, — к этому времени сокет
-# Wayland уже есть. Без этого заставка, оболочка и session-manager,
-# идущие After= этой службы, стартовали раньше KWin и падали без
-# экрана. То же имя заявляет plasma-kwin_wayland.service (пакет kwin),
-# и systemd при перезагрузке настроек пишет об этом предупреждение —
-# оно безвредно.
-Type=dbus
-BusName=org.kde.KWinWrapper
+# Готова, когда обёртка заняла имя org.kde.KWinWrapper на шине, — к
+# этому времени сокет Wayland уже есть. Без этого заставка, оболочка и
+# session-manager, идущие After= этой службы, стартовали раньше KWin и
+# падали без экрана.
+# Ждём имя через gdbus, а не BusName=: то же имя заявляет
+# plasma-kwin_wayland.service (пакет kwin), а её загружают plasma-kded6
+# и plasma-kwallet-pam (у них After= на неё). Из двух служб с одним
+# BusName systemd ломает загруженную второй, и порядок не гарантирован —
+# могла сломаться эта, и тогда в сеанс не войти.
+ExecStartPost=/usr/bin/gdbus wait --session --timeout 30 org.kde.KWinWrapper
 Slice=session.slice
