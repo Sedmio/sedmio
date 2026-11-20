@@ -70,9 +70,27 @@ def check():
 
 def notify(count):
     def open_page():
-        subprocess.Popen(["/usr/lib/sedmio/launch", "sedmio-preferences", "sedmio-preferences", "updates"]
-                         if os.access("/usr/lib/sedmio/launch", os.X_OK) else ["sedmio-preferences", "updates"],
-                         start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc = subprocess.Popen(["/usr/lib/sedmio/launch", "sedmio-preferences", "sedmio-preferences", "updates"]
+                                if os.access("/usr/lib/sedmio/launch", os.X_OK) else ["sedmio-preferences", "updates"],
+                                start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Служба oneshot: выйдем — systemd убьёт всю её группу, и launch
+        # не успеет перенести «Параметры» в свою (окно так и не
+        # открывалось). Ждём, пока процесс уйдёт из нашей группы.
+        try:
+            with open("/proc/self/cgroup") as f:
+                ours = f.read()
+        except OSError:
+            return
+        for _ in range(50):
+            try:
+                with open(f"/proc/{proc.pid}/cgroup") as f:
+                    if f.read() != ours:
+                        return
+            except OSError:
+                return
+            if proc.poll() is not None:
+                return
+            time.sleep(0.1)
 
     word = plural(count, "обновление", "обновления", "обновлений")
     try:
