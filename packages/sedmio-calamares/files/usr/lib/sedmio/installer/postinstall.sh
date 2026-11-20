@@ -21,7 +21,9 @@ in_target systemctl preset-all
 # кладёт такого пользователя в группу autologin. Экран входа — greetd
 # (sedmio-login): сразу после включения запускаем сеанс этого
 # пользователя, а выйдет — обычный экран входа.
-autologin_user="$(in_target getent group autologin | cut -d: -f4 | cut -d, -f1)"
+# Без автовхода группы нет: getent выходит с кодом 2, и без «|| true»
+# set -e молча обрывал бы весь скрипт.
+autologin_user="$(in_target getent group autologin | cut -d: -f4 | cut -d, -f1)" || true
 if [[ -n $autologin_user ]]; then
   cat >> "$ROOT/etc/greetd/sedmio.toml" <<TOML
 
