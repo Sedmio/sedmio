@@ -14,7 +14,7 @@
 
 pkgname=sedmio-host-desktop
 pkgver=0.1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Sedmio: профиль ПК (Ryzen 7 7700 + RTX 4060)"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -22,14 +22,17 @@ license=('MIT')
 depends=(
   'sedmio-base'
 
-  # Ядра: основное CachyOS + запасное LTS из Arch
+  # Ядра: основное и запасное LTS — оба от CachyOS
   'linux-cachyos'
-  'linux-cachyos-nvidia-open'
-  'linux-lts'
+  'linux-cachyos-lts'
 
   # NVIDIA: готовые модули под оба ядра. DKMS (nvidia-open-dkms)
   # конфликтует с linux-cachyos-nvidia-open и собирался бы при установке.
-  'nvidia-open-lts'
+  # Модули и nvidia-utils — от одного поставщика: модуль Arch для linux-lts
+  # (nvidia-open-lts) требовал другую версию nvidia-utils, чем модуль
+  # CachyOS, и система не ставилась и не обновлялась (docs/decisions.md, п. 6).
+  'linux-cachyos-nvidia-open'
+  'linux-cachyos-lts-nvidia-open'
   'nvidia-utils'
 
   # Встроенная Radeon
@@ -37,6 +40,7 @@ depends=(
   'vulkan-radeon'
 )
 conflicts=('sedmio-host-laptop')
+install=sedmio-host.install
 
 package() {
   install -Dm644 "$startdir/nvidia.conf" "$pkgdir/etc/modprobe.d/sedmio-nvidia.conf"

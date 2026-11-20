@@ -17,7 +17,7 @@
 
 pkgname=sedmio-host-laptop
 pkgver=0.1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Sedmio: профиль ноутбука (Ryzen 7 8xxx + RTX 4060 Laptop)"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -25,11 +25,13 @@ license=('MIT')
 depends=(
   'sedmio-base'
 
+  # Ядра: основное и запасное LTS — оба от CachyOS, как и модули NVIDIA
+  # к ним (см. sedmio-host-desktop)
   'linux-cachyos'
-  'linux-cachyos-nvidia-open'
-  'linux-lts'
+  'linux-cachyos-lts'
 
-  'nvidia-open-lts'
+  'linux-cachyos-nvidia-open'
+  'linux-cachyos-lts-nvidia-open'
   'nvidia-utils'
   'nvidia-prime'
 
@@ -40,6 +42,7 @@ depends=(
   'switcheroo-control'
 )
 conflicts=('sedmio-host-desktop')
+install=sedmio-host.install
 
 package() {
   install -Dm644 "$startdir/nvidia.conf" "$pkgdir/etc/modprobe.d/sedmio-nvidia.conf"

@@ -65,6 +65,7 @@ ID_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(-\d+)?$")
 REBOOT_PACKAGES = {
     "systemd", "systemd-libs", "glibc", "linux-firmware", "amd-ucode", "intel-ucode",
     "mesa", "nvidia-utils", "nvidia-open", "nvidia-open-lts", "nvidia-dkms",
+    "linux-cachyos-nvidia-open", "linux-cachyos-lts-nvidia-open",
     "qt6-base", "qt6-declarative", "kwin", "quickshell", "dbus", "dbus-broker",
     "sedmio-shell", "sedmio-session", "sedmio-login", "sedmio-theme",
 }

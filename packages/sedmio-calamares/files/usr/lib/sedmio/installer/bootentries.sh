@@ -45,7 +45,7 @@ for pkgbase_file in "$ROOT"/usr/lib/modules/*/pkgbase; do
   }
   case "$kernel" in
     linux-cachyos) entry=sedmio;     title="Sedmio Linux";            sort=1 ;;
-    linux-lts)     entry=sedmio-lts; title="Sedmio Linux (LTS kernel)"; sort=2 ;;
+    linux-cachyos-lts) entry=sedmio-lts; title="Sedmio Linux (LTS kernel)"; sort=2 ;;
     *)             entry="sedmio-$kernel"; title="Sedmio Linux ($kernel)"; sort=3 ;;
   esac
   cat > "$ESP/loader/entries/$entry.conf" <<EOF

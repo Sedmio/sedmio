@@ -1,0 +1,17 @@
+# Запасное ядро сменилось: linux-lts (Arch) → linux-cachyos-lts.
+# Пункт меню загрузки sedmio-lts.conf делает установщик (bootentries.sh)
+# по постоянным именам ядра — на уже установленной системе переводим его
+# на новое. Сами файлы ядра mkinitcpio кладёт в /boot в конце этой же
+# транзакции. Старые linux-lts и nvidia-open-lts pacman не удаляет:
+# pacman -Rns linux-lts nvidia-open-lts
+
+lts_entry() {
+  local f=/boot/loader/entries/sedmio-lts.conf
+  [ -f "$f" ] || return 0
+  sed -i -e 's#^linux\([[:space:]]\+\)/vmlinuz-linux-lts$#linux\1/vmlinuz-linux-cachyos-lts#' \
+         -e 's#^initrd\([[:space:]]\+\)/initramfs-linux-lts\.img$#initrd\1/initramfs-linux-cachyos-lts.img#' "$f"
+}
+
+post_upgrade() {
+  lts_entry
+}
