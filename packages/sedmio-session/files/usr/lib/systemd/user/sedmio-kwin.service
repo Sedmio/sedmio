@@ -7,7 +7,12 @@ PartOf=graphical-session.target
 
 [Service]
 ExecStart=/usr/bin/kwin_wayland_wrapper --xwayland
-# Без BusName=org.kde.KWinWrapper: то же имя у plasma-kwin_wayland.service
-# (пакет kwin), и systemd при каждой перезагрузке настроек ругался на обе.
-# Тип службы simple — имя на шине systemd ни к чему.
+# Готова, когда обёртка заняла имя на шине, — к этому времени сокет
+# Wayland уже есть. Без этого заставка, оболочка и session-manager,
+# идущие After= этой службы, стартовали раньше KWin и падали без
+# экрана. То же имя заявляет plasma-kwin_wayland.service (пакет kwin),
+# и systemd при перезагрузке настроек пишет об этом предупреждение —
+# оно безвредно.
+Type=dbus
+BusName=org.kde.KWinWrapper
 Slice=session.slice
