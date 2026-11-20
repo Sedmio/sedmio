@@ -292,7 +292,10 @@ def delete_snapshot(snap_id):
     if snap_id == booted_snapshot():
         raise Fail("Система сейчас загружена из этого снимка — его нельзя удалить.")
     if os.path.isdir(path):
-        run("btrfs", "subvolume", "delete", path)
+        # -R: в снимке «перед возвратом» (бывшая @) лежат подтома, которые
+        # systemd создаёт сам (var/lib/machines, var/lib/portables), и без
+        # него btrfs отвечал «Directory not empty».
+        run("btrfs", "subvolume", "delete", "-R", path)
     with contextlib.suppress(FileNotFoundError):
         os.unlink(meta_path(snap_id))
     if prev_entry_snapshot() == snap_id:
