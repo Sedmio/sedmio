@@ -48,8 +48,9 @@ sed -i \
   -e 's/^iso_application=.*/iso_application="Sedmio Linux"/' \
   "$PROFILE/profiledef.sh"
 
-# Сжатие zstd вместо xz: образ чуть больше, зато собирается и грузится быстрее
-sed -i "s/^airootfs_image_tool_options=.*/airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '15' '-b' '1M')/" \
+# Сжатие zstd вместо xz: образ чуть больше, зато собирается и грузится быстрее.
+# Не больше 8 потоков: сборка не должна съедать всю память машины.
+sed -i "s/^airootfs_image_tool_options=.*/airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '15' '-b' '1M' '-processors' '8')/" \
   "$PROFILE/profiledef.sh"
 
 # Права на файлы live-системы из iso/airootfs
