@@ -2,7 +2,8 @@
 # Собирает все пакеты из packages/ в локальный репозиторий out/repo.
 # Запускать от обычного пользователя: makepkg не работает от root.
 #
-# Компилируемый пакет (Calamares, несколько минут) не пересобирается,
+# Компилируемый пакет (Calamares, несколько минут) и тяжёлый готовый
+# (_prebuilt=1 в PKGBUILD, например claude-desktop) не пересобирается,
 # если эта версия уже есть в репозитории. Пакеты из одних конфигов
 # собираются за секунды и пересобираются всегда.
 # Пересобрать всё: FORCE=1 scripts/build-packages.sh
@@ -45,9 +46,11 @@ for dir in "$ROOT"/packages/*/; do
 
   compiled=0
   grep -q '^build()' "$dir/PKGBUILD" && compiled=1
+  heavy=$compiled
+  grep -q '^_prebuilt=1' "$dir/PKGBUILD" && heavy=1
 
-  # Компилируемый пакет этой версии уже есть — не пересобираем
-  if [[ $compiled == 1 && ${FORCE:-0} != 1 ]]; then
+  # Компилируемый или тяжёлый пакет этой версии уже есть — не пересобираем
+  if [[ $heavy == 1 && ${FORCE:-0} != 1 ]]; then
     built=1
     files=()
     while read -r file; do

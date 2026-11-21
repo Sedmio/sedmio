@@ -1,0 +1,118 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Claude Desktop — официальное приложение Anthropic. Пакет собирается из
+# их .deb (APT-репозиторий downloads.claude.ai), как AUR claude-desktop:
+# берётся только содержимое data.tar.xz. Сценарии dpkg (postinst) не
+# повторяются: они прописывают APT-репозиторий, профиль AppArmor и поиск
+# GNOME Shell — на Sedmio это не нужно. Из них взяты только типы MIME.
+#
+# Новую версию вписывает scripts/update-claude-desktop.sh: он проверяет
+# подпись APT-репозитория ключом Anthropic (anthropic.asc) и берёт оттуда
+# версию и SHA256 .deb. Дальше обычный выпуск — до систем она доходит
+# через pacman -Syu.
+#
+# _prebuilt=1: build-packages.sh не пересобирает эту версию, если она уже
+# есть в out/repo (пакет весит ~150 МБ, сжатие — минута).
+
+pkgname=claude-desktop
+pkgver=6.28899.6
+pkgrel=1
+_prebuilt=1
+pkgdesc='Claude — официальное приложение Anthropic (чат, Cowork, Claude Code)'
+arch=('x86_64')
+url='https://claude.com/download'
+license=('LicenseRef-Proprietary')
+
+# Depends из .deb в именах Arch плюс библиотеки, с которыми связаны
+# бинарники напрямую (список сверен с AUR claude-desktop). Recommends,
+# без которых не работают звук, Cowork (своя ВМ на QEMU) и доступ к
+# файлам из песочницы, тоже обязательные: apt ставит их по умолчанию.
+depends=(
+  'alsa-lib'
+  'at-spi2-core'
+  'bubblewrap'
+  'cairo'
+  'dbus'
+  'edk2-ovmf'
+  'expat'
+  'gcc-libs'
+  'glib2'
+  'glibc'
+  'gtk3'
+  'hicolor-icon-theme'
+  'libcap-ng'
+  'libcups'
+  'libdrm'
+  'libnotify'
+  'libpipewire'
+  'libseccomp'
+  'libsecret'
+  'libx11'
+  'libxcb'
+  'libxcomposite'
+  'libxdamage'
+  'libxext'
+  'libxfixes'
+  'libxkbcommon'
+  'libxrandr'
+  'libxtst'
+  'mesa'
+  'nspr'
+  'nss'
+  'pango'
+  'qemu-system-x86'
+  'socat'
+  'systemd-libs'
+  'util-linux-libs'
+  'virtiofsd'
+  'xdg-desktop-portal'
+  'xdg-utils'
+)
+optdepends=(
+  'kwallet: хранение входа (Secret Service)'
+  'libayatana-appindicator: значок в трее'
+  'openssh: удалённые сеансы по SSH'
+  'xdg-desktop-portal-kde: диалоги файлов'
+)
+conflicts=('claude-desktop-bin')
+
+# Готовые бинарники Electron: strip может их испортить
+options=('!strip' '!debug')
+
+_pool='https://downloads.claude.ai/claude-desktop/apt/stable/pool/main/c/claude-desktop'
+source=('claude-desktop.sh')
+source_x86_64=("$_pool/${pkgname}_${pkgver}_amd64.deb")
+sha256sums=('e506afbe43cef8f9f867b83198ccffd9f6497211c26a786359e93c2e026fe207')
+sha256sums_x86_64=('7e381601d86570149643d52e9b89c26575ab12fa788aa41ffdd4cca5b0638cf8')
+
+package() {
+  tar -xf data.tar.xz -C "$pkgdir"
+  local lib="$pkgdir/usr/lib/claude-desktop"
+
+  # Вместо голой ссылки на Electron — запуск с Wayland (без него окно
+  # идёт через XWayland и мылится при масштабе)
+  rm -f "$pkgdir/usr/bin/claude-desktop"
+  install -Dm755 claude-desktop.sh "$pkgdir/usr/bin/claude-desktop"
+
+  # Песочница Chromium на случай ядра без пользовательских пространств имён
+  chmod 4755 "$lib/chrome-sandbox"
+
+  # Типы .mcpb, .dxt, .skill (базу MIME обновляет хук pacman)
+  install -Dm644 "$lib/resources/linux-mime/com.anthropic.Claude.xml" \
+    "$pkgdir/usr/share/mime/packages/com.anthropic.Claude.xml"
+
+  # Запуск из терминала, если сборка его несёт (как в postinst)
+  if [[ -x $lib/resources/bin/ccd ]]; then
+    ln -s ../lib/claude-desktop/resources/bin/ccd "$pkgdir/usr/bin/ccd"
+  fi
+
+  # Cowork ищет virtiofsd и прошивку UEFI по путям Debian
+  ln -s ../lib/virtiofsd "$pkgdir/usr/bin/virtiofsd"
+  install -d "$pkgdir/usr/share/edk2"
+  ln -s x64/OVMF_CODE.4m.fd "$pkgdir/usr/share/edk2/OVMF_CODE_4M.fd"
+  ln -s x64/OVMF_VARS.4m.fd "$pkgdir/usr/share/edk2/OVMF_VARS_4M.fd"
+
+  rm -r "$pkgdir/usr/share/lintian"
+  install -Dm644 "$pkgdir/usr/share/doc/claude-desktop/copyright" \
+    "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

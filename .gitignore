@@ -14,3 +14,4 @@ tools/installer-preview/out/
 __pycache__/
 packages/*/*.tar.gz
 packages/*/*.tar.xz
+packages/*/*.deb
