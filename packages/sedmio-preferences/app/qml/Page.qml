@@ -10,6 +10,16 @@ Item {
     property alias footer: footerSlot.data
     readonly property int contentWidth: Math.min(width - 64, 720)
 
+    // Прокрутить так, чтобы item (из содержимого) был виден целиком.
+    function reveal(item) {
+        const top = item.mapToItem(column, 0, 0).y;
+        const bottom = top + item.height + 16;
+        if (bottom > flick.contentY + flick.height)
+            flick.contentY = Math.max(0, Math.min(bottom - flick.height, flick.contentHeight - flick.height));
+        else if (top < flick.contentY)
+            flick.contentY = top;
+    }
+
     SText {
         id: heading
         x: 32

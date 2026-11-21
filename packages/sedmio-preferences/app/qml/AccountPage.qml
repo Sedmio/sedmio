@@ -223,11 +223,19 @@ Page {
     }
 
     SText {
+        id: message
         visible: account.message !== ""
         width: parent.width
         text: account.message
         color: account.messageIsError ? Theme.terracotta : Theme.green
         wrapMode: Text.Wrap
+        // Сообщение внизу страницы: в невысоком окне его не видно.
+        onTextChanged: if (text !== "") revealTimer.restart()
+        Timer {
+            id: revealTimer
+            interval: 50
+            onTriggered: root.reveal(message)
+        }
     }
 
     FileDialog {

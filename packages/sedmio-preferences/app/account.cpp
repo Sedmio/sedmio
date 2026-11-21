@@ -13,6 +13,7 @@
 #include <QImageReader>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QStandardPaths>
 #include <QTemporaryFile>
 
 #include <crypt.h>
@@ -46,6 +47,48 @@ QByteArray hashPassword(const QString &password)
     utf8.fill('\0');
     explicit_bzero(data.get(), sizeof(crypt_data));
     return result;
+}
+
+// Бумажник KDE. При входе с паролем pam_kwallet5 открывает его паролем
+// входа (запускает ksecretd с PAM_KWALLET5_LOGIN), при входе без пароля
+// у него пустой пароль (/usr/lib/sedmio/wallet-autologin). Включили или
+// выключили вход без пароля, сменили пароль входа — пароль бумажника
+// остаётся прежним, и потом он спрашивал его при каждом включении.
+// Поэтому сразу открываем окно KDE «новый пароль для бумажника».
+const QString walletName = QStringLiteral("kdewallet");
+
+bool walletExists()
+{
+    // Меньше 60 байт ksecretd считает пустышкой (как wallet-autologin).
+    const QFileInfo file(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+                         + QStringLiteral("/kwalletd/") + walletName + QStringLiteral(".kwl"));
+    return file.exists() && file.size() >= 60;
+}
+
+// Бумажник открыт паролем входа: ksecretd этого пользователя запущен PAM.
+bool walletOpenedByLogin()
+{
+    const QStringList pids = QDir(QStringLiteral("/proc")).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &pid : pids) {
+        if (pid.isEmpty() || !pid.at(0).isDigit() || QFileInfo(QStringLiteral("/proc/") + pid).ownerId() != getuid())
+            continue;
+        QFile comm(QStringLiteral("/proc/%1/comm").arg(pid));
+        if (!comm.open(QIODevice::ReadOnly) || comm.readAll().trimmed() != "ksecretd")
+            continue;
+        QFile environ(QStringLiteral("/proc/%1/environ").arg(pid));
+        if (environ.open(QIODevice::ReadOnly) && ('\0' + environ.readAll()).contains(QByteArrayLiteral("\0PAM_KWALLET5_LOGIN=")))
+            return true;
+    }
+    return false;
+}
+
+// Окно KDE «Укажите новый пароль для бумажника»; ответа не ждём.
+void askWalletPassword()
+{
+    QDBusMessage message = QDBusMessage::createMethodCall(QStringLiteral("org.kde.kwalletd6"), QStringLiteral("/modules/kwalletd6"),
+                                                          QStringLiteral("org.kde.KWallet"), QStringLiteral("changePassword"));
+    message << walletName << qlonglong(0) << QStringLiteral("Параметры");
+    QDBusConnection::sessionBus().asyncCall(message, authTimeout);
 }
 
 QString errorText(const QDBusError &error)
@@ -246,8 +289,16 @@ void Account::changePassword(const QString &password)
         return;
     }
     call(QStringLiteral("SetPassword"), {QString::fromLatin1(hash), QString()}, QStringLiteral("Пароль изменён."), [this](bool ok) {
-        if (ok)
-            Q_EMIT passwordChanged();
+        if (!ok)
+            return;
+        Q_EMIT passwordChanged();
+        // Вход с паролем: бумажник закрыт паролем входа — старым.
+        if (!autologin() && walletExists()) {
+            finish(QStringLiteral("Пароль изменён. В открывшемся окне введите новый пароль ещё раз — для бумажника KDE, "
+                                  "иначе он будет спрашивать старый при каждом включении."),
+                   false);
+            askWalletPassword();
+        }
     });
 }
 
@@ -269,7 +320,20 @@ void Account::setAutologin(bool enabled)
             finish(QStringLiteral("Не изменено: не подтверждено паролем."), true);
         else if (code != 0)
             finish(QStringLiteral("Не получилось изменить вход без пароля."), true);
-        else
+        else if (enabled && walletOpenedByLogin()) {
+            // Без пароля входа бумажник некому открыть — нужен пустой пароль.
+            finish(QStringLiteral("Теперь после включения компьютера рабочий стол откроется сразу. "
+                                  "В открывшемся окне оставьте поля пустыми, нажмите «OK», затем «Да» — "
+                                  "иначе бумажник KDE будет спрашивать пароль при каждом включении."),
+                   false);
+            askWalletPassword();
+        } else if (!enabled && !walletOpenedByLogin() && walletExists()) {
+            // Бумажник без пароля — пусть его открывает пароль входа.
+            finish(QStringLiteral("Теперь при входе нужен пароль. В открывшемся окне введите дважды свой пароль входа — "
+                                  "тогда бумажник KDE будет открываться при входе сам."),
+                   false);
+            askWalletPassword();
+        } else
             finish(enabled ? QStringLiteral("Теперь после включения компьютера рабочий стол откроется сразу.")
                            : QStringLiteral("Теперь при входе нужен пароль."),
                    false);
