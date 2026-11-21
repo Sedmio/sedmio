@@ -9,7 +9,13 @@
 #
 # После него — обычный выпуск: build-packages.sh → release-repo.sh.
 # Ничего не меняет, если версия та же.
+#
+#   --notify   только проверить и, если вышла новая версия, показать
+#              уведомление (так его раз в день зовёт таймер из dev-setup.sh)
 set -euo pipefail
+
+notify=0
+[[ ${1:-} == --notify ]] && notify=1
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PKG="$ROOT/packages/claude-desktop"
@@ -43,6 +49,12 @@ read -r ver deb < <(awk '/^Version:/{v=$2} /^SHA256:/{print v, $2}' "$tmp/Packag
 cur="$(sed -n 's/^pkgver=//p' "$PKG/PKGBUILD")"
 if [[ $ver == "$cur" ]]; then
   echo "claude-desktop $cur — уже последняя."
+  exit 0
+fi
+
+if [[ $notify == 1 ]]; then
+  notify-send -a Sedmio -i claude-desktop "Вышел Claude Desktop $ver" \
+    "В [sedmio] пока $cur. Обновить: scripts/update-claude-desktop.sh, сборка, выпуск."
   exit 0
 fi
 

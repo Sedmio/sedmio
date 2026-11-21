@@ -102,6 +102,39 @@ if ! grep -qs 'HOME/.local/bin' "$HOME/.bashrc"; then
   echo "Добавил ~/.local/bin в PATH (~/.bashrc): открой новый терминал."
 fi
 
+# ---------- новые версии Claude Desktop
+
+# [sedmio] несёт пакет claude-desktop из .deb Anthropic. Сам он не
+# обновляется: раз в день таймер проверяет их APT-репозиторий и
+# уведомляет, если пора выпустить новую версию.
+step "Проверка новых версий Claude Desktop"
+units="$HOME/.config/systemd/user"
+mkdir -p "$units"
+cat > "$units/sedmio-claude-desktop-check.service" <<EOF
+[Unit]
+Description=Проверка новой версии Claude Desktop для [sedmio]
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$ROOT/scripts/update-claude-desktop.sh --notify
+EOF
+cat > "$units/sedmio-claude-desktop-check.timer" <<'EOF'
+[Unit]
+Description=Раз в день: новая версия Claude Desktop для [sedmio]
+
+[Timer]
+OnCalendar=daily
+OnStartupSec=10min
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl --user daemon-reload
+systemctl --user enable --now sedmio-claude-desktop-check.timer
+
 echo
 echo "Готово. Дальше:"
 echo "  cd $ROOT && claude"
