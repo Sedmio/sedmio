@@ -1,0 +1,36 @@
+diff -ruN a/daemon/actions/bundled/dimdisplay.cpp b/daemon/actions/bundled/dimdisplay.cpp
+--- a/daemon/actions/bundled/dimdisplay.cpp	2026-11-22 02:58:22.622182445 +0700
++++ b/daemon/actions/bundled/dimdisplay.cpp	2026-11-22 03:01:42.155284898 +0700
+@@ -36,6 +36,21 @@
+     m_inhibitScreen = policyAgent->unavailablePolicies() & PowerDevil::PolicyAgent::ChangeScreenSettings;
+ }
+ 
++// Core deletes this action when no display supports brightness control any
++// more — e.g. KWin briefly has no outputs while resuming from suspend. The
++// dimming ratio lives on in ScreenBrightnessController and gets applied to
++// the displays once they come back, but a new DimDisplay starts undimmed and
++// never restores it: the screens stayed at 30% until powerdevil restarted.
++// Same as upstream MR !739 (bugs.kde.org 513809).
++DimDisplay::~DimDisplay()
++{
++    if (m_dimmed) {
++        qCDebug(POWERDEVIL) << "DimDisplay: restoring brightness on removal";
++        core()->screenBrightnessController()->setDimmingRatio(DIMMING_ID, 1.0);
++        setKeyboardBrightnessHelper(m_oldKeyboardBrightness);
++    }
++}
++
+ void DimDisplay::onWakeupFromIdle()
+ {
+     if (!m_dimmed) {
+diff -ruN a/daemon/actions/bundled/dimdisplay.h b/daemon/actions/bundled/dimdisplay.h
+--- a/daemon/actions/bundled/dimdisplay.h	2026-11-22 02:58:22.622196402 +0700
++++ b/daemon/actions/bundled/dimdisplay.h	2026-11-22 02:58:22.628773046 +0700
+@@ -18,6 +18,7 @@
+     Q_OBJECT
+ public:
+     explicit DimDisplay(QObject *parent);
++    ~DimDisplay() override;
+ 
+ protected:
+     void onWakeupFromIdle() override;

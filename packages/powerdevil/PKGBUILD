@@ -17,7 +17,7 @@ pkgname=powerdevil
 pkgver=6.8.3
 # Выше, чем у CachyOS (6.8.3-1.1): pacman -Syu не понижает версию, и
 # на установленной системе остался бы их пакет.
-pkgrel=2
+pkgrel=3
 pkgdesc='Manages the power consumption settings (сборка Sedmio без plasma-workspace)'
 arch=(x86_64)
 url='https://invent.kde.org/plasma/powerdevil'
@@ -55,15 +55,21 @@ makedepends=(extra-cmake-modules
 optdepends=('power-profiles-daemon: power profiles support'
             'tlp: alternative power profiles support')
 source=(https://download.kde.org/stable/plasma/$pkgver/$pkgname-$pkgver.tar.xz
-        no-plasma-workspace.patch)
+        no-plasma-workspace.patch
+        dim-after-resume.patch)
 sha256sums=('c197615be2f1b203ed715ea038e0bafd09d88f7faf3e7cdb5423a519fcfdfe6e'
-            '6bd4872cea1a2e180ef25efa724c594b01f2071a60cea0cb02a9609032067680')
+            '6bd4872cea1a2e180ef25efa724c594b01f2071a60cea0cb02a9609032067680'
+            'a7f7caffdb1396cf485a12fc2d8f10c97b8ff99d7a2137762f7a8670bf66f739')
 
 prepare() {
   cd $pkgname-$pkgver
   # Без LibKWorkspace (свой SessionManagement), без апплетов plasmashell
   # и мобильного раздела настроек.
   patch -Np1 -i ../no-plasma-workspace.patch
+  # Экраны оставались затемнёнными на 30% после сна (bugs.kde.org 513809):
+  # пока KWin без мониторов, Core удаляет действие DimDisplay, а затемнение
+  # оставалось. Теперь снимается при удалении действия.
+  patch -Np1 -i ../dim-after-resume.patch
   cp -a "$startdir/sedmio-kworkspace" .
 }
 
