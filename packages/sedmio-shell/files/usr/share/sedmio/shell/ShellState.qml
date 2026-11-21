@@ -34,6 +34,13 @@ Singleton {
     // у оболочки; отпустив её, KWin сам фокус не возвращает — возвращаем.
     property var windowBefore: null
 
+    // «Показать рабочий стол» KWin: прячет все окна, повторный вызов —
+    // возвращает.
+    function showDesktop() {
+        Quickshell.execDetached(["busctl", "--user", "call", "org.kde.kglobalaccel",
+            "/component/kwin", "org.kde.kglobalaccel.Component", "invokeShortcut", "s", "Show Desktop"]);
+    }
+
     // Запустить программу в своей группе systemd (/usr/lib/sedmio/launch):
     // упадёт или перезапустится оболочка — программа живёт дальше.
     // id — имя .desktop без расширения ("" — по имени команды).

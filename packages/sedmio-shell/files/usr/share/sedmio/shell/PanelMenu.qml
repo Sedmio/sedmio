@@ -40,8 +40,7 @@ MouseArea {
             ShellState.closeAll(false);
             if (action === "tasks") ShellState.launch("sedmio-tasks", ["sedmio-tasks"]);
             else if (action === "settings") ShellState.launch("", ["/usr/lib/sedmio/open-settings"]);
-            else if (action === "desktop") Quickshell.execDetached(["busctl", "--user", "call", "org.kde.kglobalaccel",
-                "/component/kwin", "org.kde.kglobalaccel.Component", "invokeShortcut", "s", "Show Desktop"]);
+            else if (action === "desktop") ShellState.showDesktop();
         }
     }
 }
