@@ -62,6 +62,7 @@ qt_add_qml_module(sedmio-preferences
         qml/DisplayPage.qml
         qml/WallpaperPage.qml
         qml/ThemePage.qml
+        qml/DesktopPreview.qml
         qml/KeyboardPage.qml
         qml/MousePage.qml
         qml/DefaultsPage.qml

@@ -26,6 +26,10 @@ Singleton {
     readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
         || notificationsScreen !== "" || clipboardScreen !== "" || quickMenuScreen !== ""
 
+    // Сколько открыто меню и списков окон у кнопок панелей: пока открыты,
+    // док не прячется (меню прикреплены к его кнопкам).
+    property int panelMenus: 0
+
     // Окно, активное до открытия. Пока открыт запуск или панель, клавиатура
     // у оболочки; отпустив её, KWin сам фокус не возвращает — возвращаем.
     property var windowBefore: null

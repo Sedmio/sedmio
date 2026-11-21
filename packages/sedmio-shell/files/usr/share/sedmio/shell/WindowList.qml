@@ -10,6 +10,10 @@ ListView {
     id: list
     required property var window
     required property Item tooltip
+    // В строку (док, панель задач) или столбиком (полоса слева).
+    property bool horizontal: false
+    // С подписями (панель задач): у запущенных — заголовок окна.
+    property bool labeled: false
 
     // Программы и их окна — в ShellState (по ним же работают Meta+1…9).
     readonly property var groups: ShellState.windowGroups
@@ -49,9 +53,9 @@ ListView {
         return -1;
     }
 
-    function dragTo(y) {
+    function dragTo(pos) {
         const from = indexOfKey(dragKey);
-        const over = indexAt(width / 2, y);
+        const over = horizontal ? indexAt(pos.x, height / 2) : indexAt(width / 2, pos.y);
         if (from < 0 || over < 0) return;
         const to = Math.min(over, pinnedCount - 1);
         if (to !== from && to >= 0) keys.move(from, to, 1);
@@ -68,7 +72,8 @@ ListView {
 
     clip: true
     spacing: 4
-    interactive: dragKey === "" && contentHeight > height
+    orientation: horizontal ? ListView.Horizontal : ListView.Vertical
+    interactive: dragKey === "" && (horizontal ? contentWidth > width : contentHeight > height)
     boundsBehavior: Flickable.StopAtBounds
     model: keys
 
@@ -78,12 +83,16 @@ ListView {
         group: list.groupOf(key)
         window: list.window
         tooltip: list.tooltip
-        width: ListView.view.width
+        horizontal: list.horizontal
+        labeled: list.labeled
+        width: list.horizontal ? implicitWidth : ListView.view.width
+        height: list.horizontal ? ListView.view.height : implicitHeight
         z: list.dragKey === key ? 1 : 0
 
         DragHandler {
             target: null
-            xAxis.enabled: false
+            xAxis.enabled: list.horizontal
+            yAxis.enabled: !list.horizontal
             enabled: button.pinned
             onActiveChanged: {
                 if (active) {
@@ -94,7 +103,7 @@ ListView {
                 }
             }
             onCentroidChanged: {
-                if (active) list.dragTo(button.mapToItem(list.contentItem, centroid.position.x, centroid.position.y).y);
+                if (active) list.dragTo(button.mapToItem(list.contentItem, centroid.position.x, centroid.position.y));
             }
         }
     }
@@ -108,6 +117,6 @@ ListView {
         NumberAnimation { property: "opacity"; to: 0; duration: Theme.animFast }
     }
     displaced: Transition {
-        NumberAnimation { property: "y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+        NumberAnimation { properties: "x,y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
     }
 }

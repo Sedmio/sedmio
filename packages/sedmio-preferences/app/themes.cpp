@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QProcess>
 #include <QSaveFile>
 #include <QStandardPaths>
 
@@ -41,6 +42,23 @@ bool read(const QString &path, QVariantMap *values)
     return true;
 }
 
+const QStringList layouts = {QStringLiteral("left"), QStringLiteral("dock"), QStringLiteral("taskbar")};
+
+QString configDir()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/sedmio");
+}
+
+// Как в оболочке: нет файла или неизвестное имя — "left".
+QString readLayout()
+{
+    QFile file(configDir() + QStringLiteral("/layout"));
+    if (!file.open(QIODevice::ReadOnly))
+        return layouts.constFirst();
+    const QString id = QString::fromUtf8(file.readLine(64)).trimmed();
+    return layouts.contains(id) ? id : layouts.constFirst();
+}
+
 const QStringList previewColors = {
     QStringLiteral("paper"),      QStringLiteral("paperDeep"),  QStringLiteral("surface"),     QStringLiteral("line"),
     QStringLiteral("ink"),        QStringLiteral("inkMuted"),   QStringLiteral("green"),       QStringLiteral("textOnGreen"),
@@ -53,6 +71,7 @@ Themes::Themes(QObject *parent)
 {
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &Themes::rescan);
     rescan();
+    m_layout = readLayout();
 }
 
 void Themes::rescan()
@@ -122,7 +141,7 @@ void Themes::choose(const QString &id)
 {
     if (id.isEmpty() || id.contains(QLatin1Char('/')) || id.startsWith(QLatin1Char('.')))
         return;
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/sedmio");
+    const QString dir = configDir();
     QDir().mkpath(dir);
     QSaveFile file(dir + QStringLiteral("/theme"));
     if (!file.open(QIODevice::WriteOnly) || file.write(id.toUtf8() + '\n') < 0 || !file.commit()) {
@@ -130,6 +149,27 @@ void Themes::choose(const QString &id)
         return;
     }
     setError(QString());
+}
+
+void Themes::chooseLayout(const QString &id)
+{
+    if (!layouts.contains(id) || id == m_layout)
+        return;
+    const QString dir = configDir();
+    QDir().mkpath(dir);
+    QSaveFile file(dir + QStringLiteral("/layout"));
+    if (!file.open(QIODevice::WriteOnly) || file.write(id.toUtf8() + '\n') < 0 || !file.commit()) {
+        setError(QStringLiteral("Не удалось сохранить расположение панелей: %1").arg(file.errorString()));
+        return;
+    }
+    setError(QString());
+    m_layout = id;
+    Q_EMIT layoutChanged();
+    // Оболочка следит за файлом, но QSaveFile заменяет его целиком —
+    // просим перечитать и явно.
+    QProcess::startDetached(QStringLiteral("quickshell"),
+                            {QStringLiteral("ipc"), QStringLiteral("-p"), QStringLiteral("/usr/share/sedmio/shell"), QStringLiteral("call"),
+                             QStringLiteral("layout"), QStringLiteral("reload")});
 }
 
 void Themes::setError(const QString &error)

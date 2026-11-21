@@ -4,7 +4,8 @@ import Sedmio.Style
 
 // «Тема»: установленные темы Sedmio карточками — маленький рабочий стол в
 // цветах темы. Щелчок — тема сразу везде: оболочка, наши программы, рамки
-// окон, чужие программы.
+// окон, чужие программы. Ниже — расположение панелей (макет оболочки):
+// тоже карточками, меняется сразу.
 Page {
     id: root
     title: "Тема"
@@ -20,6 +21,23 @@ Page {
         text: themes.error
         color: Theme.terracotta
         wrapMode: Text.Wrap
+    }
+
+    // Цвета действующей темы — для карточек расположения.
+    readonly property var currentColors: (themes.themes.find(t => t.id === Theme.themeId) ?? themes.themes[0] ?? {}).colors ?? ({})
+
+    readonly property var layouts: [
+        { id: "left", name: "Слева", description: "Одна полоса слева: программы сверху, значки и часы снизу" },
+        { id: "dock", name: "Сверху и док", description: "Панель сверху, программы в доке по центру; док прячется, пока окно развёрнуто" },
+        { id: "taskbar", name: "Сверху и снизу", description: "Панель сверху, снизу панель задач с подписями окон" },
+    ]
+
+    SText {
+        text: "Цвета"
+        size: 13
+        weight: 600
+        color: Theme.inkSoft
+        leftPadding: 4
     }
 
     Flow {
@@ -44,80 +62,13 @@ Page {
                     border.width: tile.current ? 3 : 1
                     border.color: tile.current ? Theme.green : (tileArea.containsMouse ? Theme.lineStrong : Theme.line)
 
-                    // Рабочий стол темы: обои, полоса оболочки, окно.
-                    Rectangle {
-                        id: desk
+                    // Рабочий стол темы: обои, панели по выбранному макету, окно.
+                    DesktopPreview {
                         anchors.fill: parent
                         anchors.margins: parent.border.width
                         radius: Theme.radius - 2
-                        clip: true
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: tile.c.wallpaperTop }
-                            GradientStop { position: 1.0; color: tile.c.wallpaperBottom }
-                        }
-
-                        Rectangle {
-                            id: bar
-                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                            width: desk.width * 0.07
-                            color: tile.c.paper
-                            Column {
-                                anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: bar.width * 0.4 }
-                                spacing: bar.width * 0.3
-                                Repeater {
-                                    model: 3
-                                    Rectangle {
-                                        required property int index
-                                        width: bar.width * 0.5
-                                        height: width
-                                        radius: width * 0.25
-                                        color: index === 0 ? tile.c.green : tile.c.inkMuted
-                                        opacity: index === 0 ? 1 : 0.45
-                                    }
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            id: window
-                            x: desk.width * 0.2
-                            y: desk.height * 0.16
-                            width: desk.width * 0.68
-                            height: desk.height * 0.68
-                            radius: desk.height * 0.05
-                            color: tile.c.surface
-                            border.width: 1
-                            border.color: tile.c.line
-                            clip: true
-
-                            Rectangle {
-                                width: parent.width
-                                height: parent.height * 0.17
-                                color: tile.c.windowTitle
-                                radius: parent.radius
-                                Rectangle {
-                                    anchors { right: parent.right; rightMargin: parent.height * 0.4; verticalCenter: parent.verticalCenter }
-                                    width: parent.height * 0.35
-                                    height: width
-                                    radius: width / 2
-                                    color: tile.c.terracotta
-                                }
-                            }
-
-                            Column {
-                                x: parent.width * 0.08
-                                y: parent.height * 0.3
-                                spacing: parent.height * 0.08
-                                Rectangle { width: window.width * 0.55; height: window.height * 0.07; radius: height / 2; color: tile.c.ink }
-                                Rectangle { width: window.width * 0.4; height: window.height * 0.05; radius: height / 2; color: tile.c.inkMuted }
-                                Rectangle {
-                                    width: window.width * 0.3
-                                    height: window.height * 0.16
-                                    radius: height / 2
-                                    color: tile.c.green
-                                }
-                            }
-                        }
+                        layout: themes.layout
+                        c: tile.c
                     }
 
                     MouseArea {
@@ -139,6 +90,72 @@ Page {
                     visible: text !== ""
                     width: parent.width
                     text: tile.modelData.description
+                    size: Theme.fontSmall
+                    color: Theme.inkMuted
+                    wrapMode: Text.Wrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
+                }
+            }
+        }
+    }
+
+    SText {
+        topPadding: 8
+        text: "Расположение панелей"
+        size: 13
+        weight: 600
+        color: Theme.inkSoft
+        leftPadding: 4
+    }
+
+    Flow {
+        width: parent.width
+        spacing: 14
+
+        Repeater {
+            model: root.layouts
+            delegate: Column {
+                id: card
+                required property var modelData
+                readonly property bool current: modelData.id === themes.layout
+                width: root.tileWidth
+                spacing: 6
+
+                Rectangle {
+                    width: parent.width
+                    height: width * 10 / 16
+                    radius: Theme.radius
+                    color: Theme.paperDeep
+                    border.width: card.current ? 3 : 1
+                    border.color: card.current ? Theme.green : (cardArea.containsMouse ? Theme.lineStrong : Theme.line)
+
+                    DesktopPreview {
+                        anchors.fill: parent
+                        anchors.margins: parent.border.width
+                        radius: Theme.radius - 2
+                        layout: card.modelData.id
+                        c: root.currentColors
+                    }
+
+                    MouseArea {
+                        id: cardArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: themes.chooseLayout(card.modelData.id)
+                    }
+                }
+
+                SText {
+                    width: parent.width
+                    text: card.modelData.name
+                    weight: card.current ? 600 : 500
+                    elide: Text.ElideRight
+                }
+                SText {
+                    width: parent.width
+                    text: card.modelData.description
                     size: Theme.fontSmall
                     color: Theme.inkMuted
                     wrapMode: Text.Wrap

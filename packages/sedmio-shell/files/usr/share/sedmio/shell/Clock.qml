@@ -2,20 +2,24 @@ import QtQuick
 import Quickshell
 import Sedmio.Style
 
-// Часы столбиком: часы над минутами. Дата — в подсказке,
-// клик — календарь.
+// Часы. В полосе слева — столбиком: часы над минутами, дата в подсказке.
+// В верхней панели (wide) — строкой с датой: «Вс, 22 ноября  02:17».
+// Клик — календарь.
 BarButton {
     id: root
     required property string screenName
+    property bool wide: false
     active: ShellState.controlShows(screenName, "calendar")
     onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName, "calendar"); }
-    implicitHeight: column.implicitHeight + 12
-    hint: clock.date.toLocaleDateString(Qt.locale(), "dddd, d MMMM")
+    implicitWidth: wide ? line.implicitWidth + 24 : Theme.buttonSize
+    implicitHeight: wide ? Theme.buttonSize : column.implicitHeight + 12
+    hint: wide ? "" : clock.date.toLocaleDateString(Qt.locale(), "dddd, d MMMM")
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
     Column {
         id: column
+        visible: !root.wide
         anchors.centerIn: parent
         spacing: -3
 
@@ -31,6 +35,30 @@ BarButton {
             size: Theme.fontLarge
             weight: 450
             color: Theme.inkSoft
+        }
+    }
+
+    Row {
+        id: line
+        visible: root.wide
+        anchors.centerIn: parent
+        spacing: 10
+
+        SText {
+            anchors.verticalCenter: parent.verticalCenter
+            text: {
+                const d = clock.date.toLocaleDateString(Qt.locale(), "ddd, d MMMM");
+                return d.charAt(0).toUpperCase() + d.slice(1);
+            }
+            size: Theme.fontBody
+            weight: 500
+            color: Theme.inkSoft
+        }
+        SText {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Qt.formatTime(clock.date, "hh:mm")
+            size: Theme.fontLarge
+            weight: 650
         }
     }
 }

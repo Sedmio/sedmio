@@ -1,4 +1,5 @@
-// Оболочка Sedmio: обои, рамка вокруг экрана и панель слева.
+// Оболочка Sedmio: обои, рамка вокруг экрана и панели (где — по макету,
+// DesktopLayout).
 // Запускается службой sedmio-shell.service вместо plasmashell.
 import QtQuick
 import Quickshell
@@ -35,6 +36,13 @@ ShellRoot {
             FullscreenNotifications { screen: perScreen.modelData; screenName: perScreen.modelData.name }
             ScreenshotOverlay { modelData: perScreen.modelData }
         }
+    }
+
+    // Макет сменили в «Параметрах» — перечитать ~/.config/sedmio/layout:
+    //   quickshell ipc -p /usr/share/sedmio/shell call layout reload
+    IpcHandler {
+        target: "layout"
+        function reload(): void { DesktopLayout.reload(); }
     }
 
     // Команды извне: клавиша Meta (usr/share/kglobalaccel/sedmio-launcher.desktop) —

@@ -9,12 +9,17 @@ import Sedmio.Style
 // окон, клик — список окон рядом с панелью, в нём выбрать или закрыть.
 // Средняя кнопка и Shift+щелчок — ещё одно окно программы. Правая — меню: запустить,
 // закрепить или открепить, закрыть окна.
+// В строку (док, панель задач) метка — под значком, список окон и меню —
+// над кнопкой. С подписью (панель задач) у запущенной программы рядом со
+// значком заголовок окна (окон несколько — название программы).
 // Закрытое окно исчезает раньше кнопки, отсюда ?. везде.
 Item {
     id: root
     required property var group
     required property var window
     required property Item tooltip
+    property bool horizontal: false
+    property bool labeled: false
 
     readonly property var windows: group ? group.windows : []
     readonly property var first: windows.length > 0 ? windows[0] : null
@@ -40,27 +45,36 @@ Item {
         ShellState.launchGroup(group);
     }
 
-    height: Theme.buttonSize + 4
+    readonly property bool showLabel: labeled && running
+    readonly property string label: !running ? "" : single ? (first?.title ?? "")
+        : (entry?.name ?? first?.appId ?? "")
+    implicitWidth: showLabel ? 190 : Theme.buttonSize + 4
+    implicitHeight: Theme.buttonSize + 4
 
-    // Метка на краю панели, как в Windows 11: запущена — короткая серая,
+    // Метка у кнопки (сбоку или снизу), как в Windows 11: запущена — короткая серая,
     // активна — длинная зелёная; только закреплена — метки нет.
     Rectangle {
-        anchors.verticalCenter: parent.verticalCenter
-        x: 2
-        width: 4
-        height: root.anyActive ? 20 : root.running ? 8 : 0
+        readonly property real length: root.anyActive ? 20 : root.running ? 8 : 0
+        x: root.horizontal ? (root.width - width) / 2 : 2
+        y: root.horizontal ? button.y + button.height + 2 : (root.height - height) / 2
+        width: root.horizontal ? length : 4
+        height: root.horizontal ? 4 : length
         radius: 2
         color: root.anyActive ? Theme.green : Theme.inkMuted
-        Behavior on height { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutBack } }
+        Behavior on width { enabled: root.horizontal; NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutBack } }
+        Behavior on height { enabled: !root.horizontal; NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutBack } }
         Behavior on color { ColorAnimation { duration: Theme.animFast } }
     }
 
     BarButton {
         id: button
         anchors.centerIn: parent
+        anchors.verticalCenterOffset: root.horizontal ? -2 : 0
+        implicitWidth: root.showLabel ? root.width - 4 : Theme.buttonSize
         active: root.anyActive || popup.visible || menu.visible
         tooltip: popup.visible || menu.visible ? null : root.tooltip
-        hint: !root.running ? (root.entry?.name ?? "")
+        hint: root.showLabel && root.single ? ""
+            : !root.running ? (root.entry?.name ?? "")
             : root.single ? (root.first?.title ?? "")
             : (root.entry?.name ?? root.first?.appId ?? "") + " · " + root.windows.length + " "
               + root.plural(root.windows.length, "окно", "окна", "окон")
@@ -92,7 +106,10 @@ Item {
         }
 
         IconImage {
-            anchors.centerIn: parent
+            id: icon
+            anchors.centerIn: root.showLabel ? undefined : parent
+            anchors.verticalCenter: root.showLabel ? parent.verticalCenter : undefined
+            x: root.showLabel ? 6 : 0
             anchors.verticalCenterOffset: root.single ? 0 : -3
             implicitSize: 24
             source: root.iconSource
@@ -101,9 +118,19 @@ Item {
             Behavior on anchors.verticalCenterOffset { NumberAnimation { duration: Theme.animFast } }
         }
 
+        SText {
+            visible: root.showLabel
+            anchors { left: icon.right; leftMargin: 8; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+            elide: Text.ElideRight
+            text: root.label
+            size: 13
+            weight: root.anyActive ? 600 : 450
+            color: root.allMinimized ? Theme.inkMuted : Theme.ink
+        }
+
         // Сколько окон: точки под значком (больше трёх — всё равно три).
         Row {
-            anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 3 }
+            anchors { horizontalCenter: icon.horizontalCenter; bottom: parent.bottom; bottomMargin: 3 }
             spacing: 3
             visible: !root.single
             Repeater {
@@ -118,14 +145,15 @@ Item {
         }
     }
 
-    // Список окон программы, справа от кнопки.
+    // Список окон программы, справа от кнопки (над ней — в доке и на панели задач).
     PopupWindow {
         id: popup
         anchor.item: button
-        anchor.rect.width: button.width + 14
+        anchor.rect.y: root.horizontal ? -10 : 0
+        anchor.rect.width: root.horizontal ? button.width : button.width + 14
         anchor.rect.height: button.height
-        anchor.edges: Edges.Right
-        anchor.gravity: Edges.Right
+        anchor.edges: root.horizontal ? Edges.Top : Edges.Right
+        anchor.gravity: root.horizontal ? Edges.Top : Edges.Right
         grabFocus: true
         color: "transparent"
         implicitWidth: 320
@@ -227,10 +255,11 @@ Item {
     ContextMenu {
         id: menu
         anchor.item: button
-        anchor.rect.width: button.width + 14
+        anchor.rect.y: root.horizontal ? -10 : 0
+        anchor.rect.width: root.horizontal ? button.width : button.width + 14
         anchor.rect.height: button.height
-        anchor.edges: Edges.Right
-        anchor.gravity: Edges.Right
+        anchor.edges: root.horizontal ? Edges.Top : Edges.Right
+        anchor.gravity: root.horizontal ? Edges.Top : Edges.Right
         items: {
             const list = [];
             if (root.entry) {
@@ -267,8 +296,16 @@ Item {
     }
     Connections {
         target: popup
-        function onVisibleChanged() { if (popup.visible) root.shownCount = root.windows.length; }
+        function onVisibleChanged() {
+            if (popup.visible) root.shownCount = root.windows.length;
+            ShellState.panelMenus += popup.visible ? 1 : -1;
+        }
     }
+    Connections {
+        target: menu
+        function onVisibleChanged() { ShellState.panelMenus += menu.visible ? 1 : -1; }
+    }
+    Component.onDestruction: ShellState.panelMenus -= (popup.visible ? 1 : 0) + (menu.visible ? 1 : 0)
 
     // Куда KWin сворачивает окна (анимация «в кнопку»).
     function updateRectangle() {
@@ -279,6 +316,7 @@ Item {
     }
 
     Component.onCompleted: updateRectangle()
+    onXChanged: updateRectangle()
     onYChanged: updateRectangle()
     onWindowsChanged: { updateRectangle(); reopenIfResized(); }
 }

@@ -2,7 +2,7 @@ import QtQuick
 import Sedmio.Style
 
 // Квадратная кнопка панели со скруглением: подсветка при наведении,
-// подсказка справа. Содержимое кладётся внутрь.
+// подсказка у кнопки (Tooltip). Содержимое кладётся внутрь.
 Rectangle {
     id: button
     property Item tooltip
@@ -23,7 +23,7 @@ Rectangle {
 
     function showHint() {
         if (tooltip && hint !== "")
-            tooltip.show(hint, mapToItem(null, 0, height / 2).y);
+            tooltip.show(hint, button);
     }
 
     onHintChanged: if (hovered) showHint()
@@ -37,7 +37,7 @@ Rectangle {
         onWheel: event => button.wheel(event)
         onContainsMouseChanged: {
             if (containsMouse) button.showHint();
-            else if (button.tooltip) button.tooltip.hide();
+            else if (button.tooltip) button.tooltip.hide(button);
         }
     }
 }
