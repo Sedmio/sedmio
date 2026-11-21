@@ -188,6 +188,13 @@ void Decoration::paint(QPainter *painter, const QRectF &repaintArea)
     path.closeSubpath();
     painter->fillPath(path, themeColor(isActive() ? QStringLiteral("windowTitle") : QStringLiteral("windowTitleInactive")));
 
+    // Линия по низу заголовка: видно, где кончается заголовок и начинается
+    // программа (у многих программ фон того же цвета, что и заголовок).
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, false);
+    painter->fillRect(QRectF(0, title - 1, width, 1), themeColor(QStringLiteral("lineStrong")));
+    painter->restore();
+
     // Название — посередине окна, а если не помещается — между кнопками.
     QFont font = settings()->font();
     // Шрифт темы — одно имя или список запасных через запятую.
