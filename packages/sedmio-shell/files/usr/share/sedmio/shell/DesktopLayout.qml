@@ -25,7 +25,7 @@ Singleton {
     readonly property bool topBar: !left
 
     readonly property int topBarHeight: 40
-    readonly property int taskbarHeight: 48
+    readonly property int taskbarHeight: 44
     readonly property int dockHeight: Theme.buttonSize + 16
     readonly property int dockMargin: 8
 

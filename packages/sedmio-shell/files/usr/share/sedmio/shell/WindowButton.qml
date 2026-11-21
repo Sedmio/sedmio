@@ -51,12 +51,16 @@ Item {
     implicitWidth: showLabel ? 190 : Theme.buttonSize + 4
     implicitHeight: Theme.buttonSize + 4
 
-    // Метка у кнопки (сбоку или снизу), как в Windows 11: запущена — короткая серая,
-    // активна — длинная зелёная; только закреплена — метки нет.
+    // Метка, как в Windows 11: запущена — короткая серая, активна — длинная
+    // зелёная; только закреплена — метки нет. В полосе слева — сбоку от
+    // кнопки; в доке и панели задач — внутри карточки у нижнего края, а у
+    // программы с несколькими окнами её место занимают точки (ниже).
     Rectangle {
         readonly property real length: root.anyActive ? 20 : root.running ? 8 : 0
+        visible: !root.horizontal || root.windows.length < 2
+        z: 1
         x: root.horizontal ? (root.width - width) / 2 : 2
-        y: root.horizontal ? button.y + button.height + 2 : (root.height - height) / 2
+        y: root.horizontal ? button.y + button.height - height - 2 : (root.height - height) / 2
         width: root.horizontal ? length : 4
         height: root.horizontal ? 4 : length
         radius: 2
@@ -69,7 +73,6 @@ Item {
     BarButton {
         id: button
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: root.horizontal ? -2 : 0
         implicitWidth: root.showLabel ? root.width - 4 : Theme.buttonSize
         active: root.anyActive || popup.visible || menu.visible
         tooltip: popup.visible || menu.visible ? null : root.tooltip
@@ -110,7 +113,10 @@ Item {
             anchors.centerIn: root.showLabel ? undefined : parent
             anchors.verticalCenter: root.showLabel ? parent.verticalCenter : undefined
             x: root.showLabel ? 6 : 0
-            anchors.verticalCenterOffset: root.single ? 0 : -3
+            // Освобождает место отметке под значком: в доке — у любой
+            // запущенной, иначе — у точек нескольких окон.
+            anchors.verticalCenterOffset: (root.horizontal && !root.showLabel ? root.running
+                                                                         : root.windows.length > 1) ? -3 : 0
             implicitSize: 24
             source: root.iconSource
             opacity: root.allMinimized ? 0.45 : 1
@@ -130,7 +136,7 @@ Item {
 
         // Сколько окон: точки под значком (больше трёх — всё равно три).
         Row {
-            anchors { horizontalCenter: icon.horizontalCenter; bottom: parent.bottom; bottomMargin: 3 }
+            anchors { horizontalCenter: icon.horizontalCenter; bottom: parent.bottom; bottomMargin: 2 }
             spacing: 3
             visible: !root.single
             Repeater {
