@@ -110,7 +110,12 @@ ListView {
         }
     }
 
-    add: Transition {
+    // Без анимации появления в панели задач: пока она идёт, ListView кнопку
+    // не двигает и потом сам не перекладывает, а соседняя кнопка в это время
+    // как раз расширяется (появилась подпись) — кнопки налезали друг на друга.
+    add: labeled ? null : appear
+    Transition {
+        id: appear
         NumberAnimation { property: "scale"; from: 0.5; to: 1; duration: Theme.animNormal; easing.type: Easing.OutBack }
         NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animFast }
     }
