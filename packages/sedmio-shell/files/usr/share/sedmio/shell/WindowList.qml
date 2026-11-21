@@ -43,9 +43,10 @@ ListView {
     }
     onGroupsChanged: if (dragKey === "") sync()
 
-    // Перетаскивание закреплённых кнопок, как на панели задач Windows:
-    // кнопка встаёт на место той, над которой её держат, — среди
-    // закреплённых; отпустили — порядок сохраняется (PinnedApps).
+    // Перетаскивание кнопок, как на панели задач Windows: кнопка встаёт на
+    // место той, над которой её держат, — закреплённая среди закреплённых
+    // (порядок сохраняется в PinnedApps), остальные среди остальных
+    // (ShellState.runningOrder — пока работает оболочка).
     property string dragKey: ""
     readonly property int pinnedCount: groups.filter(g => g.pinned).length
 
@@ -58,15 +59,18 @@ ListView {
         const from = indexOfKey(dragKey);
         const over = horizontal ? indexAt(pos.x, height / 2) : indexAt(width / 2, pos.y);
         if (from < 0 || over < 0) return;
-        const to = Math.min(over, pinnedCount - 1);
-        if (to !== from && to >= 0) keys.move(from, to, 1);
+        const pinned = from < pinnedCount;
+        const to = pinned ? Math.min(over, pinnedCount - 1) : Math.max(over, pinnedCount);
+        if (to !== from && to >= 0 && to < keys.count) keys.move(from, to, 1);
     }
 
     function dropDragged() {
         const order = [];
         for (let i = 0; i < keys.count; ++i) order.push(keys.get(i).key);
+        const pinned = groupOf(dragKey)?.pinned ?? false;
         dragKey = "";
-        PinnedApps.setOrder(order);
+        if (pinned) PinnedApps.setOrder(order);
+        else ShellState.runningOrder = order.slice(pinnedCount);
         sync();
     }
     Component.onCompleted: sync()
@@ -95,7 +99,6 @@ ListView {
             target: null
             xAxis.enabled: list.horizontal
             yAxis.enabled: !list.horizontal
-            enabled: button.pinned
             onActiveChanged: {
                 if (active) {
                     if (list.tooltip) list.tooltip.hide();

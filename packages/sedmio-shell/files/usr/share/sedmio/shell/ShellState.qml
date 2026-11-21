@@ -186,6 +186,11 @@ Singleton {
     // как в Windows (inCurrentDesktop — из нашего патча Quickshell; без него
     // undefined — окно показываем).
     // Здесь, а не в панели: по этому же порядку работают Meta+1…9.
+    // Порядок незакреплённых запущенных программ, заданный перетаскиванием
+    // на панели (ключи групп). Живёт, пока работает оболочка; новые
+    // программы — в конец.
+    property var runningOrder: []
+
     readonly property var windowGroups: {
         // .desktop-файлы Quickshell читает в фоне: пересчитать, когда дочитал.
         if (DesktopEntries.applications.values.length < 0) return [];
@@ -209,7 +214,11 @@ Singleton {
             }
             byKey[key].windows.push(t);
         }
-        return result;
+        // Незакреплённые — в порядке runningOrder, новые за ними.
+        const pinned = result.filter(g => g.pinned);
+        const running = result.filter(g => !g.pinned);
+        const ordered = runningOrder.map(k => running.find(g => g.key === k)).filter(g => !!g);
+        return pinned.concat(ordered, running.filter(g => !ordered.includes(g)));
     }
 
     // Запустить программу с панели (закреплённую или ещё одно окно).
