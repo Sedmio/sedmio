@@ -18,7 +18,7 @@ BarButton {
         || (layout.shortName || "").toUpperCase()
 
     visible: KeyboardLayouts.layouts.length > 1
-    implicitHeight: 30
+    implicitHeight: Math.round(size * 5 / 6)
     hint: layout.longName || ""
     onClicked: KeyboardLayouts.switchToNext()
     onWheel: event => event.angleDelta.y > 0 ? KeyboardLayouts.switchToPrevious() : KeyboardLayouts.switchToNext()

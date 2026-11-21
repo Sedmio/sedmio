@@ -19,6 +19,8 @@ Item {
     required property var window
     required property Item tooltip
     property bool horizontal: false
+    // Сторона кнопки (без подписи); задаёт панель.
+    property real buttonSize: Theme.buttonSize
     property bool labeled: false
 
     readonly property var windows: group ? group.windows : []
@@ -48,8 +50,8 @@ Item {
     readonly property bool showLabel: labeled && running
     readonly property string label: !running ? "" : single ? (first?.title ?? "")
         : (entry?.name ?? first?.appId ?? "")
-    implicitWidth: showLabel ? 190 : Theme.buttonSize + 4
-    implicitHeight: Theme.buttonSize + 4
+    implicitWidth: showLabel ? 190 : buttonSize + 4
+    implicitHeight: buttonSize + 4
 
     // Метка, как в Windows 11: запущена — короткая серая, активна — длинная
     // зелёная; только закреплена — метки нет. В полосе слева — сбоку от
@@ -73,7 +75,8 @@ Item {
     BarButton {
         id: button
         anchors.centerIn: parent
-        implicitWidth: root.showLabel ? root.width - 4 : Theme.buttonSize
+        size: root.buttonSize
+        implicitWidth: root.showLabel ? root.width - 4 : size
         active: root.anyActive || popup.visible || menu.visible
         tooltip: popup.visible || menu.visible ? null : root.tooltip
         hint: root.showLabel && root.single ? ""
@@ -117,7 +120,7 @@ Item {
             // запущенной, иначе — у точек нескольких окон.
             anchors.verticalCenterOffset: (root.horizontal && !root.showLabel ? root.running
                                                                          : root.windows.length > 1) ? -3 : 0
-            implicitSize: 24
+            implicitSize: Math.round(root.buttonSize * 2 / 3)
             source: root.iconSource
             opacity: root.allMinimized ? 0.45 : 1
             Behavior on opacity { NumberAnimation { duration: Theme.animNormal } }

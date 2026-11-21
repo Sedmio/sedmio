@@ -530,7 +530,7 @@ PanelWindow {
             active: DesktopLayout.left
             x: 0
             y: 0
-            width: Theme.barWidth
+            width: DesktopLayout.leftWidth
             height: frame.height
             sourceComponent: Bar {
                 window: frame

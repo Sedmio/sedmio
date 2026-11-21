@@ -12,6 +12,7 @@ Grid {
     required property var window
     required property Item tooltip
     property bool horizontal: false
+    property real buttonSize: Theme.buttonSize
 
     rows: horizontal ? 1 : -1
     columns: horizontal ? -1 : 1
@@ -23,7 +24,8 @@ Grid {
         BarButton {
             id: item
             required property var modelData
-            implicitHeight: tray.horizontal ? Theme.buttonSize : 34
+            size: tray.buttonSize
+            implicitHeight: tray.horizontal ? size : size - 2
             visible: modelData.status !== Status.Passive
             tooltip: tray.tooltip
             hint: modelData.tooltipTitle || modelData.title || modelData.id
@@ -43,7 +45,7 @@ Grid {
 
             IconImage {
                 anchors.centerIn: parent
-                implicitSize: 20
+                implicitSize: item.iconSize
                 source: Icons.themed(item.modelData.icon)
             }
         }

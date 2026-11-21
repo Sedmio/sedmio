@@ -25,7 +25,7 @@ BarButton {
 
     IconImage {
         anchors.centerIn: parent
-        implicitSize: 20
+        implicitSize: root.iconSize
         source: Icons.path(
             root.wiredUp ? "network-wired-activated"
             : root.wifiNetwork ? (root.wifiNetwork.signalStrength > 0.75 ? "network-wireless-signal-excellent"

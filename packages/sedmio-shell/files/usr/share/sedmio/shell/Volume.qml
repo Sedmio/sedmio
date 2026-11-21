@@ -31,7 +31,7 @@ BarButton {
 
     IconImage {
         anchors.centerIn: parent
-        implicitSize: 20
+        implicitSize: root.iconSize
         source: Icons.path(
             !root.ready || root.muted ? "audio-volume-muted"
             : root.volume < 0.34 ? "audio-volume-low"

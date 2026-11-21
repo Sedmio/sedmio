@@ -13,11 +13,12 @@ ListView {
     property bool horizontal: false
     // Каких кнопок здесь нет (часы верхней панели — посередине, отдельно).
     property var exclude: []
+    property real buttonSize: Theme.buttonSize
     readonly property real spacingAfter: 6
 
     orientation: horizontal ? ListView.Horizontal : ListView.Vertical
-    implicitWidth: horizontal ? contentWidth : Theme.barWidth
-    implicitHeight: horizontal ? Theme.buttonSize : contentHeight
+    implicitWidth: horizontal ? contentWidth : DesktopLayout.leftWidth
+    implicitHeight: horizontal ? buttonSize : contentHeight
     interactive: false
     model: order
 
@@ -109,11 +110,11 @@ ListView {
         NumberAnimation { properties: "x,y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
     }
 
-    Component { id: keyboardButton; KeyboardLayout { tooltip: buttons.tooltip } }
-    Component { id: networkButton; NetworkButton { screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: batteryButton; Battery { screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: brightnessButton; BrightnessButton { screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: volumeButton; Volume { screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: notificationsButton; NotificationsButton { screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: clockButton; Clock { screenName: buttons.screenName; tooltip: buttons.tooltip } }
+    Component { id: keyboardButton; KeyboardLayout { size: buttons.buttonSize; tooltip: buttons.tooltip } }
+    Component { id: networkButton; NetworkButton { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
+    Component { id: batteryButton; Battery { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
+    Component { id: brightnessButton; BrightnessButton { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
+    Component { id: volumeButton; Volume { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
+    Component { id: notificationsButton; NotificationsButton { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
+    Component { id: clockButton; Clock { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
 }

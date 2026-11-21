@@ -23,6 +23,7 @@ Item {
 
         LauncherButton {
             Layout.alignment: Qt.AlignHCenter
+            size: DesktopLayout.leftButton
             screenName: bar.screenName
             tooltip: bar.tooltip
         }
@@ -42,6 +43,7 @@ Item {
             bottom: bottomGroup.top; bottomMargin: 8
             left: parent.left; right: parent.right
         }
+        buttonSize: DesktopLayout.leftButton
         window: bar.window
         tooltip: bar.tooltip
     }
@@ -53,6 +55,7 @@ Item {
 
         Tray {
             Layout.alignment: Qt.AlignHCenter
+            buttonSize: DesktopLayout.leftButton
             window: bar.window
             tooltip: bar.tooltip
         }
@@ -60,6 +63,7 @@ Item {
         StatusButtons {
             Layout.fillWidth: true
             Layout.preferredHeight: implicitHeight
+            buttonSize: DesktopLayout.leftButton
             screenName: bar.screenName
             tooltip: bar.tooltip
         }

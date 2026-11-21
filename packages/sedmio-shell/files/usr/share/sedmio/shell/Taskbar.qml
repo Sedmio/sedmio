@@ -18,6 +18,7 @@ Item {
     LauncherButton {
         id: launcher
         anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+        size: DesktopLayout.taskbarButton
         screenName: bar.screenName
         tooltip: bar.tooltip
     }
@@ -26,7 +27,7 @@ Item {
         id: separator
         anchors { left: launcher.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
         width: 2
-        height: 22
+        height: Math.round(DesktopLayout.taskbarButton * 0.6)
         radius: 1
         color: Theme.line
     }
@@ -39,6 +40,7 @@ Item {
         }
         horizontal: true
         labeled: true
+        buttonSize: DesktopLayout.taskbarButton
         window: bar.window
         tooltip: bar.tooltip
     }

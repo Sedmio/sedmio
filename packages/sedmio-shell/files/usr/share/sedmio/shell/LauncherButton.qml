@@ -21,7 +21,7 @@ BarButton {
 
     IconImage {
         anchors.centerIn: parent
-        implicitSize: 24
+        implicitSize: Math.round(root.size * 2 / 3)
         source: Icons.path("sedmio", "start-here")
     }
 }

@@ -24,6 +24,7 @@ Item {
     LauncherButton {
         id: launcher
         anchors { left: parent.left; leftMargin: dock.padding; verticalCenter: parent.verticalCenter }
+        size: DesktopLayout.dockButton
         screenName: dock.screenName
         tooltip: dock.tooltip
     }
@@ -32,7 +33,7 @@ Item {
         id: separator
         anchors { left: launcher.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
         width: 2
-        height: 22
+        height: Math.round(DesktopLayout.dockButton * 0.6)
         radius: 1
         color: Theme.line
     }
@@ -44,8 +45,9 @@ Item {
             right: parent.right; rightMargin: dock.padding
             verticalCenter: parent.verticalCenter
         }
-        height: Theme.buttonSize + 8
+        height: DesktopLayout.dockButton + 8
         horizontal: true
+        buttonSize: DesktopLayout.dockButton
         window: dock.window
         tooltip: dock.tooltip
     }

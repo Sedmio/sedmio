@@ -8,13 +8,17 @@ Rectangle {
     property Item tooltip
     property string hint
     property bool active: false
+    // Сторона кнопки; панель задаёт её по своей толщине. Значки внутри —
+    // iconSize.
+    property real size: Theme.buttonSize
+    readonly property int iconSize: Math.round(size * 20 / 36)
     readonly property alias hovered: mouse.containsMouse
 
     signal clicked(var mouse)
     signal wheel(var wheel)
 
-    implicitWidth: Theme.buttonSize
-    implicitHeight: Theme.buttonSize
+    implicitWidth: size
+    implicitHeight: size
     radius: Theme.radius
     // Не "transparent": это прозрачный чёрный, и переход от него к
     // светлому на полпути даёт тёмную вспышку. Прозрачный — того же тона.

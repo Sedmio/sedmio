@@ -14,6 +14,7 @@ ListView {
     property bool horizontal: false
     // С подписями (панель задач): у запущенных — заголовок окна.
     property bool labeled: false
+    property real buttonSize: Theme.buttonSize
 
     // Программы и их окна — в ShellState (по ним же работают Meta+1…9).
     readonly property var groups: ShellState.windowGroups
@@ -85,6 +86,7 @@ ListView {
         tooltip: list.tooltip
         horizontal: list.horizontal
         labeled: list.labeled
+        buttonSize: list.buttonSize
         width: list.horizontal ? implicitWidth : ListView.view.width
         height: list.horizontal ? ListView.view.height : implicitHeight
         z: list.dragKey === key ? 1 : 0

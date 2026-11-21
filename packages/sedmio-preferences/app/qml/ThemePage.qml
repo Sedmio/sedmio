@@ -5,7 +5,8 @@ import Sedmio.Style
 // «Тема»: установленные темы Sedmio карточками — маленький рабочий стол в
 // цветах темы. Щелчок — тема сразу везде: оболочка, наши программы, рамки
 // окон, чужие программы. Ниже — расположение панелей (макет оболочки):
-// тоже карточками, меняется сразу.
+// тоже карточками, меняется сразу; под ними — ползунки толщины панелей
+// выбранного макета (оболочка меняется, пока тянешь).
 Page {
     id: root
     title: "Тема"
@@ -161,6 +162,35 @@ Page {
                     wrapMode: Text.Wrap
                     maximumLineCount: 2
                     elide: Text.ElideRight
+                }
+            }
+        }
+    }
+
+    // Какие панели есть в макете и как они называются.
+    readonly property var panelKeys: ({ left: ["left"], dock: ["top", "dock"], taskbar: ["top", "taskbar"] })
+    readonly property var panelNames: ({ left: "Полоса слева", top: "Верхняя панель", dock: "Док", taskbar: "Панель задач" })
+
+    Card {
+        title: "Размер панелей"
+        Repeater {
+            id: panelRows
+            // Список ключей меняется только со сменой макета — строки не
+            // пересоздаются, пока тянут ползунок.
+            model: root.panelKeys[themes.layout] ?? []
+            delegate: Setting {
+                id: row
+                required property string modelData
+                required property int index
+                readonly property var panel: themes.panels.find(p => p.key === modelData) ?? { value: 0, min: 0, max: 1 }
+                label: root.panelNames[modelData]
+                last: index === panelRows.count - 1
+                SSlider {
+                    width: 260
+                    maximum: row.panel.max - row.panel.min
+                    step: 2
+                    value: row.panel.value - row.panel.min
+                    onMoved: value => themes.setPanelSize(row.modelData, row.panel.min + Math.round(value / 2) * 2)
                 }
             }
         }

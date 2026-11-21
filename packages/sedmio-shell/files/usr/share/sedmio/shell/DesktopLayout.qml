@@ -10,8 +10,10 @@ import Sedmio.Style
 //               пока на экране развёрнуто окно;
 //   "taskbar" — сверху тонкая панель, снизу панель задач на всю ширину.
 // Выбор — первая строка ~/.config/sedmio/layout (пишут «Параметры» →
-// «Тема»). Файла нет или в нём неизвестное имя — "left". Файл меняют —
-// макет меняется на ходу.
+// «Тема»). Файла нет или в нём неизвестное имя — "left". Дальше в файле
+// могут быть размеры панелей: "left=48", "top=40", "dock=52",
+// "taskbar=44" (толщина в пикселях; нет строки или число вне пределов
+// sizes — берётся своё по умолчанию). Файл меняют — всё меняется на ходу.
 Singleton {
     id: root
 
@@ -24,13 +26,34 @@ Singleton {
     // Сверху панель: в "dock" и "taskbar".
     readonly property bool topBar: !left
 
-    readonly property int topBarHeight: 40
-    readonly property int taskbarHeight: 44
-    readonly property int dockHeight: Theme.buttonSize + 16
+    // Толщина каждой панели: по умолчанию и пределы ползунка в «Параметрах»
+    // (там те же числа — themes.cpp).
+    readonly property var sizes: ({
+        left: { def: Theme.barWidth, min: 40, max: 72 },
+        top: { def: 40, min: 32, max: 56 },
+        dock: { def: Theme.buttonSize + 16, min: 44, max: 96 },
+        taskbar: { def: 44, min: 36, max: 64 }
+    })
+    property var custom: ({})
+    function size(key) {
+        const v = custom[key], r = sizes[key];
+        return Number.isInteger(v) && v >= r.min && v <= r.max ? v : r.def;
+    }
+
+    readonly property int leftWidth: size("left")
+    readonly property int topBarHeight: size("top")
+    readonly property int dockHeight: size("dock")
+    readonly property int taskbarHeight: size("taskbar")
     readonly property int dockMargin: 8
 
+    // Кнопки панели растут вместе с ней.
+    readonly property int leftButton: leftWidth - 12
+    readonly property int topButton: topBarHeight - 4
+    readonly property int dockButton: dockHeight - 16
+    readonly property int taskbarButton: taskbarHeight - 8
+
     // Толщина рамки с каждой стороны — проём, в котором окна программ.
-    readonly property int insetLeft: left ? Theme.barWidth : 0
+    readonly property int insetLeft: left ? leftWidth : 0
     readonly property int insetTop: left ? Theme.border : topBarHeight
     readonly property int insetRight: left ? Theme.border : 0
     readonly property int insetBottom: left ? Theme.border : taskbar ? taskbarHeight : 0
@@ -44,8 +67,15 @@ Singleton {
     function reload() { file.reload(); }
 
     function apply(text) {
-        const name = (text || "").split("\n")[0].trim();
+        const lines = (text || "").split("\n");
+        const name = lines[0].trim();
         current = known.includes(name) ? name : "left";
+        const c = {};
+        for (const line of lines.slice(1)) {
+            const m = line.trim().match(/^(\w+)\s*=\s*(\d+)$/);
+            if (m) c[m[1]] = parseInt(m[2]);
+        }
+        custom = c;
     }
 
     FileView {
@@ -55,6 +85,6 @@ Singleton {
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root.apply(text())
-        onLoadFailed: root.current = "left"
+        onLoadFailed: { root.current = "left"; root.custom = {}; }
     }
 }

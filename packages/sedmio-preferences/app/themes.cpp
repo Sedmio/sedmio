@@ -49,13 +49,46 @@ QString configDir()
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/sedmio");
 }
 
-// Как в оболочке: нет файла или неизвестное имя — "left".
-QString readLayout()
+// Толщина панелей: по умолчанию и пределы — те же, что в DesktopLayout.qml.
+struct PanelRange {
+    const char *key;
+    int def, min, max;
+};
+const PanelRange panelRanges[] = {
+    {"left", 48, 40, 72},
+    {"top", 40, 32, 56},
+    {"dock", 52, 44, 96},
+    {"taskbar", 44, 36, 64},
+};
+
+const PanelRange *panelRange(const QString &key)
+{
+    for (const PanelRange &r : panelRanges)
+        if (key == QLatin1String(r.key))
+            return &r;
+    return nullptr;
+}
+
+// Как в оболочке: нет файла или неизвестное имя — "left"; размеры вне
+// пределов не берутся.
+QString readLayout(QMap<QString, int> *sizes)
 {
     QFile file(configDir() + QStringLiteral("/layout"));
     if (!file.open(QIODevice::ReadOnly))
         return layouts.constFirst();
     const QString id = QString::fromUtf8(file.readLine(64)).trimmed();
+    while (!file.atEnd()) {
+        const QString line = QString::fromUtf8(file.readLine(256)).trimmed();
+        const qsizetype eq = line.indexOf(QLatin1Char('='));
+        if (eq <= 0)
+            continue;
+        const QString key = line.left(eq).trimmed();
+        bool ok = false;
+        const int value = line.mid(eq + 1).trimmed().toInt(&ok);
+        const PanelRange *r = panelRange(key);
+        if (ok && r && value >= r->min && value <= r->max)
+            sizes->insert(key, value);
+    }
     return layouts.contains(id) ? id : layouts.constFirst();
 }
 
@@ -71,7 +104,65 @@ Themes::Themes(QObject *parent)
 {
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &Themes::rescan);
     rescan();
-    m_layout = readLayout();
+    m_layout = readLayout(&m_panelSizes);
+    m_panelWrite.setSingleShot(true);
+    m_panelWrite.setInterval(100);
+    connect(&m_panelWrite, &QTimer::timeout, this, &Themes::writeLayout);
+}
+
+// Окно закрыли, пока размер ещё не записан, — записать сейчас.
+Themes::~Themes()
+{
+    if (m_panelWrite.isActive())
+        writeLayout();
+}
+
+QVariantList Themes::panels() const
+{
+    QVariantList list;
+    for (const PanelRange &r : panelRanges) {
+        const QString key = QLatin1String(r.key);
+        list << QVariantMap{{QStringLiteral("key"), key},
+                            {QStringLiteral("value"), m_panelSizes.value(key, r.def)},
+                            {QStringLiteral("min"), r.min},
+                            {QStringLiteral("max"), r.max}};
+    }
+    return list;
+}
+
+void Themes::setPanelSize(const QString &key, int value)
+{
+    const PanelRange *r = panelRange(key);
+    if (!r)
+        return;
+    value = std::clamp(value, r->min, r->max);
+    if (m_panelSizes.value(key, r->def) == value)
+        return;
+    m_panelSizes.insert(key, value);
+    Q_EMIT panelsChanged();
+    if (!m_panelWrite.isActive())
+        m_panelWrite.start();
+}
+
+bool Themes::writeLayout()
+{
+    const QString dir = configDir();
+    QDir().mkpath(dir);
+    QByteArray text = m_layout.toUtf8() + '\n';
+    for (auto it = m_panelSizes.cbegin(); it != m_panelSizes.cend(); ++it)
+        text += it.key().toUtf8() + '=' + QByteArray::number(it.value()) + '\n';
+    QSaveFile file(dir + QStringLiteral("/layout"));
+    if (!file.open(QIODevice::WriteOnly) || file.write(text) < 0 || !file.commit()) {
+        setError(QStringLiteral("Не удалось сохранить расположение панелей: %1").arg(file.errorString()));
+        return false;
+    }
+    setError(QString());
+    // Оболочка следит за файлом, но QSaveFile заменяет его целиком —
+    // просим перечитать и явно.
+    QProcess::startDetached(QStringLiteral("quickshell"),
+                            {QStringLiteral("ipc"), QStringLiteral("-p"), QStringLiteral("/usr/share/sedmio/shell"), QStringLiteral("call"),
+                             QStringLiteral("layout"), QStringLiteral("reload")});
+    return true;
 }
 
 void Themes::rescan()
@@ -155,21 +246,13 @@ void Themes::chooseLayout(const QString &id)
 {
     if (!layouts.contains(id) || id == m_layout)
         return;
-    const QString dir = configDir();
-    QDir().mkpath(dir);
-    QSaveFile file(dir + QStringLiteral("/layout"));
-    if (!file.open(QIODevice::WriteOnly) || file.write(id.toUtf8() + '\n') < 0 || !file.commit()) {
-        setError(QStringLiteral("Не удалось сохранить расположение панелей: %1").arg(file.errorString()));
+    const QString previous = m_layout;
+    m_layout = id;
+    if (!writeLayout()) {
+        m_layout = previous;
         return;
     }
-    setError(QString());
-    m_layout = id;
     Q_EMIT layoutChanged();
-    // Оболочка следит за файлом, но QSaveFile заменяет его целиком —
-    // просим перечитать и явно.
-    QProcess::startDetached(QStringLiteral("quickshell"),
-                            {QStringLiteral("ipc"), QStringLiteral("-p"), QStringLiteral("/usr/share/sedmio/shell"), QStringLiteral("call"),
-                             QStringLiteral("layout"), QStringLiteral("reload")});
 }
 
 void Themes::setError(const QString &error)

@@ -15,7 +15,7 @@ BarButton {
 
     IconImage {
         anchors.centerIn: parent
-        implicitSize: 20
+        implicitSize: root.iconSize
         source: Icons.path("brightness-high")
     }
 }

@@ -30,10 +30,10 @@ Rectangle {
     readonly property real windowWidth: parent ? parent.width : 0
     readonly property real windowHeight: parent ? parent.height : 0
     // С какой стороны кнопки: "right" (полоса слева), "below", "above".
-    readonly property string side: DesktopLayout.left && target.x < Theme.barWidth ? "right"
+    readonly property string side: DesktopLayout.left && target.x < DesktopLayout.insetLeft ? "right"
         : target.y + target.height / 2 < windowHeight / 2 ? "below" : "above"
 
-    x: side === "right" ? Theme.barWidth + 8
+    x: side === "right" ? DesktopLayout.insetLeft + 8
         : Math.round(Math.max(6, Math.min(windowWidth - width - 6, target.x + target.width / 2 - width / 2)))
     y: side === "right" ? Math.round(target.y + target.height / 2 - height / 2)
         : side === "below" ? Math.round(target.y + target.height + 8)

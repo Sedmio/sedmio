@@ -11,8 +11,8 @@ BarButton {
     property bool wide: false
     active: ShellState.controlShows(screenName, "calendar")
     onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName, "calendar"); }
-    implicitWidth: wide ? line.implicitWidth + 24 : Theme.buttonSize
-    implicitHeight: wide ? Theme.buttonSize : column.implicitHeight + 12
+    implicitWidth: wide ? line.implicitWidth + 24 : size
+    implicitHeight: wide ? size : column.implicitHeight + 12
     hint: wide ? "" : clock.date.toLocaleDateString(Qt.locale(), "dddd, d MMMM")
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
