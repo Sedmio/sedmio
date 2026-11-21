@@ -30,7 +30,12 @@ Rectangle {
             tooltip.show(hint, button);
     }
 
-    onHintChanged: if (hovered) showHint()
+    // Подсказка стала пустой (у панели задач — когда окно одно) — убрать.
+    onHintChanged: {
+        if (!hovered) return;
+        if (hint !== "") showHint();
+        else if (tooltip) tooltip.hide(button);
+    }
 
     MouseArea {
         id: mouse

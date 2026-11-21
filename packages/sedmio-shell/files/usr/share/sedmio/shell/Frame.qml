@@ -275,6 +275,37 @@ PanelWindow {
                 }
             }
 
+            // Край проёма — тонкая линия: видно, где кончается панель и
+            // начинается окно. Лежит внутри проёма (на окно — 1 пиксель);
+            // выезжающие панели рисуются поверх и пристают без шва.
+            Shape {
+                visible: DesktopLayout.left
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    fillColor: "transparent"
+                    strokeColor: Theme.line
+                    strokeWidth: 1
+                    PathRectangle {
+                        x: hole.x + 0.5; y: hole.y + 0.5
+                        width: hole.width - 1; height: hole.height - 1
+                        radius: Math.max(0, DesktopLayout.holeRadius - 0.5)
+                    }
+                }
+            }
+            Rectangle {
+                visible: DesktopLayout.topBar
+                x: hole.x; y: hole.y
+                width: hole.width; height: 1
+                color: Theme.line
+            }
+            Rectangle {
+                visible: DesktopLayout.taskbar
+                x: hole.x; y: hole.y + hole.height - 1
+                width: hole.width; height: 1
+                color: Theme.line
+            }
+
             // Запуск: из угла сверху слева (полоса слева)…
             DrawerShape {
                 visible: DesktopLayout.left && drawerHeight > 0.5
