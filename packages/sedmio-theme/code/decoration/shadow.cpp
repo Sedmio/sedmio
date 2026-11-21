@@ -14,9 +14,9 @@ namespace Sedmio
 namespace
 {
 // Насколько тень выходит за окно, насколько она ниже окна и как размыта.
-constexpr int extent = 32;
-constexpr int offset = 8;
-constexpr int blurRadius = 11;
+constexpr int extent = 16;
+constexpr int offset = 4;
+constexpr int blurRadius = 5;
 
 QHash<QString, std::shared_ptr<KDecoration3::DecorationShadow>> &cache()
 {
