@@ -284,7 +284,7 @@ PanelWindow {
                 preferredRendererType: Shape.CurveRenderer
                 ShapePath {
                     fillColor: "transparent"
-                    strokeColor: Theme.line
+                    strokeColor: Theme.lineStrong
                     strokeWidth: 1
                     PathRectangle {
                         x: hole.x + 0.5; y: hole.y + 0.5
@@ -297,13 +297,13 @@ PanelWindow {
                 visible: DesktopLayout.topBar
                 x: hole.x; y: hole.y
                 width: hole.width; height: 1
-                color: Theme.line
+                color: Theme.lineStrong
             }
             Rectangle {
                 visible: DesktopLayout.taskbar
                 x: hole.x; y: hole.y + hole.height - 1
                 width: hole.width; height: 1
-                color: Theme.line
+                color: Theme.lineStrong
             }
 
             // Запуск: из угла сверху слева (полоса слева)…

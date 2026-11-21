@@ -9,7 +9,7 @@
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=70
+pkgrel=71
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
