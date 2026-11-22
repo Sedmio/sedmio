@@ -48,12 +48,13 @@ PanelWindow {
     function show() {
         const back = front === 0 ? layerB : layerA;
         if (wanted === "") {
-            layerA.source = "";
-            layerB.source = "";
+            layerA.clear();
+            layerB.clear();
             if (WallpaperState.loaded) WallpaperState.shown = true;
-        } else if (back.source.toString() === wanted && back.status === Image.Ready) {
+        } else if (back.requested === wanted && back.status === Image.Ready) {
             front = 1 - front;
         } else {
+            back.requested = wanted;
             back.source = wanted;
         }
     }
@@ -67,12 +68,20 @@ PanelWindow {
     Timer {
         id: dropBack
         interval: 600
-        onTriggered: (root.front === 0 ? layerB : layerA).source = ""
+        onTriggered: (root.front === 0 ? layerB : layerA).clear()
     }
     Component.onCompleted: show()
 
     component Layer: Image {
         required property int number
+        // Какой адрес ей дали: source возвращает его уже по-другому
+        // записанным (русские буквы раскодированы), сравнивать с wanted
+        // нельзя.
+        property string requested: ""
+        function clear() {
+            requested = "";
+            source = "";
+        }
         readonly property bool isFront: root.front === number
         anchors.fill: parent
         fillMode: Image.PreserveAspectCrop
@@ -85,15 +94,15 @@ PanelWindow {
         opacity: isFront && status === Image.Ready ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
         onStatusChanged: {
-            if (source.toString() !== root.wanted)
+            if (requested !== root.wanted)
                 return;
             if (status === Image.Ready) {
                 if (!isFront) root.front = number;
                 WallpaperState.shown = true;
             } else if (status === Image.Error) {
                 console.warn("Обои не открылись:", source);
-                layerA.source = "";
-                layerB.source = "";
+                layerA.clear();
+                layerB.clear();
                 WallpaperState.shown = true;
             }
         }
