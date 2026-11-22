@@ -198,10 +198,10 @@ PanelWindow {
     // ── Стекло ──────────────────────────────────────────────────────────
     // Бумага рамки полупрозрачна (Theme.glassOpacity), под ней KWin
     // размывает то, что позади: панели, док, выехавшие ящики, меню Win+X.
-    // Ящики — прямоугольниками со скруглёнными свободными углами; вогнутые
-    // «плечи», которыми ящик пристаёт к рамке, остаются без размытия —
-    // размытый квадрат за плечом был бы заметнее. Тема без стекла
-    // (glassOpacity 1) — размытия нет: под непрозрачным его не видно.
+    // Ящики — прямоугольниками со скруглёнными свободными углами, плюс
+    // вогнутые «плечи», которыми ящик пристаёт к рамке (ShoulderRegion —
+    // по их точной форме). Тема без стекла (glassOpacity 1) — размытия
+    // нет: под непрозрачным его не видно.
     readonly property real glass: Theme.glassOpacity ?? 1
     BackgroundEffect.blurRegion: glass < 1 ? blurArea : null
 
@@ -286,6 +286,115 @@ PanelWindow {
             bottomLeftRadius: frame.osdOnTop ? Theme.frameRadius : 0
             bottomRightRadius: frame.osdOnTop ? Theme.frameRadius : 0
         }
+        // Плечи ящиков. DrawerShape (x0, y0, ширина w, высота h): плечо
+        // справа сверху и слева снизу; EdgeDrawerShape (от края edgeY):
+        // слева и справа у края. Отражённые ящики — отражёнными плечами.
+        // Запуск: из угла сверху (полоса слева)…
+        ShoulderRegion {
+            readonly property real h: DesktopLayout.left ? frame.launcherHeight * frame.launcherProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h / 2) : 0
+            sx: DesktopLayout.insetLeft + frame.launcherWidth; sy: DesktopLayout.insetTop
+            cx: sx + f; cy: sy + f
+        }
+        ShoulderRegion {
+            readonly property real h: DesktopLayout.left ? frame.launcherHeight * frame.launcherProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h / 2) : 0
+            sx: DesktopLayout.insetLeft; sy: DesktopLayout.insetTop + h
+            cx: sx + f; cy: sy + f
+        }
+        // …и из панели задач снизу.
+        ShoulderRegion {
+            readonly property real h: DesktopLayout.taskbar ? frame.launcherHeight * frame.launcherProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
+            sx: frame.launcherX - f; sy: frame.launcherBottom - f
+            cx: sx; cy: sy
+        }
+        ShoulderRegion {
+            readonly property real h: DesktopLayout.taskbar ? frame.launcherHeight * frame.launcherProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
+            sx: frame.launcherX + frame.launcherWidth; sy: frame.launcherBottom - f
+            cx: sx + f; cy: sy
+        }
+        // Панель управления у полосы слева — DrawerShape, отражённый к низу.
+        ShoulderRegion {
+            readonly property real h: frame.controlPlace === "bottomLeft" ? frame.controlHeight * frame.controlProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h / 2) : 0
+            sx: DesktopLayout.insetLeft + frame.controlWidth; sy: frame.height - DesktopLayout.insetBottom - f
+            cx: sx + f; cy: sy
+        }
+        ShoulderRegion {
+            readonly property real h: frame.controlPlace === "bottomLeft" ? frame.controlHeight * frame.controlProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h / 2) : 0
+            sx: DesktopLayout.insetLeft; sy: frame.height - DesktopLayout.insetBottom - h - f
+            cx: sx + f; cy: sy
+        }
+        // Панель управления сверху справа и уведомления — DrawerShape,
+        // отражённый к правому краю.
+        ShoulderRegion {
+            readonly property real h: frame.controlPlace === "topRight" ? frame.controlHeight * frame.controlProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h / 2) : 0
+            sx: frame.width - DesktopLayout.insetRight - frame.controlWidth - f; sy: DesktopLayout.insetTop
+            cx: sx; cy: sy + f
+        }
+        ShoulderRegion {
+            readonly property real h: frame.controlPlace === "topRight" ? frame.controlHeight * frame.controlProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h / 2) : 0
+            sx: frame.width - DesktopLayout.insetRight - f; sy: DesktopLayout.insetTop + h
+            cx: sx; cy: sy + f
+        }
+        ShoulderRegion {
+            readonly property real h: frame.notificationsHeight
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h / 2) : 0
+            sx: frame.width - DesktopLayout.insetRight - frame.notificationsWidth - f; sy: DesktopLayout.insetTop
+            cx: sx; cy: sy + f
+        }
+        ShoulderRegion {
+            readonly property real h: frame.notificationsHeight
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h / 2) : 0
+            sx: frame.width - DesktopLayout.insetRight - f; sy: DesktopLayout.insetTop + h
+            cx: sx; cy: sy + f
+        }
+        // Календарь и буфер обмена — EdgeDrawerShape, отражённый к верху.
+        ShoulderRegion {
+            readonly property real h: frame.controlPlace === "topCenter" ? frame.controlHeight * frame.controlProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
+            sx: frame.controlX - f; sy: DesktopLayout.insetTop
+            cx: sx; cy: sy + f
+        }
+        ShoulderRegion {
+            readonly property real h: frame.controlPlace === "topCenter" ? frame.controlHeight * frame.controlProgress : 0
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
+            sx: frame.controlX + frame.controlWidth; sy: DesktopLayout.insetTop
+            cx: sx + f; cy: sy + f
+        }
+        ShoulderRegion {
+            readonly property real h: frame.clipboardHeight * frame.clipboardProgress
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
+            sx: hole.x + hole.width / 2 - frame.clipboardWidth / 2 - f; sy: DesktopLayout.insetTop
+            cx: sx; cy: sy + f
+        }
+        ShoulderRegion {
+            readonly property real h: frame.clipboardHeight * frame.clipboardProgress
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
+            sx: hole.x + hole.width / 2 + frame.clipboardWidth / 2; sy: DesktopLayout.insetTop
+            cx: sx + f; cy: sy + f
+        }
+        // Индикатор — EdgeDrawerShape снизу (с доком — отражённый к верху).
+        ShoulderRegion {
+            readonly property real h: 54 * frame.osdProgress
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
+            sx: hole.x + hole.width / 2 - frame.osdWidth / 2 - f
+            sy: frame.osdOnTop ? DesktopLayout.insetTop : frame.height - DesktopLayout.insetBottom - f
+            cx: sx; cy: frame.osdOnTop ? sy + f : sy
+        }
+        ShoulderRegion {
+            readonly property real h: 54 * frame.osdProgress
+            f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
+            sx: hole.x + hole.width / 2 + frame.osdWidth / 2
+            sy: frame.osdOnTop ? DesktopLayout.insetTop : frame.height - DesktopLayout.insetBottom - f
+            cx: sx + f; cy: frame.osdOnTop ? sy + f : sy
+        }
+
         // Меню Win+X — карточка, растёт и сдвигается при появлении.
         Region {
             readonly property bool shown: quickMenu.visible && quickMenu.opacity > 0.3
