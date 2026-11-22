@@ -55,13 +55,57 @@ ListView {
         return -1;
     }
 
-    function dragTo(pos) {
+    function sizeAt(i) {
+        const it = itemAtIndex(i);
+        return it ? (horizontal ? it.width : it.height) : 0;
+    }
+
+    // p — указатель в координатах содержимого списка. Кнопка меняется
+    // местами с соседней, когда её передний край заходит за середину
+    // соседней. Места считаем по ширинам, а не по x кнопок: соседи в это
+    // время ещё едут (displaced), и по их x кнопки менялись бы туда-обратно.
+    function dragTo(p) {
         const from = indexOfKey(dragKey);
-        const over = horizontal ? indexAt(pos.x, height / 2) : indexAt(width / 2, pos.y);
-        if (from < 0 || over < 0) return;
-        const pinned = from < pinnedCount;
-        const to = pinned ? Math.min(over, pinnedCount - 1) : Math.max(over, pinnedCount);
-        if (to !== from && to >= 0 && to < keys.count) keys.move(from, to, 1);
+        const item = from >= 0 ? itemAtIndex(from) : null;
+        if (!item) return;
+        const [lo, hi] = dragRange(from);
+        const size = sizeAt(from);
+        const others = [];
+        for (let i = lo; i <= hi; ++i) if (i !== from) others.push(sizeAt(i));
+        const slot = t => {   // начало кнопки, если она t-я в своей группе
+            let s = rangeStart(lo);
+            for (let k = 0; k < t; ++k) s += others[k] + spacing;
+            return s;
+        };
+        const pos = (horizontal ? p.x : p.y) - item.grab;
+        let t = from - lo;
+        while (t < others.length && pos + size > slot(t) + size + spacing + others[t] / 2) ++t;
+        if (t === from - lo) {
+            while (t > 0 && pos < slot(t - 1) + others[t - 1] / 2) --t;
+        }
+        if (lo + t !== from) keys.move(from, lo + t, 1);
+    }
+
+    // Куда можно поставить кнопку: закреплённую — среди закреплённых,
+    // остальные — после них.
+    function dragRange(index) {
+        return index < pinnedCount ? [0, pinnedCount - 1] : [pinnedCount, keys.count - 1];
+    }
+
+    // Докуда кнопка index (размер size) может уехать за указателем — не за
+    // свою группу. Края берём по соседям снаружи группы: они во время
+    // перетаскивания стоят на месте.
+    function rangeStart(lo) {
+        const before = lo > 0 ? itemAtIndex(lo - 1) : null;
+        return before ? (horizontal ? before.x + before.width : before.y + before.height) + spacing
+                      : (horizontal ? originX : originY);
+    }
+    function dragBounds(index, size) {
+        const [lo, hi] = dragRange(index);
+        const after = hi < keys.count - 1 ? itemAtIndex(hi + 1) : null;
+        const end = after ? (horizontal ? after.x : after.y) - spacing
+                          : (horizontal ? originX + contentWidth : originY + contentHeight);
+        return [rangeStart(lo), end - size];
     }
 
     function dropDragged() {
@@ -93,24 +137,57 @@ ListView {
         buttonSize: list.buttonSize
         width: list.horizontal ? implicitWidth : ListView.view.width
         height: list.horizontal ? ListView.view.height : implicitHeight
-        z: list.dragKey === key ? 1 : 0
+        z: list.dragKey === key || settle.running ? 1 : 0
+
+        // Перетаскиваемая кнопка идёт за указателем: её место в списке
+        // меняется скачком (keys.move), а сдвиг shift держит её под пальцем;
+        // отпустили — доезжает на своё место.
+        property real grab        // где взяли кнопку, от её начала
+        property real shift: 0
+        transform: Translate {
+            x: list.horizontal ? button.shift : 0
+            y: list.horizontal ? 0 : button.shift
+        }
+        function follow(pointer) {
+            if (list.dragKey !== key) return;
+            const p = list.contentItem.mapFromItem(null, pointer.x, pointer.y);
+            list.dragTo(p);
+            const [min, max] = list.dragBounds(list.indexOfKey(key), list.horizontal ? width : height);
+            const pos = (list.horizontal ? p.x : p.y) - grab;
+            shift = Math.max(min, Math.min(max, pos)) - (list.horizontal ? x : y);
+        }
+        NumberAnimation {
+            id: settle
+            target: button
+            property: "shift"
+            to: 0
+            duration: Theme.animNormal
+            easing.type: Easing.OutCubic
+        }
 
         DragHandler {
+            id: drag
             target: null
             xAxis.enabled: list.horizontal
             yAxis.enabled: !list.horizontal
             onActiveChanged: {
                 if (active) {
+                    settle.stop();
                     if (list.tooltip) list.tooltip.hide();
+                    const p = list.contentItem.mapFromItem(null, centroid.scenePressPosition.x, centroid.scenePressPosition.y);
+                    button.grab = list.horizontal ? p.x - button.x : p.y - button.y;
                     list.dragKey = button.key;
+                    button.follow(centroid.scenePosition);
                 } else if (list.dragKey === button.key) {
                     list.dropDragged();
+                    settle.start();
                 }
             }
-            onCentroidChanged: {
-                if (active) list.dragTo(button.mapToItem(list.contentItem, centroid.position.x, centroid.position.y));
-            }
+            onCentroidChanged: if (active) button.follow(centroid.scenePosition)
         }
+        // Место сменилось (keys.move) — сдвиг пересчитать, чтобы кнопка не прыгнула.
+        onXChanged: if (drag.active) follow(drag.centroid.scenePosition)
+        onYChanged: if (drag.active) follow(drag.centroid.scenePosition)
     }
 
     // Без анимации появления в панели задач: пока она идёт, ListView кнопку
