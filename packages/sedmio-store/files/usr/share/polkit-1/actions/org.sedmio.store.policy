@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- «Программы»: поставить или удалить пакет из репозиториев Arch
+     (store-helper). Программы с Flathub ставятся без пароля — к пользователю. -->
+<policyconfig>
+  <vendor>Sedmio</vendor>
+  <vendor_url>https://github.com/Sedmio/sedmio</vendor_url>
+
+  <action id="org.sedmio.store.manage">
+    <description>Install or remove programs</description>
+    <description xml:lang="ru">Установить или удалить программу</description>
+    <message>Authentication is required to install or remove a program</message>
+    <message xml:lang="ru">Чтобы установить или удалить программу, введите пароль</message>
+    <icon_name>system-software-install</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/sedmio/store-helper</annotate>
+  </action>
+</policyconfig>

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Software
+Name[ru]=Программы
+GenericName=Software Store
+GenericName[ru]=Магазин программ
+Comment=Find, install and remove programs from Arch Linux and Flathub
+Comment[ru]=Найти, установить и удалить программы из Arch Linux и Flathub
+Icon=system-software-install
+Exec=sedmio-store %u
+Terminal=false
+Categories=Qt;KDE;System;PackageManager;
+Keywords=store;software;install;uninstall;remove;apps;flatpak;flathub;pacman;aur;
+Keywords[ru]=магазин;программы;приложения;установить;удалить;скачать;flatpak;pacman;
+StartupNotify=true

@@ -1,0 +1,66 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# «Программы» — магазин программ: поиск по репозиториям Arch, Flathub и
+# AUR в одном окне, установка, удаление и обновление программ. Если программа
+# есть в обоих источниках — выбирает человек, каждый раз. Обновление всей
+# системы — в «Параметры» → «Обновление» (sedmio-update).
+#
+# Каталог — AppStream: archlinux-appstream-data для Arch, для Flathub —
+# тот, что скачивает flatpak. Что установлено и что есть в репозиториях —
+# прямо из pacman и flatpak.
+#
+# Пакеты Arch ставит /usr/lib/sedmio/store-helper (pkexec, polkit —
+# org.sedmio.store.policy): без -Sy, отдельной службой; снимок перед
+# установкой — хуком sedmio-update. Программы Flathub — к пользователю,
+# без пароля; Flathub подключается сам при первом запуске
+# (usr/share/sedmio/store/flathub.flatpakrepo). AUR — сборкой от
+# пользователя (makepkg; base-devel ставится по первой нужде), только
+# после просмотра PKGBUILD; готовое ставит тот же помощник.
+#
+# Исходники — app/ рядом с этим файлом (src/ занята makepkg).
+
+pkgname=sedmio-store
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: магазин программ"
+arch=('x86_64')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=(
+  'qt6-base'
+  'qt6-declarative'
+  'kwindowsystem'
+  'kservice'                   # открыть установленную программу
+  'kcoreaddons'
+  'appstream-qt'
+  'archlinux-appstream-data'   # каталог программ Arch
+  'flatpak'
+  'kimageformats'              # значки каталога Arch — JPEG XL
+  'pacman'                     # и libalpm: сравнение версий AUR
+  'polkit'                     # pkexec: пароль для пакетов Arch
+  'python'                     # store-helper
+  # Шрифт Onest (sedmio-branding) и цвета (sedmio-theme, модуль Sedmio.Style)
+  # сюда не вписаны: makepkg ставит зависимости компилируемого пакета на
+  # машину сборки, а наших пакетов в репозиториях Arch нет. Их тянет
+  # sedmio-base.
+  'breeze-icons'
+)
+makedepends=(
+  'cmake'
+  'ninja'
+)
+
+build() {
+  cmake -G Ninja -S "$startdir/app" -B build -W no-dev \
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+    -D CMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  cp -a "$startdir/files/." "$pkgdir/"
+  chmod 755 "$pkgdir/usr/lib/sedmio/store-helper"
+  chmod 644 "$pkgdir/usr/share/polkit-1/actions/org.sedmio.store.policy" \
+            "$pkgdir/usr/share/sedmio/store/flathub.flatpakrepo"
+}
