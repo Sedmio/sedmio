@@ -8,12 +8,23 @@
 #   update-check --notify   по таймеру sedmio-update-check.timer: не чаще
 #                           раза в 20 часов; нашлись обновления — уведомить,
 #                           но не чаще раза в неделю. Ставить — только кнопкой.
+#
+# Заодно — новости Arch (archlinux.org/feeds/news) с прошлого полного
+# обновления: изредка обновление требует ручных шагов («manual
+# intervention»), и узнают об этом обычно уже со сломанной системой.
+# «Параметры» показывают их перед кнопкой «Обновить».
 
+import datetime
+import email.utils
+import html
 import json
 import os
+import re
 import subprocess
 import sys
 import time
+import urllib.request
+import xml.etree.ElementTree as ET
 
 STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "sedmio")
 STATE = os.path.join(STATE_DIR, "updates.json")
@@ -68,7 +79,83 @@ def check():
     return updates, ""
 
 
-def notify(count):
+NEWS_URL = "https://archlinux.org/feeds/news/"
+PACMAN_LOG = "/var/log/pacman.log"
+
+
+def last_upgrade():
+    """Когда было последнее полное обновление (по журналу pacman), epoch."""
+    try:
+        with open(PACMAN_LOG, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - 4 * 1024 * 1024))
+            tail = f.read().decode("utf-8", "replace")
+    except OSError:
+        return 0
+    found = re.findall(r"^\[([^\]]+)\] \[PACMAN\] starting full system upgrade", tail, re.M)
+    for stamp in reversed(found):
+        try:
+            return int(datetime.datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%S%z").timestamp())
+        except ValueError:
+            continue
+    return 0
+
+
+def plain(text):
+    text = re.sub(r"<(br|/p|/li|/pre)[^>]*>", "\n", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = html.unescape(text)
+    text = re.sub(r"[ \t]+", " ", text)
+    return re.sub(r"\n\s*\n+", "\n\n", text).strip()
+
+
+def news(since):
+    """([{title, link, date, text, manual}], ошибка или "") — новее since."""
+    try:
+        request = urllib.request.Request(NEWS_URL, headers={"User-Agent": "sedmio-update"})
+        with urllib.request.urlopen(request, timeout=20) as reply:
+            data = reply.read(2 * 1024 * 1024)
+        root = ET.fromstring(data)
+    except Exception:  # сеть, сервер, разбор — новости не главное
+        return [], "Не получилось загрузить новости Arch."
+    # Про какой пакет новость — по заголовку («mkinitcpio >= 42 requires…»,
+    # «Update to php ≥ 8.5»): чужой пакет — новость не про этот компьютер.
+    def named(title):
+        title = title.lower()
+        found = re.findall(r"([a-z0-9@._+-]+)\s*(?:≥|>=|<=|>|<|=)\s*\d", title)
+        if not found and "requires manual intervention" in title:
+            found = title.split()[:1]
+        return found
+
+    try:
+        installed = set(subprocess.run(["pacman", "-Qq"], capture_output=True, text=True, timeout=60).stdout.split())
+    except (OSError, subprocess.SubprocessError):
+        installed = set()
+    items = []
+    for item in root.iter("item"):
+        try:
+            date = int(email.utils.parsedate_to_datetime(item.findtext("pubDate") or "").timestamp())
+        except (TypeError, ValueError):
+            continue
+        if date <= since:
+            continue
+        title = (item.findtext("title") or "").strip()
+        text = plain(item.findtext("description") or "")
+        items.append({
+            "title": title,
+            "link": (item.findtext("link") or "").strip(),
+            "date": date,
+            "text": text[:1500],
+            "manual": "manual intervention" in (title + " " + text).lower(),
+            "about": named(title),
+            "packages": sorted(set(named(title)) & installed),
+        })
+    items.sort(key=lambda n: n["date"], reverse=True)
+    return items, ""
+
+
+def notify(count, manual=None):
     def open_page():
         proc = subprocess.Popen(["/usr/lib/sedmio/launch", "sedmio-preferences", "sedmio-preferences", "updates"]
                                 if os.access("/usr/lib/sedmio/launch", os.X_OK) else ["sedmio-preferences", "updates"],
@@ -93,12 +180,14 @@ def notify(count):
             time.sleep(0.1)
 
     word = plural(count, "обновление", "обновления", "обновлений")
+    body = (f"{count} {word}. Перед установкой прочитайте новость Arch «{manual}» — "
+            "нужны ваши действия." if manual else
+            f"{count} {word}. Перед установкой система сохранит снимок — "
+            "если что-то сломается, можно будет вернуться.")
     try:
         out = subprocess.run(["notify-send", "--app-name=Sedmio", "--icon=system-software-update",
                               "--action=open=Открыть", "--wait",
-                              "Доступны обновления",
-                              f"{count} {word}. Перед установкой система сохранит снимок — "
-                              "если что-то сломается, можно будет вернуться."],
+                              "Доступны обновления", body],
                              capture_output=True, text=True, timeout=24 * 3600).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return
@@ -116,11 +205,19 @@ def main():
     state.update({"checked": now, "error": error})
     if not error:
         state["updates"] = updates
+        items, news_error = news(last_upgrade() or now - 30 * 24 * 3600)
+        if not news_error:
+            state["news"] = items
+        state["newsError"] = news_error
     save(state)
-    if timer and not error and updates and now - int(state.get("notified", 0)) >= RENOTIFY:
+    # Новость с ручными шагами — уведомить о ней сразу, не дожидаясь недели.
+    manual = [n for n in state.get("news", []) if n.get("manual")] if updates else []
+    fresh = [n for n in manual if n.get("link") not in state.get("notifiedNews", [])]
+    if timer and not error and updates and (fresh or now - int(state.get("notified", 0)) >= RENOTIFY):
         state["notified"] = now
+        state["notifiedNews"] = [n.get("link") for n in manual]
         save(state)
-        notify(len(updates))
+        notify(len(updates), manual[0]["title"] if manual else None)
     return 1 if error else 0
 
 

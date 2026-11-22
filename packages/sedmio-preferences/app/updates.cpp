@@ -112,6 +112,13 @@ void Updates::readCheckState()
                                      {QStringLiteral("old"), o.value(QStringLiteral("old")).toString()},
                                      {QStringLiteral("new"), o.value(QStringLiteral("new")).toString()}});
     }
+    m_news.clear();
+    for (const QJsonValue &v : state.value(QStringLiteral("news")).toArray()) {
+        QVariantMap item = v.toObject().toVariantMap();
+        const QDateTime date = QDateTime::fromSecsSinceEpoch(item.value(QStringLiteral("date")).toLongLong());
+        item.insert(QStringLiteral("date"), QLocale(QLocale::Russian).toString(date.date(), QStringLiteral("d MMMM yyyy")));
+        m_news.append(item);
+    }
     Q_EMIT updatesChanged();
 }
 

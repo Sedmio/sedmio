@@ -40,6 +40,10 @@ class Updates : public QObject
     Q_PROPERTY(QString lastCheck READ lastCheck NOTIFY updatesChanged)
     Q_PROPERTY(QString checkError READ checkError NOTIFY updatesChanged)
     Q_PROPERTY(QVariantList updates READ updates NOTIFY updatesChanged)
+    // Новости Arch с прошлого полного обновления (их загружает update-check):
+    // [{title, link, date, text, manual, about, packages}] — manual: нужны
+    // ручные шаги; about — про какие пакеты, packages — из них установленные.
+    Q_PROPERTY(QVariantList news READ news NOTIFY updatesChanged)
 
     // Обновление: идёт ли, ход (0…1, -1 — неизвестно), последняя строка и
     // журнал pacman, итог ("" | "done" | "failed"), нужна ли перезагрузка.
@@ -74,6 +78,7 @@ public:
     QString lastCheck() const;
     QString checkError() const { return m_checkError; }
     QVariantList updates() const { return m_updates; }
+    QVariantList news() const { return m_news; }
 
     bool upgrading() const { return m_upgrading; }
     qreal progress() const { return m_progress; }
@@ -128,6 +133,7 @@ private:
     qint64 m_checked = 0;
     QString m_checkError;
     QVariantList m_updates;
+    QVariantList m_news;
 
     bool m_upgrading = false;
     qreal m_progress = -1;

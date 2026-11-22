@@ -16,6 +16,10 @@ Page {
     property string confirm
     property bool showPackages: false
     property bool showLog: false
+    // Новости Arch, где нужны ручные шаги и речь о пакетах этого компьютера
+    // (или пакеты не названы).
+    readonly property var actionNews: updates.news.filter(n => n.manual && (n.packages.length > 0 || n.about.length === 0))
+    property var openNews: ({})
 
     Timer {
         running: root.confirm !== ""
@@ -112,7 +116,7 @@ Page {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !updates.upgrading && !updates.checking && updates.updates.length > 0
                         && updates.bootedSnapshot === "" && updates.restoredTitle === ""
-                    text: "Обновить"
+                    text: root.actionNews.length > 0 ? "Прочитал новость, обновить" : "Обновить"
                     primary: true
                     onClicked: if (!updates.busy) updates.upgrade()
                 }
@@ -266,6 +270,107 @@ Page {
                         selectionColor: Theme.greenSelect
                     }
                 }
+            }
+        }
+    }
+
+    // ---- Новости Arch с прошлого обновления
+
+    Card {
+        visible: updates.news.length > 0 && (updates.updates.length > 0 || updates.upgrading || updates.result !== "")
+        title: "Новости Arch с прошлого обновления"
+        Column {
+            width: parent.width
+            topPadding: 6
+            bottomPadding: 6
+            Repeater {
+                model: updates.news
+                Column {
+                    id: item
+                    required property var modelData
+                    required property int index
+                    readonly property bool needsAction: modelData.manual && (modelData.packages.length > 0 || modelData.about.length === 0)
+                    readonly property bool open: root.openNews[modelData.link] === true
+                    width: parent.width
+                    leftPadding: 16
+                    rightPadding: 16
+                    topPadding: item.index > 0 ? 0 : 10
+                    bottomPadding: 10
+                    spacing: 4
+                    Rectangle {
+                        visible: item.index > 0
+                        width: parent.width - 32
+                        height: 1
+                        color: Theme.line
+                    }
+                    Item {
+                        visible: item.index > 0
+                        width: 1
+                        height: 6
+                    }
+                    SText {
+                        width: parent.width - 32
+                        wrapMode: Text.Wrap
+                        text: item.modelData.title
+                        weight: 600
+                        color: item.needsAction ? Theme.terracotta : Theme.ink
+                    }
+                    SText {
+                        width: parent.width - 32
+                        wrapMode: Text.Wrap
+                        size: Theme.fontSmall
+                        color: item.needsAction ? Theme.terracotta : Theme.inkMuted
+                        text: item.modelData.date
+                            + (item.needsAction ? " · нужны ваши действия: прочитайте до обновления"
+                               : item.modelData.manual ? " · про " + item.modelData.about.join(", ") + " — на этом компьютере его нет"
+                               : item.modelData.packages.length > 0 ? " · про " + item.modelData.packages.join(", ") : "")
+                    }
+                    SText {
+                        width: parent.width - 32
+                        wrapMode: Text.Wrap
+                        maximumLineCount: item.open ? 1000 : 2
+                        elide: Text.ElideRight
+                        size: Theme.fontSmall
+                        color: Theme.inkSoft
+                        text: item.modelData.text
+                    }
+                    Row {
+                        spacing: 16
+                        SText {
+                            text: item.open ? "Свернуть" : "Читать дальше"
+                            size: Theme.fontSmall
+                            color: Theme.green
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    const next = Object.assign({}, root.openNews);
+                                    next[item.modelData.link] = !item.open;
+                                    root.openNews = next;
+                                }
+                            }
+                        }
+                        SText {
+                            text: "На сайте Arch"
+                            size: Theme.fontSmall
+                            color: Theme.green
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Qt.openUrlExternally(item.modelData.link)
+                            }
+                        }
+                    }
+                }
+            }
+            SText {
+                x: 16
+                width: parent.width - 32
+                topPadding: 4
+                wrapMode: Text.Wrap
+                size: Theme.fontSmall
+                color: Theme.inkMuted
+                text: "Новости — на английском, с archlinux.org."
             }
         }
     }

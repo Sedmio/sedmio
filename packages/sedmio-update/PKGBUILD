@@ -12,13 +12,15 @@
 #                                    снимок перед каждой работой pacman
 #   usr/lib/sedmio/update-check      раз в день (sedmio-update-check.timer в
 #                                    сеансе): есть ли обновления; уведомление —
-#                                    не чаще раза в неделю
+#                                    не чаще раза в неделю. И новости Arch с
+#                                    прошлого обновления: ручные шаги — сразу
+#                                    в уведомлении и перед кнопкой «Обновить»
 #
 # Подробно — в начале update-helper.
 
 pkgname=sedmio-update
 pkgver=0.1.0
-pkgrel=4
+pkgrel=5
 pkgdesc="Sedmio: обновления и снимки системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
