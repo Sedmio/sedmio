@@ -1,0 +1,17 @@
+# Значки старых программ X11 (XEmbed) в трее Sedmio: xembedsniproxy
+# показывает их оболочке как StatusNotifierItem. Подключается к XWayland
+# (DISPLAY из окружения сеанса, его выставляет KWin).
+[Unit]
+Description=Sedmio: legacy X11 (XEmbed) tray icons
+Documentation=https://github.com/Sedmio/sedmio
+After=sedmio-kwin.service
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/lib/sedmio/xembedsniproxy
+Restart=on-failure
+RestartSec=2s
+Slice=background.slice
+
+[Install]
+WantedBy=sedmio-session.target

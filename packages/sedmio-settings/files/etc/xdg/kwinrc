@@ -29,3 +29,10 @@ sedmio-windowkeysEnabled=true
 # Раскладки у верхнего края и подбор окон как в Windows 11
 # (usr/share/kwin/scripts/sedmio-snap, пакет sedmio-shell).
 sedmio-snapEnabled=true
+
+[Xwayland]
+# Щелчки по значкам старых программ X11 в трее передаёт xembedsniproxy
+# (пакет sedmio-xembedsniproxy) через управление вводом KWin. Без этого
+# KWin при первом щелчке спрашивает «Разрешить управление устройствами
+# ввода?», а меню программы не открывается.
+XwaylandEisNoPromptApps=xembedsniproxy

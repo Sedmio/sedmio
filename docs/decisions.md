@@ -386,9 +386,18 @@ plasma-shutdown и ksmserver-logout-greeter.
 - Программы прошлого сеанса не открываются заново, как в Windows:
   автозапуск Plasma `plasma-fallback-session-restore` в нашем сеансе
   выключен условием (`DESKTOP_SESSION=sedmio`). Не запускаются и kaccess
-  (залипание клавиш KWin делает сам), xembedsniproxy (значки в трее
-  старых программ X11 — своё взамен в дорожной карте, README),
-  gmenudbusmenuproxy (глобальное меню).
+  (залипание клавиш KWin делает сам), gmenudbusmenuproxy (глобальное меню).
+- Значки старых программ X11 в трее (XEmbed: Wine, Java, GTK2) —
+  xembedsniproxy из plasma-workspace, собранный отдельно
+  (`sedmio-xembedsniproxy`, `/usr/lib/sedmio`, служба в
+  sedmio-session.target). Щелчки он передаёт через управление вводом
+  KWin (libei); чтобы KWin не спрашивал разрешения, xembedsniproxy
+  записан в `XwaylandEisNoPromptApps` (`/etc/xdg/kwinrc`).
+- Меню значков трея — своё (`TrayMenu.qml` по dbusmenu), а не QMenu
+  Quickshell: тому нужен режим QApplication (виджеты Qt в оболочке, чужой
+  вид, больше памяти). У значков без dbusmenu (прокси XEmbed) правая
+  кнопка зовёт `ContextMenu(x, y)` — меню рисует сама программа
+  (патч `tray-context-menu.patch` к Quickshell).
 - Заставка — своя маленькая программа `sedmio-splash` (вместо ksplashqml,
   тот же вид `/usr/share/sedmio/splash/Splash.qml`) поверх всех мониторов,
   клавиатуру не берёт. На шине — как ksplash (`org.kde.KSplash setStage`):

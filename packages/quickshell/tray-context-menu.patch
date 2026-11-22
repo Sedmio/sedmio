@@ -1,0 +1,71 @@
+diff -ruN c/src/services/status_notifier/item.cpp d/src/services/status_notifier/item.cpp
+--- c/src/services/status_notifier/item.cpp	2026-10-08 15:42:54.000000000 +0700
++++ d/src/services/status_notifier/item.cpp	2026-11-22 22:17:23.384218972 +0700
+@@ -218,8 +218,8 @@
+ 	return pixmap;
+ }
+ 
+-void StatusNotifierItem::activate() {
+-	auto pendingCall = this->item->Activate(0, 0);
++void StatusNotifierItem::activate(qint32 x, qint32 y) {
++	auto pendingCall = this->item->Activate(x, y);
+ 	auto* call = new QDBusPendingCallWatcher(pendingCall, this);
+ 
+ 	auto responseCallback = [this](QDBusPendingCallWatcher* call) {
+@@ -242,8 +242,8 @@
+ 	QObject::connect(call, &QDBusPendingCallWatcher::finished, this, responseCallback);
+ }
+ 
+-void StatusNotifierItem::secondaryActivate() {
+-	auto pendingCall = this->item->SecondaryActivate(0, 0);
++void StatusNotifierItem::secondaryActivate(qint32 x, qint32 y) {
++	auto pendingCall = this->item->SecondaryActivate(x, y);
+ 	auto* call = new QDBusPendingCallWatcher(pendingCall, this);
+ 
+ 	auto responseCallback = [this](QDBusPendingCallWatcher* call) {
+@@ -268,6 +268,23 @@
+ 	QObject::connect(call, &QDBusPendingCallWatcher::finished, this, responseCallback);
+ }
+ 
++void StatusNotifierItem::contextMenu(qint32 x, qint32 y) {
++	auto pendingCall = this->item->ContextMenu(x, y);
++	auto* call = new QDBusPendingCallWatcher(pendingCall, this);
++
++	QObject::connect(call, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher* call) {
++		const QDBusPendingReply<> reply = *call;
++
++		if (reply.isError() && reply.error().type() != QDBusError::UnknownMethod) {
++			qCWarning(logStatusNotifierItem).noquote()
++			    << "Error calling ContextMenu method of StatusNotifierItem" << this->properties.toString();
++			qCWarning(logStatusNotifierItem) << reply.error();
++		}
++
++		delete call;
++	});
++}
++
+ void StatusNotifierItem::scroll(qint32 delta, bool horizontal) const {
+ 	this->item->Scroll(delta, horizontal ? "horizontal" : "vertical");
+ }
+diff -ruN c/src/services/status_notifier/item.hpp d/src/services/status_notifier/item.hpp
+--- c/src/services/status_notifier/item.hpp	2026-10-08 15:42:54.000000000 +0700
++++ d/src/services/status_notifier/item.hpp	2026-11-22 22:17:23.384153548 +0700
+@@ -127,9 +127,16 @@
+ 	explicit StatusNotifierItem(const QString& address, QObject* parent = nullptr);
+ 
+ 	/// Primary activation action, generally triggered via a left click.
+-	Q_INVOKABLE void activate();
++	/// `x` and `y` are where it happened, in global (screen) coordinates:
++	/// xembedsniproxy clicks the legacy X11 icon there, so a menu the
++	/// application opens appears next to the tray.
++	Q_INVOKABLE void activate(qint32 x = 0, qint32 y = 0);
+ 	/// Secondary activation action, generally triggered via a middle click.
+-	Q_INVOKABLE void secondaryActivate();
++	Q_INVOKABLE void secondaryActivate(qint32 x = 0, qint32 y = 0);
++	/// Ask the application to show its own context menu at `x`, `y` (global
++	/// coordinates). For items without a dbusmenu (@@hasMenu is false), such as
++	/// legacy X11 icons through xembedsniproxy, which right-clicks the icon.
++	Q_INVOKABLE void contextMenu(qint32 x, qint32 y);
+ 	/// Scroll action, such as changing volume on a mixer.
+ 	Q_INVOKABLE void scroll(qint32 delta, bool horizontal) const;
+ 	/// Display a platform menu at the given location relative to the parent window.

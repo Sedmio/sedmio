@@ -9,13 +9,13 @@
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=75
+pkgrel=76
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
 license=('MIT')
 depends=(
-  'quickshell>=0.3.2-17' # наша сборка: список окон под KWin, службы Plasma, буфер обмена, ход копирования, миниатюры окон
+  'quickshell>=0.3.2-18' # наша сборка: список окон под KWin, службы Plasma, буфер обмена, ход копирования, миниатюры окон, меню трея
   'sedmio-branding'     # шрифт Onest
   'sedmio-theme'        # цвета и прочее оформление (Sedmio.Style)
   'sedmio-settings'     # знак Sedmio в hicolor

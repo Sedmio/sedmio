@@ -1,0 +1,89 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Значки старых программ X11 в трее (протокол XEmbed: Wine, Java, GTK2,
+# Steam и другие). Наша оболочка, как и любая под Wayland, видит только
+# StatusNotifierItem; xembedsniproxy забирает трей X11 у XWayland и
+# показывает каждый его значок как StatusNotifierItem, а щелчки по нему
+# передаёт программе.
+#
+# Это xembedsniproxy из plasma-workspace — маленькая отдельная программа
+# (Qt, KF6, xcb), без остальной Плазмы. Собираем только её папку из
+# архива plasma-workspace своим CMakeLists. Ставится в /usr/lib/sedmio:
+# с plasma-workspace (если его поставят) файлы не пересекаются, а второй
+# экземпляр сам выходит (KDBusService Unique).
+#
+# Версию держать равной Плазме в системе (kwin, kpipewire).
+
+pkgname=sedmio-xembedsniproxy
+pkgver=6.8.3
+pkgrel=1
+pkgdesc='Sedmio: значки старых программ X11 (XEmbed) в трее — xembedsniproxy из Plasma'
+arch=('x86_64')
+url='https://invent.kde.org/plasma/plasma-workspace/-/tree/master/xembed-sni-proxy'
+license=('LGPL-2.1-or-later')
+depends=(
+  'gcc-libs'
+  'glibc'
+  'kcoreaddons'
+  'kcrash'
+  'kdbusaddons'
+  'kwindowsystem'
+  'libx11'
+  'libxcb'
+  'libxtst'
+  'qt6-base'
+  'xcb-util-image'
+  'xcb-util-wm'
+)
+makedepends=('cmake' 'extra-cmake-modules' 'ninja')
+source=("https://download.kde.org/stable/plasma/$pkgver/plasma-workspace-$pkgver.tar.xz")
+noextract=("plasma-workspace-$pkgver.tar.xz")
+sha256sums=('3f984e2d960c252ee6353ef639807379c7d1bb2777fecedd047943209c52ffcb')
+
+prepare() {
+  rm -rf xembed
+  mkdir xembed
+  bsdtar -xf "plasma-workspace-$pkgver.tar.xz" -C xembed --strip-components 1 \
+    "plasma-workspace-$pkgver/xembed-sni-proxy" "plasma-workspace-$pkgver/c_ptr.h"
+
+  # Вместо CMakeLists всего plasma-workspace — только то, что нужно прокси
+  cat > xembed/CMakeLists.txt <<EOF
+cmake_minimum_required(VERSION 3.16)
+project(xembedsniproxy VERSION $pkgver)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+find_package(ECM 6.0 REQUIRED NO_MODULE)
+set(CMAKE_MODULE_PATH \${ECM_MODULE_PATH})
+include(KDEInstallDirs)
+include(KDECMakeSettings)
+include(KDECompilerSettings NO_POLICY_SCOPE)
+include(ECMQtDeclareLoggingCategory)
+include(FeatureSummary)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui DBus)
+find_package(KF6 REQUIRED COMPONENTS CoreAddons Crash DBusAddons WindowSystem)
+find_package(X11 REQUIRED)
+file(WRITE \${CMAKE_CURRENT_BINARY_DIR}/config-workspace.h
+  "#define WORKSPACE_VERSION_STRING \"$pkgver\"\n")
+include_directories(\${CMAKE_CURRENT_BINARY_DIR})
+add_subdirectory(xembed-sni-proxy)
+EOF
+
+  # Ставим сами (package()): автозапуск Plasma и её служба не нужны
+  sed -i '/^install(/d; /^ecm_install_configured_files/d' xembed/xembed-sni-proxy/CMakeLists.txt
+}
+
+build() {
+  cmake -S xembed -B build -G Ninja \
+    -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+    -D CMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  install -Dm755 build/bin/xembedsniproxy "$pkgdir/usr/lib/sedmio/xembedsniproxy"
+  install -Dm644 "$startdir/sedmio-xembedsniproxy.service" \
+    "$pkgdir/usr/lib/systemd/user/sedmio-xembedsniproxy.service"
+  install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
+  ln -s ../sedmio-xembedsniproxy.service \
+    "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-xembedsniproxy.service"
+}

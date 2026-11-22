@@ -13,7 +13,7 @@
 
 pkgname=quickshell
 pkgver=0.3.2
-pkgrel=17
+pkgrel=18
 pkgdesc='Flexible toolkit for making desktop shells with QtQuick (сборка Sedmio)'
 arch=('x86_64')
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
@@ -57,7 +57,8 @@ source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
         'polkit-agent.patch'
         'reload-screen.patch'
         'kde-virtual-desktops.patch'
-        'kde-window-thumbnails.patch')
+        'kde-window-thumbnails.patch'
+        'tray-context-menu.patch')
 sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             '8e147c038acd8636225c6a8cc95386f02b5ab20089aa0fc68e0e27b4909b489d'
             'abd55c5207f783e0875329ab1094139e70b9d1313d6a5f6e0577417050de2d88'
@@ -67,7 +68,8 @@ sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             'b782b6b4b3b76e814055bf259b5b354b69efc2389dc103f3e7ff68f9f1b66662'
             'b85c82a621ffd23b7672a21ddc6330fb1caaf150477dbb776c09f492d55a76b7'
             '3e7e989d902b376ff728fa4fb2f6b2ea9f9d31e760139fb4bbb9fc8ad1c87728'
-            '4dfe44c4c87f13a815cfbe07839154eb4575f64c4706c1a07ff5c83cfedf38ca')
+            '4dfe44c4c87f13a815cfbe07839154eb4575f64c4706c1a07ff5c83cfedf38ca'
+            '31c78941c43ef371d3dd0767e608b298644ea31d35ea4c1c42a37598efd91088')
 
 prepare() {
   cd "$pkgname"
@@ -118,6 +120,11 @@ prepare() {
   # (zkde_screencast_unstable_v1, как панель задач Plasma), показывает его
   # PipeWireSourceItem из kpipewire. Протокол вписан в X-KDE-Wayland-Interfaces.
   patch -Np1 -i ../kde-window-thumbnails.patch
+  # Трей: SystemTrayItem.contextMenu(x, y) — метод SNI ContextMenu для
+  # значков без dbusmenu (старые X11-программы через xembedsniproxy: тот
+  # щёлкает правой кнопкой по самому значку), и activate/secondaryActivate
+  # с координатами — прокси щёлкает там, и меню программы появляется у трея.
+  patch -Np1 -i ../tray-context-menu.patch
 }
 
 build() {
