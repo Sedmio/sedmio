@@ -8,8 +8,8 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Qml)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
-# Чтение темы — общее для QML-модуля и рамок окон.
-add_library(sedmio-themedata STATIC common/themedata.cpp common/themedata.h)
+# Чтение темы — общее для QML-модуля, рамок окон и службы цветов.
+add_library(sedmio-themedata STATIC common/themedata.cpp common/themedata.h common/accent.cpp common/accent.h)
 set_target_properties(sedmio-themedata PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(sedmio-themedata PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
 target_link_libraries(sedmio-themedata PUBLIC Qt6::Core Qt6::Gui)

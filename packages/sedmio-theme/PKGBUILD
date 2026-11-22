@@ -20,12 +20,16 @@
 # GTK — в тех же цветах. Не запустилась — остаётся запасная схема Sedmio из
 # sedmio-settings.
 #
+# Акцент из обоев (выбор — ~/.config/sedmio/accent): sedmio-theme-sync
+# находит цвет выбранных обоев, модуль и рамки перекрашивают в его оттенок
+# акцентные цвета темы (code/common/accent.h).
+#
 # Исходники — code/ (common — чтение темы, style — QML-модуль, decoration —
 # рамки) и themes/ рядом с этим файлом (src/ занята makepkg).
 
 pkgname=sedmio-theme
 pkgver=0.2.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Sedmio: темы оформления, модуль Sedmio.Style и рамки окон"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

@@ -4,7 +4,8 @@ import Sedmio.Style
 
 // «Тема»: установленные темы Sedmio карточками — маленький рабочий стол в
 // цветах темы. Щелчок — тема сразу везде: оболочка, наши программы, рамки
-// окон, чужие программы. Ниже — расположение панелей (макет оболочки):
+// окон, чужие программы. Под ними — акцентный цвет из обоев (поверх любой
+// темы). Ниже — расположение панелей (макет оболочки):
 // тоже карточками, меняется сразу; под ними — ползунки толщины панелей
 // выбранного макета (оболочка меняется, пока тянешь).
 Page {
@@ -96,6 +97,34 @@ Page {
                     wrapMode: Text.Wrap
                     maximumLineCount: 2
                     elide: Text.ElideRight
+                }
+            }
+        }
+    }
+
+    Card {
+        title: "Акцентный цвет"
+        Setting {
+            label: "Из обоев"
+            hint: "Кнопки, выделение и отметки — в цвет картинки рабочего стола"
+            last: true
+            Row {
+                spacing: 14
+                // Акцент сейчас — меняется вместе с обоями.
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 22
+                    height: 22
+                    radius: 11
+                    color: Theme.green
+                    border.width: 3
+                    border.color: Theme.greenWash
+                    Behavior on color { ColorAnimation { duration: Theme.animNormal } }
+                }
+                SSwitch {
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: Theme.accentFromWallpaper === true
+                    onToggled: themes.setAccentFromWallpaper(!checked)
                 }
             }
         }

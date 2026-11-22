@@ -24,8 +24,9 @@ namespace Sedmio
 // или значение не того типа — берётся вшитое. Файлы отслеживаются: тема
 // поменялась — changed().
 //
-// Ещё три ключа: themeId, themeName, themeDirectory (каталог темы — для
-// её собственных файлов; пусто у вшитой).
+// Ещё ключи: themeId, themeName, themeDirectory (каталог темы — для
+// её собственных файлов; пусто у вшитой), accentFromWallpaper (акцентные
+// цвета перекрашены в цвет обоев, accent.h).
 class ThemeData : public QObject
 {
     Q_OBJECT

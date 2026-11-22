@@ -1,5 +1,7 @@
 #include "themedata.h"
 
+#include "accent.h"
+
 #include <QColor>
 #include <QDir>
 #include <QFile>
@@ -183,6 +185,13 @@ void ThemeData::reload()
     if (directory.isEmpty())
         id = defaultId;
 
+    // Акцент из обоев — поверх любой темы (accent.h). Цвета обоев ещё нет
+    // (служба не успела, обои Sedmio) — акцент темы.
+    const bool accent = Accent::fromWallpaper();
+    if (accent)
+        Accent::apply(values, Accent::stateColor());
+    values.insert(QStringLiteral("accentFromWallpaper"), accent);
+
     values.insert(QStringLiteral("themeId"), id);
     values.insert(QStringLiteral("themeName"), name);
     values.insert(QStringLiteral("themeDirectory"), directory);
@@ -197,9 +206,14 @@ void ThemeData::reload()
     // (сначала каталог, потом файл).
     const QString configDir = configHome() + QStringLiteral("/sedmio");
     const QString userThemes = dataHome() + QStringLiteral("/sedmio/themes");
+    // Цвет обоев — в своём каталоге: соседние файлы состояния меняются
+    // часто, а каждая смена будила бы тему во всех программах.
+    const QString accentState = QFileInfo(Accent::stateFile()).absolutePath();
     QDir().mkpath(configDir);
     QDir().mkpath(userThemes);
-    QStringList paths{configDir, configDir + QStringLiteral("/theme"), userThemes, userThemes + QLatin1Char('/') + selected};
+    QDir().mkpath(accentState);
+    QStringList paths{configDir, configDir + QStringLiteral("/theme"), userThemes, userThemes + QLatin1Char('/') + selected,
+                      configDir + QStringLiteral("/accent"), accentState, Accent::stateFile()};
     if (!directory.isEmpty())
         paths << directory << themeFile;
     watch(paths);

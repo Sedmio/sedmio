@@ -242,6 +242,18 @@ void Themes::choose(const QString &id)
     setError(QString());
 }
 
+void Themes::setAccentFromWallpaper(bool on)
+{
+    const QString dir = configDir();
+    QDir().mkpath(dir);
+    QSaveFile file(dir + QStringLiteral("/accent"));
+    if (!file.open(QIODevice::WriteOnly) || file.write(on ? "wallpaper\n" : "theme\n") < 0 || !file.commit()) {
+        setError(QStringLiteral("Не удалось сохранить акцентный цвет: %1").arg(file.errorString()));
+        return;
+    }
+    setError(QString());
+}
+
 void Themes::chooseLayout(const QString &id)
 {
     if (!layouts.contains(id) || id == m_layout)

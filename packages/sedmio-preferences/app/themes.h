@@ -40,6 +40,9 @@ public:
     QVariantList panels() const;
 
     Q_INVOKABLE void choose(const QString &id);
+    // Акцент из обоев поверх темы: первая строка ~/.config/sedmio/accent
+    // («wallpaper» или «theme»). Включён ли — Theme.accentFromWallpaper.
+    Q_INVOKABLE void setAccentFromWallpaper(bool on);
     Q_INVOKABLE void rescan();
     Q_INVOKABLE void chooseLayout(const QString &id);
     // Пока ползунок тянут, файл пишется не чаще раза в 100 мс.

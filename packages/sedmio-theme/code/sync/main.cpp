@@ -7,8 +7,14 @@
 // пользователя — её не трогаем, только обновляем файл Sedmio. Шрифт —
 // так же: свой у пользователя остаётся.
 //
+// Ещё — акцент из обоев (common/accent.h): пока он включён, находит цвет
+// выбранных обоев (~/.config/sedmio/wallpaper.json) и пишет его для всех
+// программ в ~/.local/state/sedmio/accent/wallpaper — один раз на смену
+// обоев, а не в каждой программе.
+//
 // Без аргументов — работает и следит за темой; --once — один раз и выйти.
 
+#include "accent.h"
 #include "themedata.h"
 
 #include <KConfig>
@@ -22,11 +28,17 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFileSystemWatcher>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QTextStream>
+#include <QTimer>
+#include <QUrl>
 
 #include <cstdio>
+#include <malloc.h>
 
 namespace
 {
@@ -286,6 +298,65 @@ void applyFont()
     QDBusConnection::sessionBus().send(message);
 }
 
+QString configDir()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/sedmio");
+}
+
+// Выбранные обои — путь к картинке; пусто — обои Sedmio (как в оболочке).
+QString wallpaperImage()
+{
+    QFile file(configDir() + QStringLiteral("/wallpaper.json"));
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    QString image = QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("image")).toString();
+    if (image.startsWith(QLatin1String("file://")))
+        image = QUrl(image).toLocalFile();
+    return image;
+}
+
+// Цвет обоев для акцента. Файл: цвет, затем картинка, её время и размер —
+// те же обои второй раз не разбираем. Обои Sedmio или картинка не
+// открылась — пустой файл: акцент темы.
+void updateWallpaperAccent()
+{
+    if (!Sedmio::ThemeData::instance()->value(QStringLiteral("accentFromWallpaper")).toBool())
+        return;
+    const QString image = wallpaperImage();
+    const QFileInfo info(image);
+    const QString key = image.isEmpty() || !info.isFile()
+        ? QString()
+        : QStringLiteral("%1\n%2\n%3").arg(image).arg(info.lastModified().toMSecsSinceEpoch()).arg(info.size());
+
+    const QString path = Sedmio::Accent::stateFile();
+    QFile current(path);
+    if (current.open(QIODevice::ReadOnly)) {
+        const QString text = QString::fromUtf8(current.readAll());
+        const qsizetype newline = text.indexOf(QLatin1Char('\n'));
+        const QString stored = newline < 0 ? QString() : text.mid(newline + 1).trimmed();
+        if (stored == key && (key.isEmpty() || newline > 0))
+            return;
+    }
+    current.close();
+
+    QString text;
+    if (!key.isEmpty()) {
+        const QColor color = Sedmio::Accent::fromImage(image);
+        // Картинку разбирали в память — вернуть её системе.
+        malloc_trim(0);
+        if (color.isValid())
+            text = color.name(QColor::HexRgb) + QLatin1Char('\n') + key + QLatin1Char('\n');
+        else
+            std::fprintf(stderr, "sedmio-theme-sync: не открыть обои %s\n", qPrintable(image));
+    }
+    if (text.isEmpty())
+        text = QStringLiteral("\n");
+    QDir().mkpath(QFileInfo(path).path());
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(text.toUtf8()) < 0 || !file.commit())
+        std::fprintf(stderr, "sedmio-theme-sync: не записать %s\n", qPrintable(path));
+}
+
 void sync()
 {
     const auto groups = scheme();
@@ -301,10 +372,34 @@ int main(int argc, char **argv)
     QCoreApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("sedmio-theme-sync"));
 
+    updateWallpaperAccent();
     sync();
     if (app.arguments().contains(QStringLiteral("--once")))
         return 0;
 
-    QObject::connect(Sedmio::ThemeData::instance(), &Sedmio::ThemeData::changed, &app, &sync);
+    // Обои сменились («Параметры» заменяют wallpaper.json целиком — это
+    // смена каталога) или акцент из обоев включили — с паузой: файлы
+    // пишутся по шагам.
+    QTimer wallpaperCheck;
+    wallpaperCheck.setSingleShot(true);
+    wallpaperCheck.setInterval(300);
+    QObject::connect(&wallpaperCheck, &QTimer::timeout, &app, &updateWallpaperAccent);
+    QFileSystemWatcher watcher;
+    QDir().mkpath(configDir());
+    watcher.addPath(configDir());
+    QObject::connect(&watcher, &QFileSystemWatcher::directoryChanged, &wallpaperCheck, qOverload<>(&QTimer::start));
+    QObject::connect(&watcher, &QFileSystemWatcher::fileChanged, &wallpaperCheck, qOverload<>(&QTimer::start));
+    const QString wallpaperFile = configDir() + QStringLiteral("/wallpaper.json");
+    QObject::connect(&wallpaperCheck, &QTimer::timeout, &watcher, [&watcher, wallpaperFile] {
+        if (!watcher.files().contains(wallpaperFile) && QFileInfo::exists(wallpaperFile))
+            watcher.addPath(wallpaperFile);
+    });
+    if (QFileInfo::exists(wallpaperFile))
+        watcher.addPath(wallpaperFile);
+
+    QObject::connect(Sedmio::ThemeData::instance(), &Sedmio::ThemeData::changed, &app, [&wallpaperCheck] {
+        sync();
+        wallpaperCheck.start();
+    });
     return app.exec();
 }
