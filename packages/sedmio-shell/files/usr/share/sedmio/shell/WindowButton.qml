@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import Quickshell.Widgets
 import Sedmio.Style
 
@@ -176,6 +177,7 @@ Item {
             listPop.restart();
         }
         PopIn { id: listPop; card: listCard }
+        BackgroundEffect.blurRegion: CardBlur { card: listCard }
 
         Rectangle {
             id: listCard
@@ -184,7 +186,7 @@ Item {
             focus: true
             Keys.onEscapePressed: popup.visible = false
             radius: 12
-            color: Theme.surface
+            color: Qt.alpha(Theme.surface, Theme.glassOpacity ?? 1)
             border.width: 1
             border.color: Theme.line
 

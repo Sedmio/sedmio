@@ -52,13 +52,14 @@ PanelWindow {
     visible: false
     onVisibleChanged: if (visible) pop.restart()
     PopIn { id: pop; card: card }
+    BackgroundEffect.blurRegion: CardBlur { card: card }
 
     Rectangle {
         id: card
         anchors.fill: parent
         transformOrigin: preview.horizontal ? Item.Bottom : Item.Left
         radius: 12
-        color: Theme.surface
+        color: Qt.alpha(Theme.surface, Theme.glassOpacity ?? 1)
         border.width: 1
         border.color: Theme.line
 

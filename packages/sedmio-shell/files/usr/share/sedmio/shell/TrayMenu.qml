@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import Quickshell.Widgets
 import Sedmio.Style
 
@@ -107,6 +108,7 @@ PopupWindow {
         }
     }
     PopIn { id: pop; card: card }
+    BackgroundEffect.blurRegion: CardBlur { card: card }
 
     Rectangle {
         id: card
@@ -115,7 +117,7 @@ PopupWindow {
             : (menu.anchor.gravity & Edges.Top) ? Item.Bottom
             : (menu.anchor.gravity & Edges.Bottom) ? Item.Top : Item.Left
         radius: 12
-        color: Theme.surface
+        color: Qt.alpha(Theme.surface, Theme.glassOpacity ?? 1)
         border.width: 1
         border.color: Theme.line
         focus: true

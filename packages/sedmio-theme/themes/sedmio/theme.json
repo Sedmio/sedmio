@@ -56,6 +56,10 @@
         "buttonSize": 36
     },
 
+    "glass": {
+        "glassOpacity": 0.82
+    },
+
     "motion": {
         "animFast": 140,
         "animNormal": 260

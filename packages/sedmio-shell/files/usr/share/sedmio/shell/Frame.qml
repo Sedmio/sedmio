@@ -195,6 +195,114 @@ PanelWindow {
         : DesktopLayout.taskbar ? frame.height - DesktopLayout.insetBottom - quickMenu.height - 6
         : dockTop - quickMenu.height - 8
 
+    // ── Стекло ──────────────────────────────────────────────────────────
+    // Бумага рамки полупрозрачна (Theme.glassOpacity), под ней KWin
+    // размывает то, что позади: панели, док, выехавшие ящики, меню Win+X.
+    // Ящики — прямоугольниками со скруглёнными свободными углами; вогнутые
+    // «плечи», которыми ящик пристаёт к рамке, остаются без размытия —
+    // размытый квадрат за плечом был бы заметнее. Тема без стекла
+    // (glassOpacity 1) — размытия нет: под непрозрачным его не видно.
+    readonly property real glass: Theme.glassOpacity ?? 1
+    BackgroundEffect.blurRegion: glass < 1 ? blurArea : null
+
+    // Прямоугольник элемента в окне — с масштабом и сдвигом его анимации.
+    function sceneBox(item) {
+        const p = item.mapToItem(null, 0, 0);
+        const q = item.mapToItem(null, item.width, item.height);
+        return Qt.rect(p.x, p.y, q.x - p.x, q.y - p.y);
+    }
+
+    Region {
+        id: blurArea
+        item: content
+        Region { item: hole; radius: DesktopLayout.holeRadius; intersection: Intersection.Subtract }
+
+        // Док.
+        Region {
+            intersection: Intersection.Combine
+            x: frame.dockX
+            y: frame.dockY
+            width: frame.dockProgress > 0 ? frame.dockWidth : 0
+            height: frame.dockProgress > 0 ? DesktopLayout.dockHeight : 0
+            radius: Theme.frameRadius
+        }
+        // Запуск: из угла сверху (полоса слева), из панели задач, над доком.
+        Region {
+            readonly property real h: frame.launcherHeight * frame.launcherProgress
+            intersection: Intersection.Combine
+            x: frame.launcherX
+            y: DesktopLayout.left ? DesktopLayout.insetTop : frame.launcherBottom - h
+            width: h > 0.5 ? frame.launcherWidth : 0
+            height: h > 0.5 ? h : 0
+            topLeftRadius: DesktopLayout.left ? 0 : Theme.frameRadius
+            topRightRadius: DesktopLayout.left ? 0 : Theme.frameRadius
+            bottomLeftRadius: DesktopLayout.dock ? Theme.frameRadius : 0
+            bottomRightRadius: DesktopLayout.taskbar ? 0 : Theme.frameRadius
+        }
+        // Панель управления и календарь.
+        Region {
+            readonly property real h: frame.controlHeight * frame.controlProgress
+            readonly property bool fromBottom: frame.controlPlace === "bottomLeft"
+            intersection: Intersection.Combine
+            x: frame.controlX
+            y: fromBottom ? frame.height - DesktopLayout.insetBottom - h : DesktopLayout.insetTop
+            width: h > 0.5 ? frame.controlWidth : 0
+            height: h > 0.5 ? h : 0
+            topLeftRadius: 0
+            topRightRadius: fromBottom ? Theme.frameRadius : 0
+            bottomLeftRadius: fromBottom ? 0 : Theme.frameRadius
+            bottomRightRadius: frame.controlPlace === "topCenter" ? Theme.frameRadius : 0
+        }
+        // Уведомления и их центр.
+        Region {
+            intersection: Intersection.Combine
+            x: frame.width - DesktopLayout.insetRight - frame.notificationsWidth
+            y: DesktopLayout.insetTop
+            width: frame.notificationsHeight > 0.5 ? frame.notificationsWidth : 0
+            height: frame.notificationsHeight > 0.5 ? frame.notificationsHeight : 0
+            bottomLeftRadius: Theme.frameRadius
+        }
+        // Буфер обмена.
+        Region {
+            readonly property real h: frame.clipboardHeight * frame.clipboardProgress
+            intersection: Intersection.Combine
+            x: hole.x + hole.width / 2 - frame.clipboardWidth / 2
+            y: DesktopLayout.insetTop
+            width: h > 0.5 ? frame.clipboardWidth : 0
+            height: h > 0.5 ? h : 0
+            bottomLeftRadius: Theme.frameRadius
+            bottomRightRadius: Theme.frameRadius
+        }
+        // Индикатор громкости и яркости.
+        Region {
+            readonly property real h: 54 * frame.osdProgress
+            intersection: Intersection.Combine
+            x: hole.x + hole.width / 2 - frame.osdWidth / 2
+            y: frame.osdOnTop ? DesktopLayout.insetTop : frame.height - DesktopLayout.insetBottom - h
+            width: h > 0.5 ? frame.osdWidth : 0
+            height: h > 0.5 ? h : 0
+            topLeftRadius: frame.osdOnTop ? 0 : Theme.frameRadius
+            topRightRadius: frame.osdOnTop ? 0 : Theme.frameRadius
+            bottomLeftRadius: frame.osdOnTop ? Theme.frameRadius : 0
+            bottomRightRadius: frame.osdOnTop ? Theme.frameRadius : 0
+        }
+        // Меню Win+X — карточка, растёт и сдвигается при появлении.
+        Region {
+            readonly property bool shown: quickMenu.visible && quickMenu.opacity > 0.3
+            readonly property rect box: {
+                quickMenu.scale; quickMenu.x; quickMenu.y; quickMenu.width; quickMenu.height;
+                quickMenuShift.x; quickMenuShift.y;
+                return frame.sceneBox(quickMenu);
+            }
+            intersection: Intersection.Combine
+            x: shown ? Math.round(box.x) : 0
+            y: shown ? Math.round(box.y) : 0
+            width: shown ? Math.round(box.width) : 0
+            height: shown ? Math.round(box.height) : 0
+            radius: Math.round(12 * quickMenu.scale)
+        }
+    }
+
     mask: Region {
         item: content
         Region { item: frame.anyOpen ? null : hole; intersection: Intersection.Subtract }
@@ -267,6 +375,8 @@ PanelWindow {
         Item {
             id: paper
             anchors.fill: parent
+            // Стекло: бумага вместе с тенью полупрозрачна, под ней — размытое.
+            opacity: frame.glass
             layer.enabled: true
             layer.effect: MultiEffect {
                 shadowEnabled: true
@@ -576,6 +686,7 @@ PanelWindow {
                 }
             }
             transform: Translate {
+                id: quickMenuShift
                 x: DesktopLayout.left && !frame.quickMenuOpen ? -8 : 0
                 y: !DesktopLayout.left && !frame.quickMenuOpen ? 8 : 0
                 Behavior on x {

@@ -87,7 +87,7 @@ Item {
         id: keys
         anchors.fill: parent
         radius: 12
-        color: Theme.surface
+        color: Qt.alpha(Theme.surface, Theme.glassOpacity ?? 1)
         border.width: 1
         border.color: Theme.line
 

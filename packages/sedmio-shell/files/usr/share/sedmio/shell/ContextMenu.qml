@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import Quickshell.Widgets
 import Sedmio.Style
 
@@ -45,6 +46,8 @@ PopupWindow {
         }
     }
     PopIn { id: pop; card: card }
+    // Полупрозрачная карточка — под ней размытое (стекло темы).
+    BackgroundEffect.blurRegion: CardBlur { card: card }
 
     // Пункты поменялись, пока меню открыто (окно закрылось, программу
     // удалили) — закрыть: иначе меню сменит размер под курсором, а выбранный
@@ -63,7 +66,7 @@ PopupWindow {
             : (menu.anchor.gravity & Edges.Bottom) ? Item.Top
             : (menu.anchor.gravity & Edges.Right) ? Item.Left : Item.Right
         radius: 12
-        color: Theme.surface
+        color: Qt.alpha(Theme.surface, Theme.glassOpacity ?? 1)
         border.width: 1
         border.color: Theme.line
         focus: true
