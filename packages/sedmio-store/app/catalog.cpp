@@ -32,6 +32,7 @@
 #include <malloc.h>
 
 #include <appstream.h>
+#include <alpm.h>
 
 using AppStream::Component;
 using AppStream::Pool;
@@ -374,6 +375,10 @@ Catalog::Catalog(QObject *parent)
 {
     s_catalog = this;
     connect(&m_packages, &Packages::changed, this, [this] {
+        // Базы синхронизации сменились (обновили систему) — перечитать
+        // описания пакетов.
+        if (m_packages.hasSync() && m_pkgIndexFor != m_packages.sync().size())
+            loadPackageIndex();
         ++m_revision;
         Q_EMIT revisionChanged();
     });
@@ -508,6 +513,11 @@ void Catalog::finishLoad(Loaded *loaded)
     m_flatpakPool = std::move(loaded->flatpak);
     m_entries = std::move(loaded->entries);
     m_byKey = std::move(loaded->byKey);
+    m_catalogPackages.clear();
+    for (const Entry &e : std::as_const(m_entries)) {
+        if (!e.package.isEmpty())
+            m_catalogPackages.insert(e.package);
+    }
     delete loaded;
     m_flathub = std::any_of(m_entries.cbegin(), m_entries.cend(), [](const Entry &e) { return !e.flatpakRef.isEmpty(); });
     const bool first = !m_ready;
@@ -1052,6 +1062,8 @@ QVariantList Catalog::installedApps() const
 
 QVariantMap Catalog::details(const QString &id) const
 {
+    if (id.startsWith(QLatin1String("pkg:")))
+        return m_ready ? packageDetails(id.mid(4)) : QVariantMap();
     const qsizetype i = m_byKey.value(id.toLower(), -1);
     if (!m_ready || i < 0)
         return {};
@@ -1137,5 +1149,154 @@ QVariantMap Catalog::details(const QString &id) const
         {QStringLiteral("categories"), categoryTitles},
         {QStringLiteral("sources"), sources},
         {QStringLiteral("installed"), installedSource(e)},
+    };
+}
+
+// ---- Пакеты без карточки
+
+void Catalog::loadPackageIndex()
+{
+    if (m_pkgIndexLoading)
+        return;
+    m_pkgIndexLoading = true;
+    const int forSize = int(m_packages.sync().size());
+    QPointer<Catalog> self(this);
+    // libalpm читает базы сам (около 0,2 с на 15 000 пакетов) — в потоке.
+    QThread *thread = QThread::create([self, forSize] {
+        QProcess conf;
+        conf.start(QStringLiteral("pacman-conf"), {QStringLiteral("--repo-list")});
+        conf.waitForFinished(5000);
+        const QStringList repos = QString::fromUtf8(conf.readAllStandardOutput()).split(u'\n', Qt::SkipEmptyParts);
+        auto *index = new QHash<QString, PkgInfo>;
+        alpm_errno_t err;
+        alpm_handle_t *handle = alpm_initialize("/", "/var/lib/pacman/", &err);
+        if (handle) {
+            for (const QString &repo : repos) {
+                alpm_db_t *db = alpm_register_syncdb(handle, repo.toUtf8().constData(), 0);
+                if (!db)
+                    continue;
+                for (alpm_list_t *i = alpm_db_get_pkgcache(db); i; i = alpm_list_next(i)) {
+                    auto *pkg = static_cast<alpm_pkg_t *>(i->data);
+                    const QString name = QString::fromUtf8(alpm_pkg_get_name(pkg));
+                    if (index->contains(name))
+                        continue; // первый репозиторий главный, как у pacman
+                    PkgInfo info;
+                    info.name = name;
+                    info.desc = QString::fromUtf8(alpm_pkg_get_desc(pkg));
+                    info.url = QString::fromUtf8(alpm_pkg_get_url(pkg));
+                    QStringList licenses;
+                    for (alpm_list_t *l = alpm_pkg_get_licenses(pkg); l; l = alpm_list_next(l))
+                        licenses << QString::fromUtf8(static_cast<const char *>(l->data));
+                    info.licenses = licenses.join(QStringLiteral(", "));
+                    info.installedSize = alpm_pkg_get_isize(pkg);
+                    info.nName = TextMatch::normalize(name);
+                    info.nDesc = TextMatch::normalize(info.desc);
+                    index->insert(name, info);
+                }
+            }
+            alpm_release(handle);
+        }
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, index, forSize] {
+            if (self) {
+                self->m_pkgInfo = std::move(*index);
+                self->m_pkgIndexFor = forSize;
+                self->m_pkgIndexLoading = false;
+                ++self->m_revision;
+                Q_EMIT self->revisionChanged();
+            }
+            delete index;
+        });
+    });
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
+}
+
+QVariantList Catalog::searchPackages(const QString &text, int limit) const
+{
+    QVariantList result;
+    const QString query = TextMatch::normalize(text);
+    if (query.size() < 2 || m_pkgInfo.isEmpty())
+        return result;
+    // Набрано не в той раскладке («рещз» — htop).
+    QStringList variants{query};
+    const QString swapped = TextMatch::swapLayout(query);
+    if (!swapped.isEmpty())
+        variants << swapped;
+    const QStringList words = TextMatch::words(query);
+    QList<std::pair<int, const PkgInfo *>> hits;
+    for (auto it = m_pkgInfo.cbegin(); it != m_pkgInfo.cend(); ++it) {
+        const PkgInfo &p = it.value();
+        if (m_catalogPackages.contains(p.name))
+            continue;
+        int best = 0;
+        for (const QString &q : std::as_const(variants)) {
+            if (p.nName == q)
+                best = qMax(best, 1000);
+            else if (p.nName.startsWith(q))
+                best = qMax(best, 800 - int(p.nName.size() - q.size()));
+            else if (q.size() >= 3 && p.nName.contains(q))
+                best = qMax(best, 500 - int(p.nName.size() - q.size()));
+        }
+        // Все слова запроса — в описании.
+        if (best == 0 && !words.isEmpty() && words.constFirst().size() >= 3
+            && std::all_of(words.cbegin(), words.cend(), [&p](const QString &w) { return p.nDesc.contains(w); }))
+            best = 200;
+        if (best == 0)
+            continue;
+        // Установленное и не библиотеки — выше.
+        if (m_packages.installed().contains(p.name))
+            best += 30;
+        if (p.name.startsWith(QLatin1String("lib")) || p.name.startsWith(QLatin1String("python-")) || p.name.startsWith(QLatin1String("perl-"))
+            || p.name.startsWith(QLatin1String("haskell-")) || p.name.startsWith(QLatin1String("ruby-")) || p.name.startsWith(QLatin1String("lib32-")))
+            best -= 100;
+        hits.append({best, &p});
+    }
+    std::sort(hits.begin(), hits.end(), [](const auto &a, const auto &b) {
+        return a.first != b.first ? a.first > b.first : a.second->name < b.second->name;
+    });
+    for (qsizetype i = 0; i < hits.size() && i < limit; ++i) {
+        const PkgInfo &p = *hits.at(i).second;
+        result << QVariantMap{{QStringLiteral("id"), QStringLiteral("pkg:") + p.name},
+                              {QStringLiteral("name"), p.name},
+                              {QStringLiteral("summary"), p.desc},
+                              {QStringLiteral("version"), m_packages.sync().value(p.name)},
+                              {QStringLiteral("repo"), m_packages.repo(p.name)},
+                              {QStringLiteral("installed"), m_packages.installed().contains(p.name)}};
+    }
+    return result;
+}
+
+QVariantMap Catalog::packageDetails(const QString &name) const
+{
+    const bool known = m_pkgInfo.contains(name);
+    const QString installedVersion = m_packages.installed().value(name);
+    if (!known && installedVersion.isEmpty())
+        return {};
+    const PkgInfo p = m_pkgInfo.value(name);
+    QVariantList sources{QVariantMap{
+        {QStringLiteral("kind"), QStringLiteral("arch")},
+        {QStringLiteral("available"), m_packages.sync().contains(name)},
+        {QStringLiteral("package"), name},
+        {QStringLiteral("repo"), m_packages.repo(name)},
+        {QStringLiteral("version"), m_packages.sync().value(name)},
+        {QStringLiteral("installed"), !installedVersion.isEmpty()},
+        {QStringLiteral("installedVersion"), installedVersion},
+    }};
+    return {
+        {QStringLiteral("id"), QStringLiteral("pkg:") + name},
+        {QStringLiteral("name"), name},
+        {QStringLiteral("summary"), p.desc},
+        {QStringLiteral("icon"), QStringLiteral("image://icon/package-x-generic")},
+        {QStringLiteral("developer"), QString()},
+        {QStringLiteral("verified"), false},
+        {QStringLiteral("description"), QString()},
+        {QStringLiteral("screenshots"), QVariantList()},
+        {QStringLiteral("homepage"), p.url},
+        {QStringLiteral("license"), p.licenses},
+        {QStringLiteral("categories"), QStringList()},
+        {QStringLiteral("sources"), sources},
+        {QStringLiteral("installed"), installedVersion.isEmpty() ? QString() : QStringLiteral("arch")},
+        // Пакет без карточки — не программа из меню: «Открыть» нечего.
+        {QStringLiteral("package"), true},
     };
 }

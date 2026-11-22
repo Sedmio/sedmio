@@ -112,6 +112,7 @@ def run_pacman(args, steps):
             log.write(line)
             line = line.rstrip("\n")
             lines.append(line)
+            out("LOG " + line)  # журнал задания в магазине («Подробнее»)
             steps(line)
         code = proc.wait()
     return code, "\n".join(lines)

@@ -13,6 +13,8 @@ Rectangle {
     required property var source
     property var info: ({})
     property var job: ({})
+    // Есть что открыть (у консольных пакетов без карточки — нет).
+    property bool launchable: true
     signal install()
     signal remove()
     signal launch()
@@ -235,6 +237,10 @@ Rectangle {
                 text: "Отменить"
                 onClicked: root.cancel()
             }
+            JobLog {
+                width: parent.width
+                job: root.job
+            }
         }
 
         // Не получилось.
@@ -248,6 +254,10 @@ Rectangle {
                 size: 13
                 color: Theme.terracotta
                 text: root.job.error || ""
+            }
+            JobLog {
+                width: parent.width
+                job: root.job
             }
             Row {
                 spacing: 8
@@ -274,7 +284,7 @@ Rectangle {
                 onClicked: root.install()
             }
             SButton {
-                visible: root.installed
+                visible: root.installed && root.launchable
                 primary: true
                 text: "Открыть"
                 onClicked: root.launch()

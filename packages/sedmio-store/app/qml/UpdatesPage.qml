@@ -9,6 +9,7 @@ import Sedmio.Style
 Item {
     id: root
     signal open(string id)
+    signal reviewAur(var names)
 
     readonly property var job: Jobs.list.length >= 0 ? Jobs.forApp("@updates") : ({})
     readonly property bool updating: job.state === "running" || job.state === "waiting"
@@ -104,6 +105,12 @@ Item {
                 bottomPadding: 0
                 onlyUpdates: true
                 onOpen: name => root.open("aur:" + name)
+                onReviewAll: names => root.reviewAur(names)
+            }
+            AppImageInstalled {
+                width: parent.width
+                onlyUpdates: true
+                onOpen: id => root.open("appimage:" + id)
             }
 
             // Arch.

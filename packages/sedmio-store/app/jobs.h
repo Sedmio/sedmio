@@ -29,6 +29,8 @@ class Jobs : public QObject
     // code (при failed): 3 — занято, 4 — базы пакетов устарели.
     Q_PROPERTY(QVariantList list READ list NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
+    // Растёт, когда в каком-нибудь журнале прибавилось (Jobs.log(id)).
+    Q_PROPERTY(int logRevision READ logRevision NOTIFY logChanged)
 
 public:
     static Jobs *instance();
@@ -36,13 +38,14 @@ public:
 
     QVariantList list() const;
     bool busy() const;
+    int logRevision() const { return m_logRevision; }
 
     // app — Catalog.details(); kind — "arch" | "flathub".
     Q_INVOKABLE void install(const QVariantMap &app, const QString &kind);
     Q_INVOKABLE void remove(const QVariantMap &app, const QString &kind, bool deleteData);
-    // AUR: info — из Aur (name, base, summary); собрать и поставить или
-    // пересобрать новую версию (action "update").
-    Q_INVOKABLE void buildAur(const QVariantMap &info, const QString &action);
+    // AUR: plan — AurReview.plan() (только просмотренное); action —
+    // "install" или "update".
+    Q_INVOKABLE void buildAur(const QVariantMap &plan, const QString &action);
     Q_INVOKABLE void removeAur(const QString &name);
     // Обновить программы Flathub: [{id, ref, name, icon}]; пусто — все.
     Q_INVOKABLE void updateFlatpaks(const QVariantList &apps);
@@ -50,9 +53,12 @@ public:
     Q_INVOKABLE QVariantMap forApp(const QString &appId) const;
     Q_INVOKABLE void cancel(int id);
     Q_INVOKABLE void dismiss(int id);
+    // Что выводили pacman и makepkg (последние ~300 КБ).
+    Q_INVOKABLE QString log(int id) const;
 
 Q_SIGNALS:
     void changed();
+    void logChanged();
     void finished(const QString &appId, const QString &name, const QString &action, bool ok, const QString &error);
 
 private:
@@ -75,6 +81,8 @@ private:
         GCancellable *cancellable = nullptr;
         QPointer<QProcess> process;
         QPointer<QObject> build;
+        QVariantMap plan;
+        QString log;
     };
 
     explicit Jobs(QObject *parent = nullptr);
@@ -86,7 +94,10 @@ private:
     void finish(int id, const QString &error, int code = 0);
     Job *find(int id);
     QVariantMap toMap(const Job &job) const;
+    void appendLog(int id, const QString &text);
 
     QList<Job> m_jobs;
     int m_nextId = 1;
+    int m_logRevision = 0;
+    bool m_logPending = false;
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QHash>
+#include <QSet>
 #include <QObject>
 #include <QQmlEngine>
 #include <QVariantList>
@@ -67,6 +68,10 @@ public:
     Q_INVOKABLE QVariantList featured() const;
     Q_INVOKABLE QVariantList category(const QString &key, int limit = 400) const;
     Q_INVOKABLE QVariantList installedApps() const;
+    // Пакеты репозиториев, у которых нет карточки в каталоге (консольные
+    // программы, шрифты, библиотеки): [{id: "pkg:<имя>", name, summary,
+    // version, repo, installed}]. Карточка — details("pkg:<имя>").
+    Q_INVOKABLE QVariantList searchPackages(const QString &text, int limit = 40) const;
     // Карточка программы; пусто — нет такой.
     Q_INVOKABLE QVariantMap details(const QString &id) const;
     // Чья программа из меню (id её .desktop): {key} — есть в каталоге;
@@ -137,6 +142,22 @@ private:
     std::unique_ptr<AppStream::Pool> m_archPool;
     std::unique_ptr<AppStream::Pool> m_flatpakPool;
     QList<Entry> m_entries;
+    // Все пакеты баз синхронизации: описание и прочее для «Пакетов».
+    struct PkgInfo {
+        QString name;
+        QString desc;
+        QString url;
+        QString licenses;
+        qint64 installedSize = 0;
+        QString nName;
+        QString nDesc;
+    };
+    QHash<QString, PkgInfo> m_pkgInfo;
+    QSet<QString> m_catalogPackages; // пакеты, у которых есть карточка
+    int m_pkgIndexFor = -1;          // по скольким пакетам sync строили
+    bool m_pkgIndexLoading = false;
+    void loadPackageIndex();
+    QVariantMap packageDetails(const QString &name) const;
     QHash<QString, qsizetype> m_byKey;
     Packages m_packages;
     bool m_ready = false;

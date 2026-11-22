@@ -21,19 +21,41 @@ ApplicationWindow {
 
     // id — ключ каталога, а также (из оболочки): "aur:<пакет>",
     // "search:<текст>" — поиск, "desktop:<id .desktop>" — карточка
-    // программы из меню (для «Удалить»).
+    // программы из меню (для «Удалить»), "appimage:<id>", путь или
+    // file:// к файлу AppImage (открыли из файлов, перетащили).
     function openApp(id) {
+        if (id.startsWith("file://"))
+            id = decodeURIComponent(id.slice(7));
+        if (id.startsWith("/")) {
+            stack.push(appImageAddPage, { file: id });
+            return;
+        }
+        if (id === "appimage-add") {
+            stack.push(appImageAddPage);
+            return;
+        }
+        if (id.startsWith("appimage:")) {
+            stack.push(appImagePage, { appId: id.slice(9) });
+            return;
+        }
         if (id.startsWith("search:")) {
             search.text = id.slice(7);
             win.runSearch(search.text);
             return;
         }
         if (id.startsWith("desktop:")) {
+            const appImage = AppImages.byDesktop(id.slice(8));
+            if (appImage !== "") {
+                openApp("appimage:" + appImage);
+                return;
+            }
             const found = Catalog.resolveDesktop(id.slice(8));
             if (found.key)
                 openApp(found.key);
+            else if (found.package && found.foreign)
+                stack.push(aurPage, { name: found.package, title: found.name, iconName: found.icon });
             else if (found.package)
-                stack.push(aurPage, { name: found.package, repo: !found.foreign, title: found.name, iconName: found.icon });
+                openApp("pkg:" + found.package);
             return;
         }
         if (id.startsWith("aur:"))
@@ -86,6 +108,7 @@ ApplicationWindow {
             if (Catalog.ready) {
                 Catalog.checkUpdates();
                 Aur.checkUpdates();
+                AppImages.checkUpdates(false);
             }
             const id = StoreHost.takeStartApp();
             if (id !== "")
@@ -144,6 +167,7 @@ ApplicationWindow {
                     icon: "system-software-update"
                     text: "Обновления"
                     badge: Catalog.updates.length + Aur.installed.filter(p => p.update !== "").length
+                        + AppImages.list.filter(a => a.update !== "").length
                     current: win.section === "updates"
                     onClicked: win.openSection("updates")
                 }
@@ -289,6 +313,49 @@ ApplicationWindow {
         popExit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.animFast } }
     }
 
+    // Перетащили файл AppImage в окно — добавить.
+    DropArea {
+        id: drop
+        anchors.fill: stack
+        readonly property string appImage: {
+            for (const url of drop.urls ?? []) {
+                const text = url.toString();
+                if (/\.appimage$/i.test(text) && text.startsWith("file://"))
+                    return text;
+            }
+            return "";
+        }
+        property var urls: []
+        onEntered: event => {
+            drop.urls = event.urls;
+            if (drop.appImage === "") event.accepted = false;
+        }
+        onExited: drop.urls = []
+        onDropped: event => {
+            const url = drop.appImage;
+            drop.urls = [];
+            if (url !== "") {
+                event.acceptProposedAction();
+                win.openApp(url);
+            }
+        }
+        Rectangle {
+            anchors { fill: parent; margins: 16 }
+            visible: drop.containsDrag && drop.appImage !== ""
+            radius: Theme.radius
+            color: Qt.alpha(Theme.paper, 0.9)
+            border.width: 2
+            border.color: Theme.green
+            SText {
+                anchors.centerIn: parent
+                text: "Отпустите, чтобы добавить AppImage"
+                size: 18
+                weight: 650
+                color: Theme.green
+            }
+        }
+    }
+
     // Каталог ещё грузится.
     Rectangle {
         anchors.fill: stack
@@ -318,14 +385,22 @@ ApplicationWindow {
         id: installedPage
         ListPage {
             title: "Установленные"
-            subtitle: "Программы из репозиториев Arch и с Flathub"
+            subtitle: "Из репозиториев Arch, с Flathub, из AUR и AppImage"
             emptyText: "Из магазина пока ничего не установлено"
             apps: Catalog.ready && Catalog.revision >= 0 ? Catalog.installedApps() : []
-            emptyVisible: apps.length === 0 && !Aur.installed.some(p => p.inAur)
+            emptyVisible: apps.length === 0 && !Aur.installed.some(p => p.inAur) && AppImages.list.length === 0
             onOpen: id => win.openApp(id)
             footer: Component {
-                AurInstalled {
-                    onOpen: name => win.openApp("aur:" + name)
+                Column {
+                    AurInstalled {
+                        width: parent.width
+                        onOpen: name => win.openApp("aur:" + name)
+                    }
+                    AppImageInstalled {
+                        width: parent.width
+                        onOpen: id => win.openApp("appimage:" + id)
+                        onAdd: win.openApp("appimage-add")
+                    }
                 }
             }
         }
@@ -349,9 +424,17 @@ ApplicationWindow {
             apps: Catalog.ready && Catalog.revision >= 0 ? Catalog.search(query) : []
             onOpen: id => win.openApp(id)
             footer: Component {
-                AurResults {
-                    query: searchList.query
-                    onOpen: name => win.openApp("aur:" + name)
+                Column {
+                    PackageResults {
+                        width: parent.width
+                        query: searchList.query
+                        onOpen: id => win.openApp(id)
+                    }
+                    AurResults {
+                        width: parent.width
+                        query: searchList.query
+                        onOpen: name => win.openApp("aur:" + name)
+                    }
                 }
             }
         }
@@ -366,12 +449,33 @@ ApplicationWindow {
         id: aurPage
         AurPage {
             onOpenUpdates: StoreHost.openSystemUpdates()
+            onReview: (targets, update) => stack.push(aurReviewPage, { targets: targets, update: update })
+        }
+    }
+    Component {
+        id: aurReviewPage
+        AurReviewPage {
+            onDone: stack.pop()
+        }
+    }
+    Component {
+        id: appImagePage
+        AppImagePage {
+            onClosed: stack.pop()
+        }
+    }
+    Component {
+        id: appImageAddPage
+        AppImageAddPage {
+            onAdded: id => stack.replace(appImagePage, { appId: id })
+            onOpenExisting: id => stack.replace(appImagePage, { appId: id })
         }
     }
     Component {
         id: updatesPage
         UpdatesPage {
             onOpen: id => win.openApp(id)
+            onReviewAur: names => stack.push(aurReviewPage, { targets: names, update: true })
         }
     }
 }

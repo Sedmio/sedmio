@@ -26,7 +26,8 @@ class Aur : public QObject
     Q_PROPERTY(bool searching READ searching NOTIFY resultsChanged)
     Q_PROPERTY(QString error READ error NOTIFY resultsChanged)
     // Установленные из AUR (пакеты, которых нет в репозиториях):
-    // [{name, version, update}] — update: новая версия или "".
+    // [{name, base, version, inAur, update, vcs}] — update: новая версия,
+    // у пакетов -git — «новые коммиты», иначе "".
     Q_PROPERTY(QVariantList installed READ installed NOTIFY installedChanged)
     Q_PROPERTY(bool checking READ checking NOTIFY installedChanged)
 
@@ -57,6 +58,15 @@ public:
 
     // Для AurBuild: сведения о многих пакетах сразу (без QML).
     void infoMany(const QStringList &names, std::function<void(const QList<QVariantMap> &, const QString &error)> done);
+    // Скачать с AUR (снимок пакета, .SRCINFO).
+    void fetch(const QString &url, std::function<void(const QByteArray &, const QString &error)> done) { get(url, std::move(done)); }
+
+    // Что помним об установленных отсюда пакетах
+    // (~/.local/state/sedmio-store/aur.json): кто сопровождал и какие
+    // коммиты были в ветках VCS — чтобы заметить смену сопровождающего и
+    // новые коммиты у пакетов -git.
+    QString rememberedMaintainer(const QString &name) const;
+    void remember(const QString &name, const QString &maintainer, const QVariantMap &vcs);
 
 Q_SIGNALS:
     void resultsChanged();
@@ -76,4 +86,9 @@ private:
     QHash<QString, QVariantList> m_cache;
     QVariantList m_installed;
     bool m_checking = false;
+    QVariantMap m_state;
+    void loadState();
+    void saveState() const;
+    QString statePath() const;
+    void checkVcs(QVariantList result);
 };

@@ -13,3 +13,5 @@ Categories=Qt;KDE;System;PackageManager;
 Keywords=store;software;install;uninstall;remove;apps;flatpak;flathub;pacman;aur;
 Keywords[ru]=магазин;программы;приложения;установить;удалить;скачать;flatpak;pacman;
 StartupNotify=true
+# Открыть файл AppImage — предложить добавить его в программы.
+MimeType=application/vnd.appimage;application/x-iso9660-appimage;

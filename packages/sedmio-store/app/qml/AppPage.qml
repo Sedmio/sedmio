@@ -103,6 +103,7 @@ Item {
                             source: modelData
                             info: modelData.kind === "arch" ? preview.arch : preview.flathub
                             job: root.job.kind === modelData.kind ? root.job : ({})
+                            launchable: root.app.package !== true
                             width: root.sources.length > 1 ? (sourceRow.width - sourceRow.spacing) / 2 : Math.min(sourceRow.width, 460)
                             height: Math.max(implicitHeight, sourceRow.cardHeight)
                             onInstall: Jobs.install(root.app, modelData.kind)

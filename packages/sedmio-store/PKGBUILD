@@ -15,13 +15,14 @@
 # без пароля; Flathub подключается сам при первом запуске
 # (usr/share/sedmio/store/flathub.flatpakrepo). AUR — сборкой от
 # пользователя (makepkg; base-devel ставится по первой нужде), только
-# после просмотра PKGBUILD; готовое ставит тот же помощник.
+# после просмотра всех файлов пакета; готовое ставит тот же помощник.
+# AppImage — в ~/Applications, с пунктом меню и обновлениями с GitHub.
 #
 # Исходники — app/ рядом с этим файлом (src/ занята makepkg).
 
 pkgname=sedmio-store
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 pkgdesc="Sedmio: магазин программ"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
@@ -39,6 +40,8 @@ depends=(
   'pacman'                     # и libalpm: сравнение версий AUR
   'polkit'                     # pkexec: пароль для пакетов Arch
   'python'                     # store-helper
+  'squashfs-tools'             # AppImage: значок и пункт меню из файла, не запуская его
+  'fuse2'                      # AppImage старой сборки без него не запускаются
   # Шрифт Onest (sedmio-branding) и цвета (sedmio-theme, модуль Sedmio.Style)
   # сюда не вписаны: makepkg ставит зависимости компилируемого пакета на
   # машину сборки, а наших пакетов в репозиториях Arch нет. Их тянет

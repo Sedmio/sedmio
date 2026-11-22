@@ -37,6 +37,9 @@ qt_add_qml_module(sedmio-store
         keyedmodel.cpp keyedmodel.h
         aur.cpp aur.h
         aurbuild.cpp aurbuild.h
+        aurreview.cpp aurreview.h
+        pkgscan.cpp pkgscan.h
+        appimages.cpp appimages.h
     QML_FILES
         qml/StoreWindow.qml
         qml/HomePage.qml
@@ -50,6 +53,12 @@ qt_add_qml_module(sedmio-store
         qml/AurResults.qml
         qml/AurRow.qml
         qml/AurInstalled.qml
+        qml/AurReviewPage.qml
+        qml/JobLog.qml
+        qml/PackageResults.qml
+        qml/AppImageInstalled.qml
+        qml/AppImagePage.qml
+        qml/AppImageAddPage.qml
         qml/NavItem.qml
         qml/SText.qml
         qml/SIcon.qml

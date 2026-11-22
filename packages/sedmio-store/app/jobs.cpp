@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QThread>
+#include <QTimer>
 
 #include <gio/gio.h>
 
@@ -118,16 +119,47 @@ void Jobs::remove(const QVariantMap &app, const QString &kind, bool deleteData)
     enqueue(job);
 }
 
-void Jobs::buildAur(const QVariantMap &info, const QString &action)
+void Jobs::buildAur(const QVariantMap &plan, const QString &action)
 {
+    const QStringList targets = plan.value(QStringLiteral("targets")).toStringList();
+    if (targets.isEmpty())
+        return;
     Job job;
-    const QString name = info.value(QStringLiteral("name")).toString();
-    job.appId = QStringLiteral("aur:") + name;
-    job.name = name;
+    job.appId = targets.size() == 1 ? QStringLiteral("aur:") + targets.constFirst() : QStringLiteral("aur:@updates");
+    job.name = targets.size() == 1 ? targets.constFirst() : QStringLiteral("Обновления AUR");
     job.kind = QStringLiteral("aur");
     job.action = action == QLatin1String("update") ? QStringLiteral("update") : QStringLiteral("install");
-    job.targets = {name};
+    job.targets = targets;
+    job.plan = plan;
     enqueue(job);
+}
+
+QString Jobs::log(int id) const
+{
+    for (const Job &job : m_jobs) {
+        if (job.id == id)
+            return job.log;
+    }
+    return {};
+}
+
+void Jobs::appendLog(int id, const QString &text)
+{
+    Job *job = find(id);
+    if (!job)
+        return;
+    job->log += text;
+    if (job->log.size() > 300000)
+        job->log = job->log.right(250000);
+    // Не чаще пяти раз в секунду: makepkg пишет быстро.
+    if (m_logPending)
+        return;
+    m_logPending = true;
+    QTimer::singleShot(200, this, [this] {
+        m_logPending = false;
+        ++m_logRevision;
+        Q_EMIT logChanged();
+    });
 }
 
 void Jobs::removeAur(const QString &name)
@@ -260,6 +292,9 @@ void Jobs::runPacman(Job &job)
                 const double total = parts.value(2).toDouble();
                 if (total > 0)
                     job->progress = qBound(0.0, (n - 0.5) / total, 1.0);
+            } else if (line.startsWith(QLatin1String("LOG "))) {
+                appendLog(id, line.mid(4) + u'\n');
+                continue;
             } else if (line.startsWith(QLatin1String("ERROR "))) {
                 error->first = line.section(u' ', 1, 1).toInt();
                 error->second = line.section(u' ', 2);
@@ -329,7 +364,7 @@ void Jobs::runFlatpak(Job &job)
 void Jobs::runAur(Job &job)
 {
     job.text = QStringLiteral("Готовлю");
-    auto *build = new AurBuild(job.targets.value(0), this);
+    auto *build = new AurBuild(job.plan, this);
     job.build = build;
     const int id = job.id;
     connect(build, &AurBuild::progress, this, [this, id](double fraction, const QString &text) {
@@ -341,6 +376,7 @@ void Jobs::runAur(Job &job)
         job->text = text;
         Q_EMIT changed();
     });
+    connect(build, &AurBuild::output, this, [this, id](const QString &text) { appendLog(id, text); });
     connect(build, &AurBuild::finished, this, [this, id, build](const QString &error, int code) {
         build->deleteLater();
         finish(id, error, code);

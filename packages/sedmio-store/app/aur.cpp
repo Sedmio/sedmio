@@ -1,5 +1,12 @@
 #include "aur.h"
 #include "catalog.h"
+#include "pkgscan.h"
+
+#include <QDir>
+#include <QFile>
+#include <QProcess>
+#include <QRegularExpression>
+#include <QStandardPaths>
 
 #include <QDateTime>
 #include <QJsonArray>
@@ -29,6 +36,38 @@ Aur::Aur(QObject *parent)
     : QObject(parent)
 {
     m_network.setTransferTimeout(20000);
+    loadState();
+}
+
+QString Aur::statePath() const
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/sedmio-store/aur.json");
+}
+
+void Aur::loadState()
+{
+    QFile file(statePath());
+    if (file.open(QIODevice::ReadOnly))
+        m_state = QJsonDocument::fromJson(file.readAll()).object().toVariantMap();
+}
+
+void Aur::saveState() const
+{
+    QDir().mkpath(QFileInfo(statePath()).path());
+    QFile file(statePath());
+    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        file.write(QJsonDocument(QJsonObject::fromVariantMap(m_state)).toJson());
+}
+
+QString Aur::rememberedMaintainer(const QString &name) const
+{
+    return m_state.value(name).toMap().value(QStringLiteral("maintainer")).toString();
+}
+
+void Aur::remember(const QString &name, const QString &maintainer, const QVariantMap &vcs)
+{
+    m_state.insert(name, QVariantMap{{QStringLiteral("maintainer"), maintainer}, {QStringLiteral("vcs"), vcs}});
+    saveState();
 }
 
 Aur *Aur::instance()
@@ -72,6 +111,7 @@ QVariantMap Aur::fromJson(const QVariantMap &r)
         {QStringLiteral("popularity"), r.value(QStringLiteral("Popularity")).toDouble()},
         {QStringLiteral("outOfDate"), !r.value(QStringLiteral("OutOfDate")).isNull()},
         {QStringLiteral("maintainer"), r.value(QStringLiteral("Maintainer")).toString()},
+        {QStringLiteral("firstSubmitted"), r.value(QStringLiteral("FirstSubmitted")).toLongLong()},
         {QStringLiteral("updated"), modified > 0 ? QDateTime::fromSecsSinceEpoch(modified).date().toString(QStringLiteral("dd.MM.yyyy")) : QString()},
         {QStringLiteral("depends"), strings(r.value(QStringLiteral("Depends")))},
         {QStringLiteral("makeDepends"), strings(r.value(QStringLiteral("MakeDepends")))},
@@ -225,24 +265,107 @@ void Aur::checkUpdates()
     Q_EMIT installedChanged();
     infoMany(foreign, [this, foreign](const QList<QVariantMap> &list, const QString &) {
         const Catalog *catalog = Catalog::instance();
-        QHash<QString, QString> latest;
+        QHash<QString, QVariantMap> latest;
         for (const QVariantMap &m : list)
-            latest.insert(m.value(QStringLiteral("name")).toString(), m.value(QStringLiteral("version")).toString());
+            latest.insert(m.value(QStringLiteral("name")).toString(), m);
+        static const QRegularExpression vcsName(QStringLiteral("-(git|svn|hg|bzr|fossil)$"));
         QVariantList result;
         for (const QString &name : foreign) {
             const QString version = catalog ? catalog->packages().installed().value(name) : QString();
-            const QString newer = latest.value(name);
+            const QVariantMap info = latest.value(name);
+            const QString newer = info.value(QStringLiteral("version")).toString();
             const bool update = !newer.isEmpty()
                 && alpm_pkg_vercmp(newer.toUtf8().constData(), version.toUtf8().constData()) > 0;
             result << QVariantMap{{QStringLiteral("name"), name},
+                                  {QStringLiteral("base"), info.value(QStringLiteral("base"))},
                                   {QStringLiteral("version"), version},
-                                  {QStringLiteral("inAur"), latest.contains(name)},
+                                  {QStringLiteral("inAur"), !info.isEmpty()},
+                                  {QStringLiteral("vcs"), !info.isEmpty() && vcsName.match(name).hasMatch()},
                                   {QStringLiteral("update"), update ? newer : QString()}};
         }
-        m_installed = result;
+        checkVcs(result);
+    });
+}
+
+// Пакеты -git: версия в AUR не меняется, новое — в ветке исходников.
+// Сравниваем коммит в ветке (git ls-remote — ничего из пакета не
+// выполняется) с тем, что запомнили при сборке, а если пакет ставили не
+// отсюда — с хэшем в его версии (r123.abc1234, 1.2.r3.gabc1234).
+void Aur::checkVcs(QVariantList result)
+{
+    QList<int> vcs;
+    for (int i = 0; i < result.size(); ++i) {
+        const QVariantMap p = result.at(i).toMap();
+        if (p.value(QStringLiteral("vcs")).toBool() && p.value(QStringLiteral("update")).toString().isEmpty())
+            vcs << i;
+    }
+    auto finish = [this](const QVariantList &list) {
+        m_installed = list;
         m_checking = false;
         Q_EMIT installedChanged();
-    });
+    };
+    if (vcs.isEmpty() || QStandardPaths::findExecutable(QStringLiteral("git")).isEmpty()) {
+        finish(result);
+        return;
+    }
+    auto shared = std::make_shared<QVariantList>(result);
+    auto left = std::make_shared<int>(int(vcs.size()));
+    auto done = [shared, left, finish] {
+        if (--*left == 0)
+            finish(*shared);
+    };
+    for (const int i : std::as_const(vcs)) {
+        const QVariantMap p = result.at(i).toMap();
+        const QString name = p.value(QStringLiteral("name")).toString();
+        const QString base = p.value(QStringLiteral("base")).toString();
+        const QString version = p.value(QStringLiteral("version")).toString();
+        fetch(QStringLiteral("https://aur.archlinux.org/cgit/aur.git/plain/.SRCINFO?h=") + QString::fromUtf8(QUrl::toPercentEncoding(base)),
+              [this, shared, i, name, version, done](const QByteArray &data, const QString &error) {
+            const auto sources = error.isEmpty() ? PkgScan::vcsSources(QString::fromUtf8(data)) : QList<QPair<QString, QString>>();
+            if (sources.isEmpty()) {
+                done();
+                return;
+            }
+            const QVariantMap remembered = m_state.value(name).toMap().value(QStringLiteral("vcs")).toMap();
+            auto left = std::make_shared<int>(int(sources.size()));
+            auto changed = std::make_shared<bool>(false);
+            for (const auto &source : sources) {
+                auto *git = new QProcess(this);
+                QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+                env.insert(QStringLiteral("GIT_TERMINAL_PROMPT"), QStringLiteral("0"));
+                git->setProcessEnvironment(env);
+                QTimer::singleShot(20000, git, [git] { git->kill(); });
+                const QString key = source.first + u' ' + source.second;
+                connect(git, &QProcess::finished, this, [git, key, remembered, version, left, changed, shared, i, done](int code) {
+                    git->deleteLater();
+                    const QString commit = code == 0 ? QString::fromUtf8(git->readAllStandardOutput()).section(u'\t', 0, 0).trimmed() : QString();
+                    if (!commit.isEmpty()) {
+                        if (remembered.contains(key)) {
+                            if (remembered.value(key).toString() != commit)
+                                *changed = true;
+                        } else {
+                            static const QRegularExpression hex(QStringLiteral("(?:^|[.+_-]g?)([0-9a-f]{7,40})(?:$|[.+_-])"));
+                            QStringList hashes;
+                            for (auto it = hex.globalMatch(version); it.hasNext();)
+                                hashes << it.next().captured(1);
+                            if (!hashes.isEmpty()
+                                && std::none_of(hashes.cbegin(), hashes.cend(), [&commit](const QString &h) { return commit.startsWith(h); }))
+                                *changed = true;
+                        }
+                    }
+                    if (--*left == 0) {
+                        if (*changed) {
+                            QVariantMap p = (*shared)[i].toMap();
+                            p.insert(QStringLiteral("update"), QStringLiteral("новые коммиты"));
+                            (*shared)[i] = p;
+                        }
+                        done();
+                    }
+                });
+                git->start(QStringLiteral("git"), {QStringLiteral("ls-remote"), QStringLiteral("--"), source.first, source.second});
+            }
+        });
+    }
 }
 
 QString Aur::installedVersion(const QString &name) const
