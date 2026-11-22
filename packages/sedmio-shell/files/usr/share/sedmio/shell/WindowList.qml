@@ -161,8 +161,9 @@ ListView {
             target: button
             property: "shift"
             to: 0
-            duration: Theme.animNormal
-            easing.type: Easing.OutCubic
+            duration: Motion.springDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.spring
         }
 
         DragHandler {
@@ -173,6 +174,7 @@ ListView {
             onActiveChanged: {
                 if (active) {
                     settle.stop();
+                    button.hidePreview();
                     if (list.tooltip) list.tooltip.hide();
                     const p = list.contentItem.mapFromItem(null, centroid.scenePressPosition.x, centroid.scenePressPosition.y);
                     button.grab = list.horizontal ? p.x - button.x : p.y - button.y;
@@ -203,7 +205,13 @@ ListView {
         NumberAnimation { property: "scale"; to: 0.5; duration: Theme.animFast }
         NumberAnimation { property: "opacity"; to: 0; duration: Theme.animFast }
     }
+    // Соседи уступают место с пружинкой.
     displaced: Transition {
-        NumberAnimation { properties: "x,y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+        NumberAnimation {
+            properties: "x,y"
+            duration: Motion.springDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.spring
+        }
     }
 }

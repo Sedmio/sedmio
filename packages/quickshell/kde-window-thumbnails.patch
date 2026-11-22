@@ -1,0 +1,311 @@
+diff -ruN a/assets/org.quickshell.desktop b/assets/org.quickshell.desktop
+--- a/assets/org.quickshell.desktop	2026-11-20 03:06:44.199319738 +0700
++++ b/assets/org.quickshell.desktop	2026-11-22 07:10:53.906972398 +0700
+@@ -8,5 +8,6 @@
+ Exec=/usr/bin/quickshell
+ # KWin only lets clients bind org_kde_plasma_window_management (window list)
+ # when their desktop file lists it here and Exec matches the executable.
+-# org_kde_plasma_virtual_desktop_management tells which desktop is current.
+-X-KDE-Wayland-Interfaces=org_kde_plasma_window_management,org_kde_plasma_virtual_desktop_management
++# org_kde_plasma_virtual_desktop_management tells which desktop is current,
++# zkde_screencast_unstable_v1 gives live window pictures (WindowStream).
++X-KDE-Wayland-Interfaces=org_kde_plasma_window_management,org_kde_plasma_virtual_desktop_management,zkde_screencast_unstable_v1
+diff -ruN a/src/wayland/toplevel/CMakeLists.txt b/src/wayland/toplevel/CMakeLists.txt
+--- a/src/wayland/toplevel/CMakeLists.txt	2026-11-20 03:06:44.199458051 +0700
++++ b/src/wayland/toplevel/CMakeLists.txt	2026-11-22 07:10:53.907113517 +0700
+@@ -2,6 +2,7 @@
+ 	handle.cpp
+ 	wlr_toplevel.cpp
+ 	kde_toplevel.cpp
++	kde_screencast.cpp
+ 	qml.cpp
+ )
+ 
+@@ -23,12 +24,15 @@
+ find_package(PlasmaWaylandProtocols REQUIRED)
+ wl_proto(wlp-plasma-window-management plasma-window-management "${PLASMA_WAYLAND_PROTOCOLS_DIR}")
+ wl_proto(wlp-plasma-virtual-desktop plasma-virtual-desktop "${PLASMA_WAYLAND_PROTOCOLS_DIR}")
++# KWin: zkde_screencast_unstable_v1 (kde_screencast.cpp)
++wl_proto(wlp-kde-screencast zkde-screencast-unstable-v1 "${PLASMA_WAYLAND_PROTOCOLS_DIR}")
+ 
+ target_link_libraries(quickshell-wayland-toplevel-management PRIVATE
+ 	Qt::Quick Qt::WaylandClient Qt::WaylandClientPrivate wayland-client
+ 	wlp-foreign-toplevel
+ 	wlp-plasma-window-management
+ 	wlp-plasma-virtual-desktop
++	wlp-kde-screencast
+ )
+ 
+ qs_module_pch(quickshell-wayland-toplevel-management SET large)
+diff -ruN a/src/wayland/toplevel/kde_screencast.cpp b/src/wayland/toplevel/kde_screencast.cpp
+--- a/src/wayland/toplevel/kde_screencast.cpp	1970-01-01 07:00:00.000000000 +0700
++++ b/src/wayland/toplevel/kde_screencast.cpp	2026-11-22 07:11:33.194191736 +0700
+@@ -0,0 +1,135 @@
++#include "kde_screencast.hpp"
++#include <cstdint>
++
++#include <qlogging.h>
++#include <qloggingcategory.h>
++#include <qobject.h>
++#include <qwaylandclientextension.h>
++
++#include "../../core/logcat.hpp"
++#include "kde_toplevel.hpp"
++#include "qml.hpp"
++
++namespace qs::wayland::toplevel {
++
++QS_LOGGING_CATEGORY(logScreencast, "quickshell.wayland.kdeScreencast", QtWarningMsg);
++
++namespace {
++// Version 6 replaces the created(node) event with an object serial; the
++// node is what PipeWireSourceItem takes, so stay on 5.
++constexpr int SCREENCAST_VERSION = 5;
++constexpr uint32_t POINTER_HIDDEN = 1;
++} // namespace
++
++namespace kde {
++
++ScreencastManager::ScreencastManager(): QWaylandClientExtensionTemplate(SCREENCAST_VERSION) {
++	this->initialize();
++}
++
++ScreencastManager* ScreencastManager::instance() {
++	static auto* instance = new ScreencastManager(); // NOLINT
++	return instance;
++}
++
++ScreencastStream::ScreencastStream(::zkde_screencast_stream_unstable_v1* stream, QObject* parent)
++    : QObject(parent)
++    , QtWayland::zkde_screencast_stream_unstable_v1(stream) {}
++
++ScreencastStream::~ScreencastStream() {
++	if (this->isInitialized()) this->close();
++}
++
++void ScreencastStream::zkde_screencast_stream_unstable_v1_created(uint32_t node) {
++	emit this->created(node);
++}
++
++void ScreencastStream::zkde_screencast_stream_unstable_v1_failed(const QString& error) {
++	emit this->failed(error);
++}
++
++void ScreencastStream::zkde_screencast_stream_unstable_v1_closed() { emit this->closed(); }
++
++} // namespace kde
++
++WindowStream::WindowStream(QObject* parent): QObject(parent) {
++	QObject::connect(
++	    kde::ScreencastManager::instance(),
++	    &QWaylandClientExtension::activeChanged,
++	    this,
++	    &WindowStream::update
++	);
++}
++
++Toplevel* WindowStream::toplevel() const { return this->mToplevel; }
++
++void WindowStream::setToplevel(Toplevel* toplevel) {
++	if (toplevel == this->mToplevel) return;
++	if (this->mToplevel != nullptr) QObject::disconnect(this->mToplevel, nullptr, this, nullptr);
++
++	this->stop();
++	this->mToplevel = toplevel;
++	if (toplevel != nullptr) {
++		QObject::connect(toplevel, &QObject::destroyed, this, &WindowStream::update);
++	}
++
++	emit this->toplevelChanged();
++	this->update();
++}
++
++bool WindowStream::active() const { return this->mActive; }
++
++void WindowStream::setActive(bool active) {
++	if (active == this->mActive) return;
++	this->mActive = active;
++	emit this->activeChanged();
++	this->update();
++}
++
++quint32 WindowStream::nodeId() const { return this->mNodeId; }
++
++void WindowStream::setNodeId(quint32 nodeId) {
++	if (nodeId == this->mNodeId) return;
++	this->mNodeId = nodeId;
++	emit this->nodeIdChanged();
++}
++
++// Not deleted right away: stop() also runs from the stream's own events.
++void WindowStream::stop() {
++	if (this->mStream != nullptr) {
++		QObject::disconnect(this->mStream, nullptr, this, nullptr);
++		this->mStream->deleteLater();
++		this->mStream = nullptr;
++	}
++	this->setNodeId(0);
++}
++
++void WindowStream::update() {
++	if (!this->mActive || this->mToplevel == nullptr) {
++		this->stop();
++		return;
++	}
++	if (this->mStream != nullptr) return;
++
++	auto* manager = kde::ScreencastManager::instance();
++	if (!manager->isActive()) return; // not bound (yet); activeChanged retries
++
++	auto* handle = dynamic_cast<kde::ToplevelHandle*>(this->mToplevel->implHandle());
++	if (handle == nullptr || handle->uuid().isEmpty()) return;
++
++	this->mStream = new kde::ScreencastStream(
++	    manager->stream_window(handle->uuid(), POINTER_HIDDEN),
++	    this
++	);
++
++	QObject::connect(this->mStream, &kde::ScreencastStream::created, this, &WindowStream::setNodeId);
++	QObject::connect(this->mStream, &kde::ScreencastStream::failed, this, [this](const QString& error) {
++		qCWarning(logScreencast) << "Window stream failed:" << error;
++		this->stop();
++	});
++	QObject::connect(this->mStream, &kde::ScreencastStream::closed, this, [this]() {
++		this->stop();
++	});
++}
++
++} // namespace qs::wayland::toplevel
+diff -ruN a/src/wayland/toplevel/kde_screencast.hpp b/src/wayland/toplevel/kde_screencast.hpp
+--- a/src/wayland/toplevel/kde_screencast.hpp	1970-01-01 07:00:00.000000000 +0700
++++ b/src/wayland/toplevel/kde_screencast.hpp	2026-11-22 07:11:09.187681282 +0700
+@@ -0,0 +1,96 @@
++#pragma once
++
++#include <cstdint>
++
++#include <qobject.h>
++#include <qpointer.h>
++#include <qqmlintegration.h>
++#include <qstring.h>
++#include <qtmetamacros.h>
++#include <qtypes.h>
++#include <qwayland-zkde-screencast-unstable-v1.h>
++#include <qwaylandclientextension.h>
++
++#include "qml.hpp"
++
++namespace qs::wayland::toplevel {
++
++namespace kde {
++
++// KWin's screencasting protocol: a PipeWire stream with a picture of one
++// window, the way Plasma's task manager shows window thumbnails. KWin only
++// lets clients bind it when their .desktop file lists it in
++// X-KDE-Wayland-Interfaces (see assets/org.quickshell.desktop).
++class ScreencastManager
++    : public QWaylandClientExtensionTemplate<ScreencastManager>
++    , public QtWayland::zkde_screencast_unstable_v1 {
++public:
++	static ScreencastManager* instance();
++
++protected:
++	explicit ScreencastManager();
++};
++
++class ScreencastStream
++    : public QObject
++    , public QtWayland::zkde_screencast_stream_unstable_v1 {
++	Q_OBJECT;
++
++public:
++	explicit ScreencastStream(::zkde_screencast_stream_unstable_v1* stream, QObject* parent);
++	~ScreencastStream() override;
++	Q_DISABLE_COPY_MOVE(ScreencastStream);
++
++signals:
++	void created(quint32 node);
++	void failed(const QString& error);
++	void closed();
++
++protected:
++	void zkde_screencast_stream_unstable_v1_created(uint32_t node) override;
++	void zkde_screencast_stream_unstable_v1_failed(const QString& error) override;
++	void zkde_screencast_stream_unstable_v1_closed() override;
++};
++
++} // namespace kde
++
++///! Live picture of a window from another application (KWin only).
++/// While @@active is true, KWin streams the window through PipeWire;
++/// @@nodeId is the stream for `PipeWireSourceItem` from `org.kde.pipewire`.
++/// Streams cost a little GPU time: keep them active only while shown.
++class WindowStream: public QObject {
++	Q_OBJECT;
++	Q_PROPERTY(qs::wayland::toplevel::Toplevel* toplevel READ toplevel WRITE setToplevel NOTIFY toplevelChanged);
++	Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged);
++	/// PipeWire node of the stream, 0 until KWin has created it.
++	Q_PROPERTY(quint32 nodeId READ nodeId NOTIFY nodeIdChanged);
++	QML_ELEMENT;
++
++public:
++	explicit WindowStream(QObject* parent = nullptr);
++
++	[[nodiscard]] Toplevel* toplevel() const;
++	void setToplevel(Toplevel* toplevel);
++	[[nodiscard]] bool active() const;
++	void setActive(bool active);
++	[[nodiscard]] quint32 nodeId() const;
++
++signals:
++	void toplevelChanged();
++	void activeChanged();
++	void nodeIdChanged();
++
++private slots:
++	void update();
++
++private:
++	void stop();
++	void setNodeId(quint32 nodeId);
++
++	QPointer<Toplevel> mToplevel;
++	bool mActive = false;
++	quint32 mNodeId = 0;
++	kde::ScreencastStream* mStream = nullptr;
++};
++
++} // namespace qs::wayland::toplevel
+diff -ruN a/src/wayland/toplevel/kde_toplevel.cpp b/src/wayland/toplevel/kde_toplevel.cpp
+--- a/src/wayland/toplevel/kde_toplevel.cpp	2026-11-20 03:06:44.199863071 +0700
++++ b/src/wayland/toplevel/kde_toplevel.cpp	2026-11-22 07:10:53.907087227 +0700
+@@ -72,6 +72,7 @@
+     const QString& uuid
+ ) {
+ 	auto* handle = new ToplevelHandle();
++	handle->setUuid(uuid);
+ 	QObject::connect(handle, &ToplevelHandle::closed, this, &ToplevelManager::onToplevelClosed);
+ 	QObject::connect(handle, &ToplevelHandle::ready, this, &ToplevelManager::onToplevelReady);
+ 
+diff -ruN a/src/wayland/toplevel/kde_toplevel.hpp b/src/wayland/toplevel/kde_toplevel.hpp
+--- a/src/wayland/toplevel/kde_toplevel.hpp	2026-11-20 03:06:44.199698669 +0700
++++ b/src/wayland/toplevel/kde_toplevel.hpp	2026-11-22 07:10:53.907028194 +0700
+@@ -52,6 +52,10 @@
+ 	// shells, on-screen displays and the like. They are never made ready.
+ 	[[nodiscard]] bool skipTaskbar() const;
+ 
++	// KWin's id of the window: screencasts (WindowStream) ask for it.
++	[[nodiscard]] QString uuid() const { return this->mUuid; }
++	void setUuid(const QString& uuid) { this->mUuid = uuid; }
++
+ 	void activate() override;
+ 	void close() override;
+ 	void setMaximized(bool maximized) override;
+@@ -82,6 +86,7 @@
+ 
+ 	bool initialStateReceived = false;
+ 	bool isReady = false;
++	QString mUuid;
+ 	QString mAppId;
+ 	QString mTitle;
+ 	uint32_t mState = 0;

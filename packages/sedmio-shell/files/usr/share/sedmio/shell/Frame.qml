@@ -72,7 +72,13 @@ PanelWindow {
     readonly property bool dockShown: DesktopLayout.dock
         && (!dockCovered || dockHeld || launcherOpen || quickMenuOpen || ShellState.panelMenus > 0)
     property real dockProgress: dockShown ? 1 : 0
-    Behavior on dockProgress { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
+    Behavior on dockProgress {
+        NumberAnimation {
+            duration: frame.dockShown ? Motion.springDuration : Theme.animNormal
+            easing.type: frame.dockShown ? Easing.BezierSpline : Easing.OutCubic
+            easing.bezierCurve: Motion.spring
+        }
+    }
     readonly property real dockWidth: dockLoader.item ? dockLoader.item.implicitWidth : 0
     readonly property real dockX: Math.round(frame.width / 2 - dockWidth / 2)
     // Верх дока, когда он выехал (по нему ставятся запуск и меню).
@@ -84,8 +90,10 @@ PanelWindow {
     property real launcherProgress: launcherOpen ? 1 : 0
     Behavior on launcherProgress {
         NumberAnimation {
-            duration: frame.launcherOpen ? Theme.animNormal : Theme.animFast + 40
-            easing.type: frame.launcherOpen ? Easing.OutCubic : Easing.InCubic
+            // Выезжает с пружинкой, уезжает быстро и без неё.
+            duration: frame.launcherOpen ? Motion.springDuration : Theme.animFast + 40
+            easing.type: frame.launcherOpen ? Easing.BezierSpline : Easing.InCubic
+            easing.bezierCurve: Motion.spring
         }
     }
     readonly property real launcherWidth: 480
@@ -109,8 +117,10 @@ PanelWindow {
     property real controlProgress: controlOpen ? 1 : 0
     Behavior on controlProgress {
         NumberAnimation {
-            duration: frame.controlOpen ? Theme.animNormal : Theme.animFast + 40
-            easing.type: frame.controlOpen ? Easing.OutCubic : Easing.InCubic
+            // Выезжает с пружинкой, уезжает быстро и без неё.
+            duration: frame.controlOpen ? Motion.springDuration : Theme.animFast + 40
+            easing.type: frame.controlOpen ? Easing.BezierSpline : Easing.InCubic
+            easing.bezierCurve: Motion.spring
         }
     }
     readonly property real controlWidth: 400
@@ -133,8 +143,10 @@ PanelWindow {
     property real clipboardProgress: clipboardOpen ? 1 : 0
     Behavior on clipboardProgress {
         NumberAnimation {
-            duration: frame.clipboardOpen ? Theme.animNormal : Theme.animFast + 40
-            easing.type: frame.clipboardOpen ? Easing.OutCubic : Easing.InCubic
+            // Выезжает с пружинкой, уезжает быстро и без неё.
+            duration: frame.clipboardOpen ? Motion.springDuration : Theme.animFast + 40
+            easing.type: frame.clipboardOpen ? Easing.BezierSpline : Easing.InCubic
+            easing.bezierCurve: Motion.spring
         }
     }
     readonly property real clipboardWidth: Math.min(580, hole.width - 120)
@@ -164,7 +176,13 @@ PanelWindow {
     Behavior on notificationsHeight { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
 
     property real osdProgress: osdShown ? 1 : 0
-    Behavior on osdProgress { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
+    Behavior on osdProgress {
+        NumberAnimation {
+            duration: frame.osdShown ? Motion.springDuration : Theme.animNormal
+            easing.type: frame.osdShown ? Easing.BezierSpline : Easing.OutCubic
+            easing.bezierCurve: Motion.spring
+        }
+    }
     property real osdWidth: osd.wantedWidth
     Behavior on osdWidth { NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutCubic } }
     // С доком индикатор сверху: внизу док.
@@ -547,11 +565,33 @@ PanelWindow {
             opacity: frame.quickMenuOpen ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
+            // Появляется от знака Sedmio с пружинкой, уходит быстро.
+            scale: frame.quickMenuOpen ? 1 : 0.94
+            transformOrigin: DesktopLayout.left ? Item.TopLeft : Item.BottomLeft
+            Behavior on scale {
+                NumberAnimation {
+                    duration: frame.quickMenuOpen ? Motion.springDuration : Theme.animFast
+                    easing.type: frame.quickMenuOpen ? Easing.BezierSpline : Easing.OutCubic
+                    easing.bezierCurve: Motion.spring
+                }
+            }
             transform: Translate {
                 x: DesktopLayout.left && !frame.quickMenuOpen ? -8 : 0
                 y: !DesktopLayout.left && !frame.quickMenuOpen ? 8 : 0
-                Behavior on x { NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutCubic } }
-                Behavior on y { NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutCubic } }
+                Behavior on x {
+                    NumberAnimation {
+                        duration: frame.quickMenuOpen ? Motion.springDuration : Theme.animFast
+                        easing.type: frame.quickMenuOpen ? Easing.BezierSpline : Easing.OutCubic
+                        easing.bezierCurve: Motion.spring
+                    }
+                }
+                Behavior on y {
+                    NumberAnimation {
+                        duration: frame.quickMenuOpen ? Motion.springDuration : Theme.animFast
+                        easing.type: frame.quickMenuOpen ? Easing.BezierSpline : Easing.OutCubic
+                        easing.bezierCurve: Motion.spring
+                    }
+                }
             }
             onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
         }

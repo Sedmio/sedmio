@@ -13,7 +13,7 @@
 
 pkgname=quickshell
 pkgver=0.3.2
-pkgrel=16
+pkgrel=17
 pkgdesc='Flexible toolkit for making desktop shells with QtQuick (сборка Sedmio)'
 arch=('x86_64')
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
@@ -56,7 +56,8 @@ source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
         'jemalloc-no-thp.patch'
         'polkit-agent.patch'
         'reload-screen.patch'
-        'kde-virtual-desktops.patch')
+        'kde-virtual-desktops.patch'
+        'kde-window-thumbnails.patch')
 sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             '8e147c038acd8636225c6a8cc95386f02b5ab20089aa0fc68e0e27b4909b489d'
             'abd55c5207f783e0875329ab1094139e70b9d1313d6a5f6e0577417050de2d88'
@@ -65,7 +66,8 @@ sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             'cd458aea95fe672f17ffb0690bb5acf02c4f335add5da50201dab169ca8c4253'
             'b782b6b4b3b76e814055bf259b5b354b69efc2389dc103f3e7ff68f9f1b66662'
             'b85c82a621ffd23b7672a21ddc6330fb1caaf150477dbb776c09f492d55a76b7'
-            '3e7e989d902b376ff728fa4fb2f6b2ea9f9d31e760139fb4bbb9fc8ad1c87728')
+            '3e7e989d902b376ff728fa4fb2f6b2ea9f9d31e760139fb4bbb9fc8ad1c87728'
+            '4dfe44c4c87f13a815cfbe07839154eb4575f64c4706c1a07ff5c83cfedf38ca')
 
 prepare() {
   cd "$pkgname"
@@ -112,6 +114,10 @@ prepare() {
   # текущего стола, как в Windows. Протокол тоже вписан в
   # X-KDE-Wayland-Interfaces.
   patch -Np1 -i ../kde-virtual-desktops.patch
+  # Миниатюры окон: WindowStream просит у KWin поток PipeWire с окном
+  # (zkde_screencast_unstable_v1, как панель задач Plasma), показывает его
+  # PipeWireSourceItem из kpipewire. Протокол вписан в X-KDE-Wayland-Interfaces.
+  patch -Np1 -i ../kde-window-thumbnails.patch
 }
 
 build() {

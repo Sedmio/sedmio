@@ -13,6 +13,7 @@ Rectangle {
     property Item owner
 
     function show(text, item) {
+        hideTimer.stop();
         const p = item.mapToItem(null, 0, 0);
         tip.text = text;
         tip.target = Qt.rect(p.x, p.y, item.width, item.height);
@@ -20,11 +21,22 @@ Rectangle {
         tip.shown = true;
     }
 
-    // hide(item) гасит подсказку, только если она этой кнопки: при переходе
-    // на соседнюю кнопку «вход» в неё может прийти раньше «выхода» из старой.
+    // hide() гасит сразу (щелчок, открылось меню). hide(item) — только
+    // подсказку этой кнопки и с задержкой: указатель идёт на соседнюю
+    // кнопку через зазор между ними, и подсказка должна переехать, а не
+    // мигнуть. «Вход» в соседнюю может прийти и раньше «выхода» из старой.
     function hide(item) {
-        if (item === undefined || item === tip.owner)
+        if (item === undefined) {
+            hideTimer.stop();
             tip.shown = false;
+        } else if (item === tip.owner) {
+            hideTimer.restart();
+        }
+    }
+    Timer {
+        id: hideTimer
+        interval: 120
+        onTriggered: tip.shown = false
     }
 
     readonly property real windowWidth: parent ? parent.width : 0
@@ -46,6 +58,17 @@ Rectangle {
     visible: opacity > 0
 
     Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
+    Behavior on width {
+        enabled: tip.visible
+        NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutCubic }
+    }
+    // Появляется, чуть выезжая от кнопки.
+    property real lift: shown ? 0 : 6
+    Behavior on lift { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
+    transform: Translate {
+        x: tip.side === "right" ? -tip.lift : 0
+        y: tip.side === "below" ? -tip.lift : tip.side === "above" ? tip.lift : 0
+    }
     // Между соседними кнопками подсказка переезжает, а не мигает.
     Behavior on y {
         enabled: tip.visible && tip.side === "right"

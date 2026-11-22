@@ -39,8 +39,12 @@ PopupWindow {
     onVisibleChanged: {
         current = -1;
         shown = visible ? signature() : "";
-        if (visible) card.forceActiveFocus();
+        if (visible) {
+            card.forceActiveFocus();
+            pop.restart();
+        }
     }
+    PopIn { id: pop; card: card }
 
     // Пункты поменялись, пока меню открыто (окно закрылось, программу
     // удалили) — закрыть: иначе меню сменит размер под курсором, а выбранный
@@ -54,6 +58,10 @@ PopupWindow {
     Rectangle {
         id: card
         anchors.fill: parent
+        // Растёт от того, к чему прикреплено: меню над панелью — снизу.
+        transformOrigin: (menu.anchor.gravity & Edges.Top) ? Item.Bottom
+            : (menu.anchor.gravity & Edges.Bottom) ? Item.Top
+            : (menu.anchor.gravity & Edges.Right) ? Item.Left : Item.Right
         radius: 12
         color: Theme.surface
         border.width: 1

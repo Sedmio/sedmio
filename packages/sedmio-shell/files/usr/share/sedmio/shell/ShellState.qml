@@ -9,6 +9,10 @@ import Quickshell.Wayland
 Singleton {
     id: root
 
+    // Кнопка панели, у которой открыты миниатюры окон (WindowButton):
+    // соседняя кнопка открывает свои сразу, закрыв эти.
+    property var previewOwner: null
+
     // Имя экрана, на котором открыт запуск программ; "" — закрыт.
     property string launcherScreen: ""
     // То же для панели управления и центра уведомлений.

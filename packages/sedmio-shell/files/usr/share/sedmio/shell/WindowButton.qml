@@ -78,14 +78,17 @@ Item {
         size: root.buttonSize
         implicitWidth: root.showLabel ? root.width - 4 : size
         active: root.anyActive || popup.visible || menu.visible
-        tooltip: popup.visible || menu.visible ? null : root.tooltip
+        tooltip: popup.visible || menu.visible || root.previewShown ? null : root.tooltip
+        // У запущенной вместо подсказки — миниатюры (если они есть).
         hint: root.showLabel && root.single ? ""
+            : root.running && previewLoader.item ? ""
             : !root.running ? (root.entry?.name ?? "")
             : root.single ? (root.first?.title ?? "")
             : (root.entry?.name ?? root.first?.appId ?? "") + " · " + root.windows.length + " "
               + root.plural(root.windows.length, "окно", "окна", "окон")
 
         onClicked: event => {
+            root.hidePreview();
             if (event.button === Qt.RightButton) {
                 if (root.tooltip) root.tooltip.hide();
                 popup.visible = false;
@@ -168,11 +171,16 @@ Item {
         implicitWidth: 320
         implicitHeight: rows.implicitHeight + 12
         visible: false
-        onVisibleChanged: if (visible) listCard.forceActiveFocus()
+        onVisibleChanged: if (visible) {
+            listCard.forceActiveFocus();
+            listPop.restart();
+        }
+        PopIn { id: listPop; card: listCard }
 
         Rectangle {
             id: listCard
             anchors.fill: parent
+            transformOrigin: root.horizontal ? Item.Bottom : Item.Left
             focus: true
             Keys.onEscapePressed: popup.visible = false
             radius: 12
@@ -314,8 +322,74 @@ Item {
         target: menu
         function onVisibleChanged() { ShellState.panelMenus += menu.visible ? 1 : -1; }
     }
-    Component.onDestruction: ShellState.panelMenus -= (popup.visible ? 1 : 0) + (menu.visible ? 1 : 0)
+    Component.onDestruction: {
+        ShellState.panelMenus -= (popup.visible ? 1 : 0) + (menu.visible ? 1 : 0) + (previewShown ? 1 : 0);
+        if (ShellState.previewOwner === root) ShellState.previewOwner = null;
+    }
 
+    // ── Миниатюры окон при наведении ───────────────────────────────────
+    // Через полсекунды наведения; если миниатюры уже открыты у соседней
+    // кнопки — сразу. Уходят, когда указатель ушёл и с кнопки, и с них.
+    readonly property Item barButton: button
+    readonly property bool previewShown: previewLoader.item?.visible ?? false
+    Loader {
+        id: previewLoader
+        onStatusChanged: if (status === Loader.Error) console.warn("Миниатюры окон недоступны")
+        Component.onCompleted: setSource("WindowPreview.qml", { owner: root })
+    }
+    Connections {
+        target: previewLoader.item
+        function onHoveredChanged() {
+            if (previewLoader.item.hovered) previewClose.stop();
+            else previewClose.restart();
+        }
+        function onActivated() { root.hidePreview(); }
+        // Пока открыты миниатюры, док не прячется (как с меню).
+        function onVisibleChanged() { ShellState.panelMenus += previewLoader.item.visible ? 1 : -1; }
+    }
+    Connections {
+        target: button
+        function onHoveredChanged() {
+            if (button.hovered) {
+                previewClose.stop();
+                if (!root.running) return;
+                const other = ShellState.previewOwner;
+                if (other && other !== root && other.previewShown) {
+                    other.hidePreview();
+                    root.showPreview();
+                } else {
+                    previewOpen.restart();
+                }
+            } else {
+                previewOpen.stop();
+                previewClose.restart();
+            }
+        }
+    }
+    Timer { id: previewOpen; interval: 450; onTriggered: root.showPreview() }
+    Timer {
+        id: previewClose
+        interval: 300
+        onTriggered: if (!button.hovered && !(previewLoader.item?.hovered ?? false)) root.hidePreview()
+    }
+    function showPreview() {
+        if (!running || popup.visible || menu.visible || !previewLoader.item) return;
+        if (root.tooltip) root.tooltip.hide();
+        ShellState.previewOwner = root;
+        previewLoader.item.place();
+        previewLoader.item.visible = true;
+    }
+    function hidePreview() {
+        previewOpen.stop();
+        if (previewLoader.item) previewLoader.item.visible = false;
+    }
+    // Окон стало больше или меньше: всплывающее окно нового размера KWin
+    // не перерисует (см. ниже) — показываем заново.
+    function reopenPreview() {
+        if (!previewShown) return;
+        hidePreview();
+        if (running) Qt.callLater(showPreview);
+    }
     // Куда KWin сворачивает окна (анимация «в кнопку»).
     function updateRectangle() {
         const p = button.mapToItem(null, 0, 0);
@@ -327,5 +401,5 @@ Item {
     Component.onCompleted: updateRectangle()
     onXChanged: updateRectangle()
     onYChanged: updateRectangle()
-    onWindowsChanged: { updateRectangle(); reopenIfResized(); }
+    onWindowsChanged: { updateRectangle(); reopenIfResized(); reopenPreview(); }
 }
