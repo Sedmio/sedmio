@@ -592,6 +592,47 @@ QStringList execArgs(const KService::Ptr &service)
 }
 } // namespace
 
+QVariantMap Catalog::resolveDesktop(const QString &desktopId) const
+{
+    if (!m_ready)
+        return {};
+    QString id = desktopId.trimmed().toLower();
+    if (id.endsWith(QLatin1String(".desktop")))
+        id.chop(8);
+    if (id.isEmpty())
+        return {};
+    // Обычно id компонента и есть id .desktop (org.kde.ark, flatpak).
+    const auto found = [](const QString &key) { return QVariantMap{{QStringLiteral("key"), key}}; };
+    if (m_byKey.contains(id))
+        return found(id);
+    const QString file = id + QStringLiteral(".desktop");
+    for (const Entry &e : m_entries) {
+        if (e.archDesktop.toLower() == file || e.flatpakDesktop.toLower() == file)
+            return found(e.key);
+    }
+    // Иначе — чей это файл: пакет из каталога или поставленный не из
+    // репозиториев (AUR).
+    const KService::Ptr service = KService::serviceByDesktopName(desktopId.endsWith(QLatin1String(".desktop")) ? desktopId.chopped(8) : desktopId);
+    const QString path = service ? service->entryPath() : QString();
+    if (path.isEmpty() || !path.startsWith(QLatin1String("/usr/")))
+        return {};
+    QProcess pacman;
+    pacman.start(QStringLiteral("pacman"), {QStringLiteral("-Qqo"), path});
+    if (!pacman.waitForFinished(3000) || pacman.exitCode() != 0)
+        return {};
+    const QString package = QString::fromUtf8(pacman.readAllStandardOutput()).trimmed();
+    if (package.isEmpty())
+        return {};
+    for (const Entry &e : m_entries) {
+        if (e.package == package)
+            return found(e.key);
+    }
+    return {{QStringLiteral("package"), package},
+            {QStringLiteral("foreign"), !m_packages.sync().contains(package)},
+            {QStringLiteral("name"), service->name()},
+            {QStringLiteral("icon"), service->icon()}};
+}
+
 bool Catalog::launch(const QString &id, const QString &kind) const
 {
     const qsizetype i = m_byKey.value(id.toLower(), -1);

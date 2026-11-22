@@ -19,7 +19,23 @@ ApplicationWindow {
     // Что выбрано слева: "home" | "installed" | ключ раздела.
     property string section: "home"
 
+    // id — ключ каталога, а также (из оболочки): "aur:<пакет>",
+    // "search:<текст>" — поиск, "desktop:<id .desktop>" — карточка
+    // программы из меню (для «Удалить»).
     function openApp(id) {
+        if (id.startsWith("search:")) {
+            search.text = id.slice(7);
+            win.runSearch(search.text);
+            return;
+        }
+        if (id.startsWith("desktop:")) {
+            const found = Catalog.resolveDesktop(id.slice(8));
+            if (found.key)
+                openApp(found.key);
+            else if (found.package)
+                stack.push(aurPage, { name: found.package, repo: !found.foreign, title: found.name, iconName: found.icon });
+            return;
+        }
         if (id.startsWith("aur:"))
             stack.push(aurPage, { name: id.slice(4) });
         else

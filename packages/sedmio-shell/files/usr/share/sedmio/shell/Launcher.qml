@@ -37,7 +37,8 @@ Item {
     }
 
     // Правый щелчок по программе — закрепить на панели или открепить,
-    // как в «Пуске» Windows. У строк «Выполнить» меню нет.
+    // удалить (карточка в «Программах»), как в «Пуске» Windows. У строк
+    // «Выполнить» и «Найти в «Программах»» меню нет.
     property var menuEntry: null
     // Клавиша Menu или Shift+F10 — меню выбранной программы.
     function showMenuForCurrent() {
@@ -49,7 +50,7 @@ Item {
 
     function showMenu(item, x, y) {
         const entry = item.modelData;
-        if (!entry || entry.run || !entry.id) return;
+        if (!entry || entry.run || entry.store || !entry.id) return;
         menuEntry = entry;
         appMenu.anchor.item = item;
         appMenu.anchor.rect.x = x;
@@ -66,12 +67,16 @@ Item {
         items: {
             const entry = root.menuEntry;
             if (!entry) return [];
-            return [
+            const items = [
                 { icon: entry.icon, text: "Открыть", action: "launch" },
                 PinnedApps.isPinned(entry.id)
                     ? { icon: "window-unpin", text: "Открепить от панели", action: "unpin" }
                     : { icon: "window-pin", text: "Закрепить на панели", action: "pin" },
             ];
+            // Свои программы Sedmio — часть системы, их не удаляют.
+            if (AppSearch.hasStore && !/^(org\.)?sedmio/i.test(entry.id))
+                items.push({ icon: "edit-delete", text: "Удалить", action: "remove" });
+            return items;
         }
         onTriggered: action => {
             const entry = root.menuEntry;
@@ -83,6 +88,10 @@ Item {
                 PinnedApps.pin(entry.id);
             } else if (action === "unpin") {
                 PinnedApps.unpin(entry.id);
+            } else if (action === "remove") {
+                AppSearch.openStore("desktop:" + entry.id);
+                root.closeRequested(false);
+                return;
             }
             search.forceActiveFocus();
         }

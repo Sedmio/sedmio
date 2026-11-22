@@ -69,6 +69,10 @@ public:
     Q_INVOKABLE QVariantList installedApps() const;
     // Карточка программы; пусто — нет такой.
     Q_INVOKABLE QVariantMap details(const QString &id) const;
+    // Чья программа из меню (id её .desktop): {key} — есть в каталоге;
+    // {package, foreign, name, icon} — пакет вне каталога (foreign — не
+    // из репозиториев: AUR или поставлен вручную); {} — не нашлось.
+    Q_INVOKABLE QVariantMap resolveDesktop(const QString &desktopId) const;
     // Открыть установленную программу; kind — "arch" | "flathub".
     Q_INVOKABLE bool launch(const QString &id, const QString &kind) const;
     Q_INVOKABLE void checkUpdates();

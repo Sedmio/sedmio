@@ -5,9 +5,15 @@ import Sedmio.Style
 
 // Пакет из AUR. Собрать и поставить можно, только посмотрев PKGBUILD:
 // это скрипт от незнакомого человека, и выполнится он на этом компьютере.
+//
+// Ещё — установленный пакет, которого нет в каталоге (из «Удалить» в меню
+// оболочки): repo — из репозиториев Arch, AUR не спрашиваем.
 Item {
     id: root
     property string name
+    property bool repo: false
+    property string title       // имя программы из меню, если знаем
+    property string iconName
     property var info: ({})
     property bool loading: true
     property string pkgbuild
@@ -22,7 +28,13 @@ Item {
 
     signal openUpdates()
 
+    readonly property bool known: info.name !== undefined || installedVersion !== ""
+
     Component.onCompleted: {
+        if (repo) {
+            loading = false;
+            return;
+        }
         Aur.info(name, result => {
             root.info = result;
             root.loading = false;
@@ -54,20 +66,23 @@ Item {
             Row {
                 spacing: 20
                 SIcon {
-                    name: "package-x-generic"
+                    name: root.iconName || "package-x-generic"
                     size: 72
                 }
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 4
                     SText {
-                        text: root.name
+                        text: root.title || root.name
                         size: 28
                         weight: 680
                     }
                     SText {
-                        text: root.loading ? "Загружаю сведения из AUR…" : root.info.error ? root.info.error
-                            : root.info.name === undefined ? "Такого пакета в AUR нет" : (root.info.summary || "")
+                        text: root.loading ? "Загружаю сведения из AUR…"
+                            : root.repo ? "Пакет " + root.name + " из репозиториев Arch"
+                            : root.info.error ? root.info.error
+                            : root.info.name === undefined ? (root.installedVersion !== "" ? "Пакет " + root.name + " поставлен не из репозиториев, в AUR его нет" : "Такого пакета в AUR нет")
+                            : (root.title !== "" ? root.name + " — " : "") + (root.info.summary || "")
                         size: 15
                         color: Theme.inkSoft
                         width: column.width - 92
@@ -78,7 +93,7 @@ Item {
 
             // Предупреждение и действия.
             Rectangle {
-                visible: root.info.name !== undefined
+                visible: root.known
                 width: parent.width
                 height: actions.implicitHeight + 32
                 radius: Theme.radius
@@ -201,7 +216,7 @@ Item {
                             onClicked: Jobs.buildAur(root.info, root.hasUpdate ? "update" : "install")
                         }
                         SButton {
-                            visible: root.pkgbuild === ""
+                            visible: root.pkgbuild === "" && root.info.name !== undefined
                             text: "Показать PKGBUILD"
                             onClicked: root.showPkgbuild()
                         }
@@ -212,7 +227,7 @@ Item {
                         }
                     }
                     SText {
-                        visible: !root.reviewed && (root.installedVersion === "" || root.hasUpdate) && !root.working && !root.confirmRemove
+                        visible: !root.reviewed && (root.installedVersion === "" || root.hasUpdate) && !root.working && !root.confirmRemove && root.info.name !== undefined
                         size: 12
                         color: Theme.inkMuted
                         text: root.pkgbuildError !== "" ? root.pkgbuildError : "Собрать можно, посмотрев PKGBUILD."

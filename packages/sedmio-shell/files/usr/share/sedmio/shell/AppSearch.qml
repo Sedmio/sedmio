@@ -59,7 +59,20 @@ Singleton {
         if (!pathScan.running) pathScan.running = true;
     }
 
+    // Магазин «Программы» (sedmio-store): найти там то, чего нет в меню,
+    // и удалить программу (её карточка в магазине).
+    readonly property bool hasStore: DesktopEntries.applications.values.length >= 0
+        && DesktopEntries.byId("sedmio-store") !== null
+
+    function openStore(argument) {
+        ShellState.launch("sedmio-store", ["sedmio-store", argument]);
+    }
+
     function launch(entry, inTerminal) {
+        if (entry.store) {
+            openStore("search:" + entry.text);
+            return;
+        }
         if (entry.run) {
             run(entry, inTerminal);
             return;
@@ -241,7 +254,13 @@ Singleton {
         }
         // Путь, адрес или команда с аргументами — это не поиск программы:
         // строка первой. Одно слово («firefox») — после программ.
-        if (typed && (typed.open || /\s/.test(text))) return runs.concat(found);
-        return found.concat(runs);
+        // Последней — «Найти в «Программах»»: не нашлось — она первая,
+        // Enter открывает магазин с этим запросом.
+        const store = hasStore && !(typed && typed.open)
+            ? [{ store: true, text: text, name: "Найти в «Программах»", genericName: "«" + text + "» — установить новую программу",
+                 icon: "system-software-install" }]
+            : [];
+        if (typed && (typed.open || /\s/.test(text))) return runs.concat(found, store);
+        return found.concat(runs, store);
     }
 }
