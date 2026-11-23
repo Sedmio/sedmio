@@ -1,6 +1,9 @@
 [KDE]
 # Одинарный клик выделяет, двойной открывает
 SingleClick=false
+# Стиль чужих программ Qt — Darkly (пакет darkly): Breeze со скруглениями
+# и мягкими тенями. Нет пакета — Qt берёт Breeze, а без него Fusion.
+widgetStyle=Darkly
 
 [General]
 # Цвета Sedmio (usr/share/color-schemes/Sedmio.colors). Сами цвета в

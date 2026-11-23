@@ -4,12 +4,12 @@ project(sedmio-theme VERSION 0.2.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Qml)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Qml Quick)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
 # Чтение темы — общее для QML-модуля, рамок окон и службы цветов.
-add_library(sedmio-themedata STATIC common/themedata.cpp common/themedata.h common/accent.cpp common/accent.h)
+add_library(sedmio-themedata STATIC common/themedata.cpp common/themedata.h common/accent.cpp common/accent.h common/ownheader.h)
 set_target_properties(sedmio-themedata PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(sedmio-themedata PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
 target_link_libraries(sedmio-themedata PUBLIC Qt6::Core Qt6::Gui)
@@ -25,3 +25,5 @@ add_subdirectory(decoration)
 add_subdirectory(sync)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../themes/ DESTINATION share/sedmio/themes)
+# Однотонные символы (Lucide, ISC) и какие значки ими рисовать — Sedmio.Style Symbols.
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../symbols/ DESTINATION share/sedmio/symbols)

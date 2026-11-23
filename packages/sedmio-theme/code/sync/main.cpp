@@ -1,5 +1,6 @@
 // sedmio-theme-sync: цвета и шрифт чужих программ (Qt/KDE, а через
-// kde-gtk-config и GTK) — из темы Sedmio. Пишет схему
+// kde-gtk-config и GTK; для GTK ещё sedmio.css — см. applyGtk) — из темы
+// Sedmio. Пишет схему
 // ~/.local/share/color-schemes/Sedmio.colors (она перекрывает запасную
 // /usr/share/color-schemes/Sedmio.colors из sedmio-settings) и, если у
 // пользователя выбрана схема Sedmio или никакая, переносит её цвета в
@@ -298,6 +299,122 @@ void applyFont()
     QDBusConnection::sessionBus().send(message);
 }
 
+// Программы GTK: тема adw-gtk3 (вид libadwaita и для GTK3) и цвета
+// Sedmio для неё и для libadwaita — ~/.config/gtk-{3,4}.0/sedmio.css,
+// подключённый из gtk.css (его kde-gtk-config дописывает, не затирая).
+// Тему GTK меняем один раз и только с Breeze: выбранную человеком не
+// трогаем. Ставит её kde-gtk-config (модуль kded gtkconfig) — он же
+// пишет gsettings, settings.ini и xsettings.
+QString cssColor(const QColor &c)
+{
+    return c.alpha() == 255 ? c.name(QColor::HexRgb) : QStringLiteral("rgba(%1,%2,%3,%4)").arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alphaF(), 0, 'f', 2);
+}
+
+void writeIfChanged(const QString &path, const QByteArray &text)
+{
+    QFile current(path);
+    if (current.open(QIODevice::ReadOnly) && current.readAll() == text)
+        return;
+    current.close();
+    QDir().mkpath(QFileInfo(path).path());
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(text) < 0 || !file.commit())
+        std::fprintf(stderr, "sedmio-theme-sync: не записать %s\n", qPrintable(path));
+}
+
+void applyGtk()
+{
+    QColor shade = themeColor("shadow");
+    shade.setAlphaF(isDark() ? 0.36 : 0.07);
+    const QList<std::pair<QString, QColor>> colors{
+        {QStringLiteral("accent_color"), themeColor("green")},
+        {QStringLiteral("accent_bg_color"), themeColor("green")},
+        {QStringLiteral("accent_fg_color"), themeColor("textOnGreen")},
+        {QStringLiteral("destructive_color"), themeColor("terracotta")},
+        {QStringLiteral("destructive_bg_color"), themeColor("terracotta")},
+        {QStringLiteral("destructive_fg_color"), themeColor("textOnGreen")},
+        {QStringLiteral("error_color"), themeColor("terracotta")},
+        {QStringLiteral("error_bg_color"), themeColor("terracotta")},
+        {QStringLiteral("error_fg_color"), themeColor("textOnGreen")},
+        {QStringLiteral("success_color"), themeColor("success")},
+        {QStringLiteral("success_bg_color"), themeColor("success")},
+        {QStringLiteral("success_fg_color"), themeColor("textOnGreen")},
+        {QStringLiteral("warning_color"), themeColor("warning")},
+        {QStringLiteral("warning_bg_color"), themeColor("warning")},
+        {QStringLiteral("warning_fg_color"), themeColor("textOnGreen")},
+        {QStringLiteral("window_bg_color"), themeColor("paper")},
+        {QStringLiteral("window_fg_color"), themeColor("ink")},
+        {QStringLiteral("view_bg_color"), themeColor("surface")},
+        {QStringLiteral("view_fg_color"), themeColor("ink")},
+        {QStringLiteral("headerbar_bg_color"), themeColor("paper")},
+        {QStringLiteral("headerbar_fg_color"), themeColor("ink")},
+        {QStringLiteral("headerbar_border_color"), themeColor("ink")},
+        {QStringLiteral("headerbar_backdrop_color"), themeColor("paper")},
+        {QStringLiteral("headerbar_shade_color"), shade},
+        {QStringLiteral("sidebar_bg_color"), themeColor("paperDeep")},
+        {QStringLiteral("sidebar_fg_color"), themeColor("ink")},
+        {QStringLiteral("sidebar_backdrop_color"), themeColor("paperDeep")},
+        {QStringLiteral("sidebar_shade_color"), shade},
+        {QStringLiteral("card_bg_color"), themeColor("surface")},
+        {QStringLiteral("card_fg_color"), themeColor("ink")},
+        {QStringLiteral("card_shade_color"), shade},
+        {QStringLiteral("dialog_bg_color"), themeColor("paper")},
+        {QStringLiteral("dialog_fg_color"), themeColor("ink")},
+        {QStringLiteral("popover_bg_color"), themeColor("surface")},
+        {QStringLiteral("popover_fg_color"), themeColor("ink")},
+        {QStringLiteral("popover_shade_color"), shade},
+        {QStringLiteral("thumbnail_bg_color"), themeColor("surface")},
+        {QStringLiteral("thumbnail_fg_color"), themeColor("ink")},
+        {QStringLiteral("shade_color"), shade},
+    };
+    QString defines = QStringLiteral("/* Цвета темы Sedmio для GTK (adw-gtk3, libadwaita). Пишет\n"
+                                     " * sedmio-theme-sync при каждой смене темы — правки здесь пропадут;\n"
+                                     " * свои правила — в gtk.css. */\n");
+    QString variables = QStringLiteral(":root {\n");
+    for (const auto &[name, color] : colors) {
+        defines += QStringLiteral("@define-color %1 %2;\n").arg(name, cssColor(color));
+        // libadwaita 1.6+: те же цвета — переменными CSS (--accent-bg-color).
+        variables += QStringLiteral("  --%1: %2;\n").arg(QString(name).replace(QLatin1Char('_'), QLatin1Char('-')), cssColor(color));
+    }
+    variables += QStringLiteral("}\n");
+
+    const QString base = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+    for (const QString version : {QStringLiteral("gtk-3.0"), QStringLiteral("gtk-4.0")}) {
+        const QString dir = base + QLatin1Char('/') + version;
+        // В GTK3 переменных CSS нет — только @define-color.
+        writeIfChanged(dir + QStringLiteral("/sedmio.css"), (version == QLatin1String("gtk-3.0") ? defines : defines + variables).toUtf8());
+        QFile gtkCss(dir + QStringLiteral("/gtk.css"));
+        QByteArray contents;
+        if (gtkCss.open(QIODevice::ReadOnly))
+            contents = gtkCss.readAll();
+        gtkCss.close();
+        if (!contents.contains("@import 'sedmio.css';"))
+            writeIfChanged(gtkCss.fileName(), contents.trimmed() + (contents.trimmed().isEmpty() ? "" : "\n") + "@import 'sedmio.css';\n");
+    }
+
+    // Тема GTK: Breeze → adw-gtk3, один раз.
+    if (!QFileInfo::exists(QStringLiteral("/usr/share/themes/adw-gtk3/gtk-3.0/gtk.css")))
+        return;
+    KConfig config(QStringLiteral("kdeglobals"), KConfig::SimpleConfig);
+    KConfigGroup ours = config.group(QStringLiteral("Sedmio"));
+    if (ours.readEntry("gtkTheme", QString()) == QLatin1String("adw-gtk3"))
+        return;
+    const auto call = [](const QString &method, const QVariantList &args) {
+        QDBusMessage message = QDBusMessage::createMethodCall(QStringLiteral("org.kde.kded6"), QStringLiteral("/modules/gtkconfig"),
+                                                              QStringLiteral("org.kde.GtkConfig"), method);
+        message.setArguments(args);
+        return QDBusConnection::sessionBus().call(message, QDBus::Block, 5000);
+    };
+    const QDBusMessage current = call(QStringLiteral("gtkTheme"), {});
+    if (current.type() != QDBusMessage::ReplyMessage)
+        return; // kded ещё не поднялся — в следующий раз
+    const QString theme = current.arguments().value(0).toString();
+    if (theme.isEmpty() || theme == QLatin1String("Breeze"))
+        call(QStringLiteral("setGtkTheme"), {QStringLiteral("adw-gtk3")});
+    ours.writeEntry("gtkTheme", QStringLiteral("adw-gtk3"));
+    config.sync();
+}
+
 QString configDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/sedmio");
@@ -363,6 +480,7 @@ void sync()
     if (writeSchemeFile(groups))
         applyToKdeGlobals(groups);
     applyFont();
+    applyGtk();
 }
 
 } // namespace

@@ -23,10 +23,12 @@ BarButton {
         : wifi && !Networking.wifiEnabled ? "Wi‑Fi выключен"
         : "Нет подключения"
 
-    IconImage {
+    SIcon {
         anchors.centerIn: parent
         implicitSize: root.iconSize
-        source: Icons.path(
+        symbolic: true
+        color: Theme.ink
+        name: (
             root.wiredUp ? "network-wired-activated"
             : root.wifiNetwork ? (root.wifiNetwork.signalStrength > 0.75 ? "network-wireless-signal-excellent"
                 : root.wifiNetwork.signalStrength > 0.5 ? "network-wireless-signal-good"

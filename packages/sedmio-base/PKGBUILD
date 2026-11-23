@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=23
+pkgrel=24
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -32,6 +32,8 @@ depends=(
   'power-profiles-daemon'
   'kde-gtk-config'
   'breeze-gtk'
+  'adw-gtk-theme'           # вид программ GTK3 как у GTK4/libadwaita, цвета из темы Sedmio
+  'darkly'                  # стиль программ Qt (Widgets): скругления, тени, цвета темы
   'xdg-desktop-portal-kde'
   'xdg-desktop-portal-gtk'  # портал уведомлений (и настройки для программ GTK)
   'plasma-integration'      # вид программ Qt и KDE: диалоги, цвета, значки
@@ -77,6 +79,7 @@ depends=(
   'git'                     # нужен почти всегда, в т.ч. dev-setup.sh
   'which'                   # установщик (Calamares) вызывает which в новой системе
   'mkinitcpio'
+  'plymouth'                # заставка при загрузке (тема — sedmio-branding; хук initramfs ставит установщик)
 
   # Явный выбор там, где у зависимости несколько поставщиков,
   # иначе pacstrap берёт первый по алфавиту:

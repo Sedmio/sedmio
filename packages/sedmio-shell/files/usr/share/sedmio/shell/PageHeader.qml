@@ -20,7 +20,7 @@ RowLayout {
         implicitHeight: 34
         radius: 11
         color: backArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
-        SIcon { anchors.centerIn: parent; implicitSize: 18; name: "go-previous" }
+        SIcon { anchors.centerIn: parent; implicitSize: 18; name: "go-previous"; symbolic: true }
         MouseArea {
             id: backArea
             anchors.fill: parent

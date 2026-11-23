@@ -7,9 +7,12 @@
 виден. Здесь знак становится белым с той же прозрачностью.
 
 Раздел places Breeze повторяем целиком (неизменённое — ссылками на файлы
-Breeze) с теми же описаниями каталогов: значок ищется сначала в нашей
-теме, и если бы у нас были только крупные папки, их брали бы и для 16 px
-вместо маленьких значков Breeze. Всё прочее тема берёт у Breeze (Inherits).
+Breeze), и inode-directory из mimetypes — обычную папку, с теми же
+описаниями каталогов: значок ищется сначала в нашей теме, и если бы у
+нас были только крупные папки, их брали бы и для 16 px вместо маленьких
+значков Breeze. Всё прочее — сначала у Papirus
+(значки программ одного современного вида, а не каждый в своём стиле),
+потом у Breeze (Inherits).
 
 make-theme.py <каталог breeze> <куда положить тему>
 """
@@ -46,7 +49,7 @@ def places_sections(breeze):
             stripped = line.strip()
             if stripped.startswith("["):
                 name = stripped[1:-1]
-                current = name if name.startswith("places/") or name == "Icon Theme" else None
+                current = name if name.startswith(("places/", "mimetypes/")) or name == "Icon Theme" else None
                 if current and current != "Icon Theme":
                     sections[current] = []
             elif current and stripped and not stripped.startswith("#"):
@@ -68,16 +71,25 @@ def main(breeze, out):
         source = os.path.join(breeze, directory)
         if not os.path.isdir(source):
             continue
+        names = sorted(os.listdir(source))
+        if directory.startswith("mimetypes/"):
+            # Из типов файлов — только папка (inode-directory): иначе
+            # обычная папка в «Файлах» была бы синей папкой Papirus.
+            names = [n for n in names if n.startswith("inode-directory")]
+        if not names:
+            continue
         present.append(directory)
         target = os.path.join(out, directory)
         os.makedirs(target, exist_ok=True)
-        for name in sorted(os.listdir(source)):
+        for name in names:
             path = os.path.join(source, name)
             destination = os.path.join(target, name)
             if os.path.islink(path):
                 link = os.readlink(path)
                 if os.path.dirname(link) in ("", "."):
                     os.symlink(os.path.basename(link), destination)  # на наш вариант
+                elif link.startswith("../../places/"):
+                    os.symlink(link, destination)  # на нашу папку того же размера
                 else:
                     os.symlink(os.path.realpath(path), destination)
                 continue
@@ -98,9 +110,9 @@ def main(breeze, out):
     with open(os.path.join(out, "index.theme"), "w", encoding="utf-8") as f:
         f.write("[Icon Theme]\n"
                 "Name=Sedmio\n"
-                "Comment=Breeze with clearer folder emblems\n"
-                "Comment[ru]=Breeze с более заметными знаками на папках\n"
-                "Inherits=breeze,hicolor\n"
+                "Comment=Papirus application icons, Breeze folders in the accent color\n"
+                "Comment[ru]=Значки программ Papirus, папки Breeze в цвет акцента\n"
+                "Inherits=Papirus,breeze,hicolor\n"
                 "Hidden=false\n"
                 + "".join(line + "\n" for line in header)
                 + f"Directories={','.join(plain)}\n")

@@ -1,7 +1,11 @@
 # Maintainer: Sedmio <https://github.com/Sedmio>
 #
-# Оформление Sedmio, общее для системы: пока шрифт Onest (оболочка,
-# установщик). Остальное — по мере появления, см. README.md.
+# Оформление Sedmio, общее для системы: шрифт Onest (оболочка,
+# установщик) и заставка при загрузке (тема Plymouth sedmio, картинки —
+# tools/plymouth-theme/render.py). Остальное — по мере появления, см. README.md.
+#
+# Plymouth здесь не обязателен: его тянет sedmio-base. Тему по умолчанию
+# ставит pacman-хук (plymouth/hook), если человек не выбрал другую.
 #
 # Файл шрифта в репозитории один — в оформлении установщика, которое
 # должно оставаться самодостаточным (его же читают build-iso.sh и
@@ -9,14 +13,20 @@
 
 pkgname=sedmio-branding
 pkgver=0.1.0
-pkgrel=1
-pkgdesc="Sedmio: оформление (шрифт Onest)"
+pkgrel=2
+pkgdesc="Sedmio: оформление (шрифт Onest, заставка загрузки)"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
-license=('MIT' 'OFL-1.1')
+license=('MIT' 'OFL-1.1' 'ISC')  # ISC — замок Lucide в теме Plymouth
 
 package() {
   local fonts="$startdir/../sedmio-calamares/files/etc/calamares/branding/sedmio/fonts"
   install -Dm644 "$fonts/Onest-Variable.ttf" "$pkgdir/usr/share/fonts/sedmio/Onest-Variable.ttf"
   install -Dm644 "$fonts/OFL.txt" "$pkgdir/usr/share/licenses/$pkgname/OFL-Onest.txt"
+
+  local theme="$startdir/plymouth/sedmio"
+  install -Dm644 -t "$pkgdir/usr/share/plymouth/themes/sedmio" "$theme"/sedmio.plymouth "$theme"/*.png
+  install -Dm644 "$startdir/plymouth/hook/sedmio-plymouth.hook" "$pkgdir/usr/share/libalpm/hooks/80-sedmio-plymouth.hook"
+  install -Dm755 "$startdir/plymouth/hook/plymouth-theme" "$pkgdir/usr/lib/sedmio/plymouth-theme"
+  install -Dm644 "$startdir/../sedmio-theme/symbols/lucide/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/ISC-Lucide.txt"
 }

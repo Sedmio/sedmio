@@ -68,10 +68,41 @@ ApplicationWindow {
         onTriggered: win.confirmEnd = ""
     }
 
+    // Шапка: не прокручивается; заголовка у окна нет — за неё окно и
+    // таскают, справа — кнопки окна.
+    Item {
+        id: header
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: 22 + Math.max(heading.height, runButton.height)
+
+        WindowDragArea { anchors.fill: parent }
+
+        SText {
+            id: heading
+            x: 28
+            anchors.verticalCenter: runButton.verticalCenter
+            text: "Диспетчер задач"
+            size: 24
+            weight: 650
+        }
+        SButton {
+            id: runButton
+            anchors { right: windowControls.visible ? windowControls.left : parent.right; rightMargin: windowControls.visible ? 14 : 28 }
+            y: 22
+            visible: !win.runOpen
+            text: "Запустить новую задачу"
+            onClicked: win.openRun()
+        }
+        WindowControls {
+            id: windowControls
+            anchors { right: parent.right; rightMargin: 12; verticalCenter: runButton.verticalCenter }
+        }
+    }
+
     Flickable {
         id: flick
-        anchors.fill: parent
-        contentHeight: column.height + 48
+        anchors { left: parent.left; right: parent.right; top: header.bottom; bottom: parent.bottom }
+        contentHeight: column.height + 36
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
@@ -79,29 +110,9 @@ ApplicationWindow {
         Column {
             id: column
             x: 28
-            y: 22
+            y: 18
             width: flick.width - 56
             spacing: 18
-
-            Item {
-                width: parent.width
-                height: Math.max(heading.height, runButton.height)
-                SText {
-                    id: heading
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Диспетчер задач"
-                    size: 24
-                    weight: 650
-                }
-                SButton {
-                    id: runButton
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !win.runOpen
-                    text: "Запустить новую задачу"
-                    onClicked: win.openRun()
-                }
-            }
 
             Card {
                 title: "Запустить новую задачу"

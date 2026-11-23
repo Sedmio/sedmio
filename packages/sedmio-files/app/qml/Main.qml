@@ -341,11 +341,19 @@ ApplicationWindow {
 
     // ---- Окно
 
+    // Заголовка у окна нет: верх окна — за него (WindowDragArea), сверху —
+    // полоса инструментов с кнопками окна.
+    WindowDragArea {
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: 52
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
 
         Sidebar {
+            heading: "Файлы"
             Layout.preferredWidth: 220
             Layout.fillHeight: true
             currentUrl: folder.url
@@ -357,202 +365,212 @@ ApplicationWindow {
             }
         }
 
-        Rectangle {
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.topMargin: 8
-            Layout.rightMargin: 8
-            Layout.bottomMargin: 8
-            radius: 14
-            color: Theme.surface
-            border.width: 1
-            border.color: Theme.line
+            spacing: 0
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 8
-                spacing: 6
+            // Навигация, адрес, поиск, вид
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                Layout.rightMargin: 8
+                Layout.bottomMargin: 8
+                spacing: 4
 
-                // Вкладки — когда их больше одной
-                RowLayout {
+                ToolButton { icon: "go-previous"; enabled_: !!win.tab && win.tab.backStack.length > 0; onClicked: win.back() }
+                ToolButton { icon: "go-next"; enabled_: !!win.tab && win.tab.forwardStack.length > 0; onClicked: win.forward() }
+                ToolButton { icon: "go-up"; enabled_: !!win.tab && win.tab.parentUrl !== ""; onClicked: win.up() }
+
+                PathBar {
+                    id: pathBar
                     Layout.fillWidth: true
-                    visible: tabsModel.count > 1
-                    spacing: 4
-
-                    Repeater {
-                        model: tabsModel
-                        delegate: TabChip {}
-                    }
-                    ToolButton {
-                        icon: "list-add"
-                        onClicked: win.newTab(win.folder.url, false)
-                    }
-                    Item { Layout.fillWidth: true }
+                    Layout.leftMargin: 4
+                    url: folder.url
+                    onOpenRequested: url => win.navigate(url)
+                    onOpenInNewTabRequested: url => win.newTab(url, true)
                 }
 
-                // Навигация, адрес, поиск, вид
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-
-                    ToolButton { icon: "go-previous"; enabled_: !!win.tab && win.tab.backStack.length > 0; onClicked: win.back() }
-                    ToolButton { icon: "go-next"; enabled_: !!win.tab && win.tab.forwardStack.length > 0; onClicked: win.forward() }
-                    ToolButton { icon: "go-up"; enabled_: !!win.tab && win.tab.parentUrl !== ""; onClicked: win.up() }
-
-                    PathBar {
-                        id: pathBar
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 4
-                        url: folder.url
-                        onOpenRequested: url => win.navigate(url)
-                        onOpenInNewTabRequested: url => win.newTab(url, true)
-                    }
-
-                    // Поиск по этой папке
-                    Rectangle {
-                        // Узкое окно — поиск уступает место адресу.
-                        Layout.preferredWidth: Math.min(search.activeFocus || search.text !== "" ? 240 : 180,
-                                                        Math.max(120, parent.width * 0.28))
-                        Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.animFast } }
-                        Layout.leftMargin: 4
-                        implicitHeight: 36
-                        radius: 10
-                        color: Theme.surface
-                        border.width: 1
-                        border.color: search.activeFocus ? Theme.lineStrong : Theme.line
-
-                        SIcon {
-                            id: searchIcon
-                            anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
-                            name: "search"
-                            size: 16
-                            opacity: 0.7
-                        }
-                        TextField {
-                            id: search
-                            anchors { left: searchIcon.right; right: parent.right; top: parent.top; bottom: parent.bottom; leftMargin: 2; rightMargin: 4 }
-                            placeholderText: width < 110 ? "Поиск" : "Поиск в папке"
-                            placeholderTextColor: Theme.inkMuted
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBody
-                            color: Theme.ink
-                            selectionColor: Theme.greenSelect
-                            selectedTextColor: Theme.ink
-                            background: null
-                            verticalAlignment: TextInput.AlignVCenter
-                            text: folder.filter
-                            onTextEdited: folder.filter = text
-                            Keys.onEscapePressed: {
-                                folder.filter = "";
-                                if (view) view.forceActiveFocus();
-                            }
-                            // Enter или стрелка вниз — к найденному
-                            function toResults() {
-                                if (!view) return;
-                                view.forceActiveFocus();
-                                if (folder.count > 0) {
-                                    folder.select(0, 0);
-                                    view.focusRow(0);
-                                }
-                            }
-                            Keys.onDownPressed: toResults()
-                            onAccepted: toResults()
-                        }
-                    }
-
-                    ToolButton {
-                        Layout.leftMargin: 4
-                        icon: "view-list-icons"
-                        checked: settings.mode === "grid"
-                        onClicked: settings.mode = "grid"
-                    }
-                    ToolButton {
-                        icon: "view-list-details"
-                        checked: settings.mode === "list"
-                        onClicked: settings.mode = "list"
-                    }
-                }
-
-                // Ошибка операции
+                // Поиск по этой папке
                 Rectangle {
-                    id: banner
-                    property alias text: bannerText.text
-                    Layout.fillWidth: true
-                    visible: false
-                    implicitHeight: bannerText.implicitHeight + 18
+                    // Узкое окно — поиск уступает место адресу.
+                    Layout.preferredWidth: Math.min(search.activeFocus || search.text !== "" ? 240 : 180,
+                                                    Math.max(120, parent.width * 0.28))
+                    Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.animFast } }
+                    Layout.leftMargin: 4
+                    implicitHeight: 36
                     radius: 10
-                    color: Theme.terracottaSoft
+                    color: Theme.surface
+                    border.width: 1
+                    border.color: search.activeFocus ? Theme.lineStrong : Theme.line
 
-                    SText {
-                        id: bannerText
-                        anchors { left: parent.left; right: bannerClose.left; leftMargin: 12; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                        wrapMode: Text.Wrap
+                    SIcon {
+                        id: searchIcon
+                        anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                        name: "search"
+                        size: 16
+                        symbolic: true
+                        color: Theme.inkMuted
+                    }
+                    TextField {
+                        id: search
+                        anchors { left: searchIcon.right; right: parent.right; top: parent.top; bottom: parent.bottom; leftMargin: 2; rightMargin: 4 }
+                        placeholderText: width < 110 ? "Поиск" : "Поиск в папке"
+                        placeholderTextColor: Theme.inkMuted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontBody
                         color: Theme.ink
+                        selectionColor: Theme.greenSelect
+                        selectedTextColor: Theme.ink
+                        background: null
+                        verticalAlignment: TextInput.AlignVCenter
+                        text: folder.filter
+                        onTextEdited: folder.filter = text
+                        Keys.onEscapePressed: {
+                            folder.filter = "";
+                            if (view) view.forceActiveFocus();
+                        }
+                        // Enter или стрелка вниз — к найденному
+                        function toResults() {
+                            if (!view) return;
+                            view.forceActiveFocus();
+                            if (folder.count > 0) {
+                                folder.select(0, 0);
+                                view.focusRow(0);
+                            }
+                        }
+                        Keys.onDownPressed: toResults()
+                        onAccepted: toResults()
                     }
-                    SText {
-                        id: bannerClose
-                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                        text: "✕"
-                        size: 12
-                        color: Theme.inkSoft
-                        MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: banner.visible = false }
-                    }
-                    Timer { id: bannerTimer; interval: 8000; onTriggered: banner.visible = false }
                 }
 
-                // Папки вкладок; видна текущая.
-                Item {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+                ToolButton {
+                    Layout.leftMargin: 4
+                    icon: "view-list-icons"
+                    checked: settings.mode === "grid"
+                    onClicked: settings.mode = "grid"
+                }
+                ToolButton {
+                    icon: "view-list-details"
+                    checked: settings.mode === "list"
+                    onClicked: settings.mode = "list"
+                }
+                WindowControls { Layout.leftMargin: 8 }
+            }
 
-                    Repeater {
-                        id: tabsRepeater
-                        model: tabsModel
-                        delegate: FolderTab {
-                            id: folderTab
-                            required property int index
-                            required property string start
-                            anchors.fill: parent
-                            startUrl: start
-                            visible: index === win.currentTab
-                            focus: visible
-                            mode: settings.mode
-                            showHidden: settings.showHidden
-                            sortBy: settings.sortBy
-                            descending: settings.descending
-                            onOpenRequested: row => win.openRow(row)
-                            onContextMenuRequested: (row, item, x, y) => win.showMenu(row, item, x, y)
-                            onDropRequested: (urls, destination, info) => win.handleDrop(urls, destination, info)
-                            onRenameFailed: message => win.showError(message)
-                            onSortRequested: key => win.sortBy(key)
-                            onOpenInNewTabRequested: url => win.newTab(url, true)
-                            onPreviewRequested: row => quickLook.show(row)
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.rightMargin: 8
+                Layout.bottomMargin: 8
+                radius: 14
+                color: Theme.surface
+                border.width: 1
+                border.color: Theme.line
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 6
+
+                    // Вкладки — когда их больше одной
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: tabsModel.count > 1
+                        spacing: 4
+
+                        Repeater {
+                            model: tabsModel
+                            delegate: TabChip {}
+                        }
+                        ToolButton {
+                            icon: "list-add"
+                            onClicked: win.newTab(win.folder.url, false)
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+
+                    // Ошибка операции
+                    Rectangle {
+                        id: banner
+                        property alias text: bannerText.text
+                        Layout.fillWidth: true
+                        visible: false
+                        implicitHeight: bannerText.implicitHeight + 18
+                        radius: 10
+                        color: Theme.terracottaSoft
+
+                        SText {
+                            id: bannerText
+                            anchors { left: parent.left; right: bannerClose.left; leftMargin: 12; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                            wrapMode: Text.Wrap
+                            color: Theme.ink
+                        }
+                        SText {
+                            id: bannerClose
+                            anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                            text: "✕"
+                            size: 12
+                            color: Theme.inkSoft
+                            MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: banner.visible = false }
+                        }
+                        Timer { id: bannerTimer; interval: 8000; onTriggered: banner.visible = false }
+                    }
+
+                    // Папки вкладок; видна текущая.
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+
+                        Repeater {
+                            id: tabsRepeater
+                            model: tabsModel
+                            delegate: FolderTab {
+                                id: folderTab
+                                required property int index
+                                required property string start
+                                anchors.fill: parent
+                                startUrl: start
+                                visible: index === win.currentTab
+                                focus: visible
+                                mode: settings.mode
+                                showHidden: settings.showHidden
+                                sortBy: settings.sortBy
+                                descending: settings.descending
+                                onOpenRequested: row => win.openRow(row)
+                                onContextMenuRequested: (row, item, x, y) => win.showMenu(row, item, x, y)
+                                onDropRequested: (urls, destination, info) => win.handleDrop(urls, destination, info)
+                                onRenameFailed: message => win.showError(message)
+                                onSortRequested: key => win.sortBy(key)
+                                onOpenInNewTabRequested: url => win.newTab(url, true)
+                                onPreviewRequested: row => quickLook.show(row)
+                            }
                         }
                     }
-                }
 
-                // Строка состояния
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 6
-                    Layout.rightMargin: 6
-                    spacing: 8
-
-                    SText {
+                    // Строка состояния
+                    RowLayout {
                         Layout.fillWidth: true
-                        size: Theme.fontSmall
-                        color: Theme.inkMuted
-                        text: folder.loading && folder.count === 0 ? "Открываю…"
-                            : folder.selectedCount > 0
-                                ? "Выбрано " + Format.number(folder.selectedCount) + " из " + Format.number(folder.count)
-                                  + (folder.selectedSize > 0 ? " · " + FileOps.formatSize(folder.selectedSize) : "")
-                            : Format.items(folder.count)
-                    }
-                    SText {
-                        visible: FileOps.cutUrls.length > 0
-                        size: Theme.fontSmall
-                        color: Theme.inkMuted
-                        text: "Вырезано: " + Format.items(FileOps.cutUrls.length) + " — вставьте Ctrl+V"
+                        Layout.leftMargin: 6
+                        Layout.rightMargin: 6
+                        spacing: 8
+
+                        SText {
+                            Layout.fillWidth: true
+                            size: Theme.fontSmall
+                            color: Theme.inkMuted
+                            text: folder.loading && folder.count === 0 ? "Открываю…"
+                                : folder.selectedCount > 0
+                                    ? "Выбрано " + Format.number(folder.selectedCount) + " из " + Format.number(folder.count)
+                                      + (folder.selectedSize > 0 ? " · " + FileOps.formatSize(folder.selectedSize) : "")
+                                : Format.items(folder.count)
+                        }
+                        SText {
+                            visible: FileOps.cutUrls.length > 0
+                            size: Theme.fontSmall
+                            color: Theme.inkMuted
+                            text: "Вырезано: " + Format.items(FileOps.cutUrls.length) + " — вставьте Ctrl+V"
+                        }
                     }
                 }
             }

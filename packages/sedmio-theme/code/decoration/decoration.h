@@ -27,7 +27,9 @@ public:
     bool isActive() const;
     // Развёрнуто на весь экран: без скругления и полей.
     bool isMaximized() const;
+    // Полоса заголовка — наша; 0, если заголовок рисует программа.
     qreal titleHeight() const;
+    bool ownHeader() const { return m_ownHeader; }
     qreal cornerRadius() const;
     QColor themeColor(const QString &key) const;
 
@@ -41,6 +43,7 @@ private:
     KDecoration3::DecorationButtonGroup *m_left = nullptr;
     KDecoration3::DecorationButtonGroup *m_right = nullptr;
     bool m_buttonsPending = false;
+    bool m_ownHeader = false;
 };
 
 } // namespace Sedmio

@@ -269,11 +269,19 @@ ApplicationWindow {
 
     // ---- Окно
 
+    // Заголовка у окна нет: верх окна — за него (WindowDragArea), сверху —
+    // полоса инструментов с кнопками окна.
+    WindowDragArea {
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: 52
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
 
         Sidebar {
+            heading: win.title
             Layout.preferredWidth: 200
             Layout.fillHeight: true
             currentUrl: folder.url
@@ -281,200 +289,209 @@ ApplicationWindow {
             onOpenInNewTabRequested: url => tab.navigate(url)
         }
 
-        Rectangle {
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.topMargin: 8
-            Layout.rightMargin: 8
-            Layout.bottomMargin: 8
-            radius: 14
-            color: Theme.surface
-            border.width: 1
-            border.color: Theme.line
+            spacing: 0
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 8
-                spacing: 6
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                Layout.rightMargin: 8
+                Layout.bottomMargin: 8
+                spacing: 4
 
-                RowLayout {
+                ToolButton { icon: "go-previous"; enabled_: tab.backStack.length > 0; onClicked: tab.back() }
+                ToolButton { icon: "go-next"; enabled_: tab.forwardStack.length > 0; onClicked: tab.forward() }
+                ToolButton { icon: "go-up"; enabled_: tab.parentUrl !== ""; onClicked: tab.up() }
+
+                PathBar {
+                    id: pathBar
                     Layout.fillWidth: true
-                    spacing: 4
-
-                    ToolButton { icon: "go-previous"; enabled_: tab.backStack.length > 0; onClicked: tab.back() }
-                    ToolButton { icon: "go-next"; enabled_: tab.forwardStack.length > 0; onClicked: tab.forward() }
-                    ToolButton { icon: "go-up"; enabled_: tab.parentUrl !== ""; onClicked: tab.up() }
-
-                    PathBar {
-                        id: pathBar
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 4
-                        url: folder.url
-                        onOpenRequested: url => tab.navigate(url)
-                        onOpenInNewTabRequested: url => tab.navigate(url)
-                    }
-
-                    ToolButton {
-                        Layout.leftMargin: 4
-                        visible: win.saving
-                        icon: "folder-new"
-                        enabled_: folder.writable
-                        onClicked: win.newFolder()
-                    }
-                    ToolButton {
-                        Layout.leftMargin: win.saving ? 0 : 4
-                        icon: "view-list-icons"
-                        checked: viewSettings.mode === "grid"
-                        onClicked: viewSettings.mode = "grid"
-                    }
-                    ToolButton {
-                        icon: "view-list-details"
-                        checked: viewSettings.mode === "list"
-                        onClicked: viewSettings.mode = "list"
-                    }
-                }
-
-                Rectangle {
-                    id: banner
-                    property alias text: bannerText.text
-                    Layout.fillWidth: true
-                    visible: false
-                    implicitHeight: bannerText.implicitHeight + 18
-                    radius: 10
-                    color: Theme.terracottaSoft
-                    SText {
-                        id: bannerText
-                        anchors { left: parent.left; right: parent.right; leftMargin: 12; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                        wrapMode: Text.Wrap
-                    }
-                    Timer { id: bannerTimer; interval: 6000; onTriggered: banner.visible = false }
-                }
-
-                FolderTab {
-                    id: tab
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    // Первая из папок, что есть на месте.
-                    startUrl: win.session.kind(win.startFolder) === 2 ? win.startFolder
-                            : win.session.kind(chooserSettings.lastFolder) === 2 ? chooserSettings.lastFolder
-                            : FileOps.homeUrl
-                    mode: viewSettings.mode
-                    showHidden: viewSettings.showHidden
-                    sortBy: viewSettings.sortBy
-                    descending: viewSettings.descending
-                    onOpenRequested: row => win.openRow(row)
-                    onPreviewRequested: row => quickLook.show(row)
-                    onRenameFailed: message => win.showError(message)
-                    onSortRequested: key => {
-                        if (viewSettings.sortBy === key) {
-                            viewSettings.descending = !viewSettings.descending;
-                        } else {
-                            viewSettings.sortBy = key;
-                            viewSettings.descending = key === "date" || key === "size";
-                        }
-                    }
-                    Component.onCompleted: {
-                        folder.singleSelection = !(win.mode === "open" && win.multiple && !win.directory);
-                        folder.dirsOnly = win.choosingFolder;
-                        win.applyFilter();
-                    }
-                }
-
-                // Имя файла, вид файлов, выборы программы, кнопки.
-                GridLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 4
                     Layout.leftMargin: 4
-                    Layout.rightMargin: 4
-                    columns: 2
-                    columnSpacing: 10
-                    rowSpacing: 8
+                    url: folder.url
+                    onOpenRequested: url => tab.navigate(url)
+                    onOpenInNewTabRequested: url => tab.navigate(url)
+                }
 
-                    SText {
-                        visible: win.mode === "save"
-                        text: "Имя файла"
-                        color: Theme.inkSoft
-                    }
-                    Field {
-                        id: nameField
-                        visible: win.mode === "save"
+                ToolButton {
+                    Layout.leftMargin: 4
+                    visible: win.saving
+                    icon: "folder-new"
+                    enabled_: folder.writable
+                    onClicked: win.newFolder()
+                }
+                ToolButton {
+                    Layout.leftMargin: win.saving ? 0 : 4
+                    icon: "view-list-icons"
+                    checked: viewSettings.mode === "grid"
+                    onClicked: viewSettings.mode = "grid"
+                }
+                ToolButton {
+                    icon: "view-list-details"
+                    checked: viewSettings.mode === "list"
+                    onClicked: viewSettings.mode = "list"
+                }
+                WindowControls { Layout.leftMargin: 8 }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.rightMargin: 8
+                Layout.bottomMargin: 8
+                radius: 14
+                color: Theme.surface
+                border.width: 1
+                border.color: Theme.line
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 6
+
+                    Rectangle {
+                        id: banner
+                        property alias text: bannerText.text
                         Layout.fillWidth: true
-                        onAccepted: win.accept()
+                        visible: false
+                        implicitHeight: bannerText.implicitHeight + 18
+                        radius: 10
+                        color: Theme.terracottaSoft
+                        SText {
+                            id: bannerText
+                            anchors { left: parent.left; right: parent.right; leftMargin: 12; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                            wrapMode: Text.Wrap
+                        }
+                        Timer { id: bannerTimer; interval: 6000; onTriggered: banner.visible = false }
                     }
 
-                    SText {
-                        visible: win.filters.length > 0 && !win.choosingFolder
-                        text: "Вид файлов"
-                        color: Theme.inkSoft
-                    }
-                    Choice {
-                        visible: win.filters.length > 0 && !win.choosingFolder
+                    FolderTab {
+                        id: tab
                         Layout.fillWidth: true
-                        model: win.filters.map(f => f.name)
-                        currentIndex: win.filterIndex
-                        onActivated: index => {
-                            win.filterIndex = index;
+                        Layout.fillHeight: true
+                        // Первая из папок, что есть на месте.
+                        startUrl: win.session.kind(win.startFolder) === 2 ? win.startFolder
+                                : win.session.kind(chooserSettings.lastFolder) === 2 ? chooserSettings.lastFolder
+                                : FileOps.homeUrl
+                        mode: viewSettings.mode
+                        showHidden: viewSettings.showHidden
+                        sortBy: viewSettings.sortBy
+                        descending: viewSettings.descending
+                        onOpenRequested: row => win.openRow(row)
+                        onPreviewRequested: row => quickLook.show(row)
+                        onRenameFailed: message => win.showError(message)
+                        onSortRequested: key => {
+                            if (viewSettings.sortBy === key) {
+                                viewSettings.descending = !viewSettings.descending;
+                            } else {
+                                viewSettings.sortBy = key;
+                                viewSettings.descending = key === "date" || key === "size";
+                            }
+                        }
+                        Component.onCompleted: {
+                            folder.singleSelection = !(win.mode === "open" && win.multiple && !win.directory);
+                            folder.dirsOnly = win.choosingFolder;
                             win.applyFilter();
                         }
                     }
 
-                    Repeater {
-                        model: win.choices
-                        delegate: RowLayout {
-                            id: choiceRow
-                            required property var modelData
-                            Layout.columnSpan: 2
-                            Layout.fillWidth: true
-                            spacing: 10
+                    // Имя файла, вид файлов, выборы программы, кнопки.
+                    GridLayout {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 4
+                        Layout.leftMargin: 4
+                        Layout.rightMargin: 4
+                        columns: 2
+                        columnSpacing: 10
+                        rowSpacing: 8
 
-                            SText {
-                                visible: choiceRow.modelData.items.length > 0
-                                text: choiceRow.modelData.label
-                                color: Theme.inkSoft
+                        SText {
+                            visible: win.mode === "save"
+                            text: "Имя файла"
+                            color: Theme.inkSoft
+                        }
+                        Field {
+                            id: nameField
+                            visible: win.mode === "save"
+                            Layout.fillWidth: true
+                            onAccepted: win.accept()
+                        }
+
+                        SText {
+                            visible: win.filters.length > 0 && !win.choosingFolder
+                            text: "Вид файлов"
+                            color: Theme.inkSoft
+                        }
+                        Choice {
+                            visible: win.filters.length > 0 && !win.choosingFolder
+                            Layout.fillWidth: true
+                            model: win.filters.map(f => f.name)
+                            currentIndex: win.filterIndex
+                            onActivated: index => {
+                                win.filterIndex = index;
+                                win.applyFilter();
                             }
-                            Choice {
-                                visible: choiceRow.modelData.items.length > 0
+                        }
+
+                        Repeater {
+                            model: win.choices
+                            delegate: RowLayout {
+                                id: choiceRow
+                                required property var modelData
+                                Layout.columnSpan: 2
                                 Layout.fillWidth: true
-                                model: choiceRow.modelData.items.map(i => i.label)
-                                currentIndex: Math.max(0, choiceRow.modelData.items.findIndex(i => i.id === win.choiceValues[choiceRow.modelData.id]))
-                                onActivated: index => win.setChoice(choiceRow.modelData.id, choiceRow.modelData.items[index].id)
-                            }
-                            CheckBox {
-                                visible: choiceRow.modelData.items.length === 0
-                                checked: win.choiceValues[choiceRow.modelData.id] === "true"
-                                onToggled: win.setChoice(choiceRow.modelData.id, checked ? "true" : "false")
-                                contentItem: SText {
-                                    leftPadding: parent.indicator.width + 6
+                                spacing: 10
+
+                                SText {
+                                    visible: choiceRow.modelData.items.length > 0
                                     text: choiceRow.modelData.label
-                                    verticalAlignment: Text.AlignVCenter
+                                    color: Theme.inkSoft
+                                }
+                                Choice {
+                                    visible: choiceRow.modelData.items.length > 0
+                                    Layout.fillWidth: true
+                                    model: choiceRow.modelData.items.map(i => i.label)
+                                    currentIndex: Math.max(0, choiceRow.modelData.items.findIndex(i => i.id === win.choiceValues[choiceRow.modelData.id]))
+                                    onActivated: index => win.setChoice(choiceRow.modelData.id, choiceRow.modelData.items[index].id)
+                                }
+                                CheckBox {
+                                    visible: choiceRow.modelData.items.length === 0
+                                    checked: win.choiceValues[choiceRow.modelData.id] === "true"
+                                    onToggled: win.setChoice(choiceRow.modelData.id, checked ? "true" : "false")
+                                    contentItem: SText {
+                                        leftPadding: parent.indicator.width + 6
+                                        text: choiceRow.modelData.label
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    RowLayout {
-                        Layout.columnSpan: 2
-                        Layout.fillWidth: true
-                        spacing: 8
-
-                        SText {
+                        RowLayout {
+                            Layout.columnSpan: 2
                             Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            size: Theme.fontSmall
-                            color: Theme.inkMuted
-                            text: win.mode === "saveFiles" ? "Сохранить " + Format.number(win.files.length) + " " + Format.plural(win.files.length, "файл", "файла", "файлов") + " в эту папку"
-                                : folder.selectedCount > 1 ? "Выбрано " + Format.number(folder.selectedCount)
-                                : ""
-                        }
-                        SButton {
-                            text: "Отмена"
-                            onClicked: win.cancel()
-                        }
-                        SButton {
-                            text: win.acceptText
-                            primary: true
-                            opacity: win.canAccept ? 1 : 0.5
-                            onClicked: if (win.canAccept) win.accept()
+                            spacing: 8
+
+                            SText {
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                size: Theme.fontSmall
+                                color: Theme.inkMuted
+                                text: win.mode === "saveFiles" ? "Сохранить " + Format.number(win.files.length) + " " + Format.plural(win.files.length, "файл", "файла", "файлов") + " в эту папку"
+                                    : folder.selectedCount > 1 ? "Выбрано " + Format.number(folder.selectedCount)
+                                    : ""
+                            }
+                            SButton {
+                                text: "Отмена"
+                                onClicked: win.cancel()
+                            }
+                            SButton {
+                                text: win.acceptText
+                                primary: true
+                                opacity: win.canAccept ? 1 : 0.5
+                                onClicked: if (win.canAccept) win.accept()
+                            }
                         }
                     }
                 }

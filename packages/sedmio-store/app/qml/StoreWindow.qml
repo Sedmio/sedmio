@@ -250,11 +250,14 @@ ApplicationWindow {
         }
     }
 
-    // Верхняя полоса: «Назад» и поиск.
+    // Верхняя полоса: «Назад», поиск и кнопки окна (заголовка у окна нет —
+    // за полосу окно и таскают).
     Item {
         id: topBar
         anchors { left: sidebar.right; right: parent.right; top: parent.top }
         height: 64
+
+        WindowDragArea { anchors.fill: parent }
 
         Rectangle {
             id: backButton
@@ -268,6 +271,7 @@ ApplicationWindow {
                 anchors.centerIn: parent
                 name: "go-previous"
                 size: 22
+                symbolic: true
             }
             MouseArea {
                 id: backArea
@@ -280,7 +284,8 @@ ApplicationWindow {
         SField {
             id: search
             anchors.centerIn: parent
-            width: Math.min(560, parent.width - 160)
+            // Посередине, не заезжая ни на «Назад», ни на кнопки окна.
+            width: Math.min(560, parent.width - 2 * Math.max(80, windowControls.visible ? windowControls.width + 32 : 0))
             height: 40
             leftPadding: 40
             placeholderText: "Найти программу"
@@ -291,8 +296,14 @@ ApplicationWindow {
                 anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
                 name: "search"
                 size: 18
+                symbolic: true
+                color: Theme.inkMuted
             }
             Component.onCompleted: forceActiveFocus()
+        }
+        WindowControls {
+            id: windowControls
+            anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
         }
         Timer {
             id: searchDelay
@@ -307,10 +318,22 @@ ApplicationWindow {
         clip: true
         initialItem: homePage
 
-        pushEnter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animFast } }
+        // Вглубь — новая страница наплывает справа, назад — прежняя слева.
+        pushEnter: Transition {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "x"; from: 32; to: 0; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+        }
         pushExit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.animFast } }
-        popEnter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animFast } }
-        popExit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.animFast } }
+        popEnter: Transition {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "x"; from: -32; to: 0; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+        }
+        popExit: Transition {
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.animFast }
+            NumberAnimation { property: "x"; from: 0; to: 32; duration: Theme.animFast; easing.type: Easing.InCubic }
+        }
+        replaceEnter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.animNormal; easing.type: Easing.OutCubic } }
+        replaceExit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.animFast } }
     }
 
     // Перетащили файл AppImage в окно — добавить.

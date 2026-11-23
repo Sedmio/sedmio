@@ -110,6 +110,7 @@ Popup {
                 anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                 name: menuRow.data_.checked === true ? "checkmark" : (menuRow.data_.icon ?? "")
                 size: 16
+                symbolic: true
             }
             SText {
                 id: label

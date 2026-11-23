@@ -226,6 +226,7 @@ PanelWindow {
             SIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 name: button.icon
+                symbolic: true
                 implicitSize: 18
             }
             SText {

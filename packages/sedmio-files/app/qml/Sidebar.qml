@@ -13,8 +13,23 @@ Rectangle {
     signal openInNewTabRequested(url url)
     // Бросили файлы на место: скопировать или перенести туда.
     signal dropped(var urls, url destination, var drop)
+    // Название над местами — на высоте полосы инструментов (заголовка у
+    // окна нет, эта полоса — за него); "" — без названия.
+    property string heading
 
     color: Theme.paper
+
+    SText {
+        id: headingText
+        visible: root.heading !== ""
+        anchors { left: parent.left; right: parent.right; leftMargin: 20; rightMargin: 10; top: parent.top; topMargin: 8 }
+        height: 36
+        verticalAlignment: Text.AlignVCenter
+        text: root.heading
+        size: 18
+        weight: 650
+        elide: Text.ElideRight
+    }
 
     readonly property var sectionNames: ({
         places: "",
@@ -34,6 +49,7 @@ Rectangle {
         id: list
         anchors.fill: parent
         anchors.margins: 10
+        anchors.topMargin: root.heading !== "" ? 52 : 10
         clip: true
         model: places
         spacing: 2
@@ -114,6 +130,7 @@ Rectangle {
                     anchors.centerIn: parent
                     name: "media-eject"
                     size: 16
+                    symbolic: true
                 }
                 MouseArea {
                     id: ejectArea

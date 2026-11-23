@@ -1,0 +1,15 @@
+# Стиль Darkly (программы Qt) по умолчанию в Sedmio. Свои изменения —
+# ~/.config/darklyrc. Цвета стиль берёт из kdeglobals (тема Sedmio).
+[Common]
+# Скругления — как у наших окон и кнопок (theme.json: radius 11).
+CornerRadius=10
+# Тени у меню и подсказок — мягче.
+ShadowSize=ShadowMedium
+ShadowStrength=90
+
+[Style]
+# Без линий-веточек в деревьях — как в наших программах.
+ViewDrawTreeBranchLines=false
+# Без лишних рамок вокруг боковых панелей и заголовков.
+SidePanelDrawFrame=false
+TitleWidgetDrawFrame=false

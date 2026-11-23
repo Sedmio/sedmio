@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
 import Quickshell.Widgets
+import Sedmio.Style
 
 // Громкость основного выхода: колесо — громче/тише, клик — раздел «Звук»
 // панели управления, средняя кнопка — без звука.
@@ -29,10 +30,12 @@ BarButton {
         OsdState.progress("volume", "", Math.round(sink.audio.volume * 100), 100, "");
     }
 
-    IconImage {
+    SIcon {
         anchors.centerIn: parent
         implicitSize: root.iconSize
-        source: Icons.path(
+        symbolic: true
+        color: Theme.ink
+        name: (
             !root.ready || root.muted ? "audio-volume-muted"
             : root.volume < 0.34 ? "audio-volume-low"
             : root.volume < 0.67 ? "audio-volume-medium"

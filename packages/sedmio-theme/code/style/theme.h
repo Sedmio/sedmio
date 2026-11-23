@@ -11,6 +11,9 @@
 // Ещё Theme.paletteSerial — счётчик смен палитры программы (её пишет из
 // темы sedmio-theme-sync, а KDE перекрашивает по ней значки): прибавить к
 // адресу значка, и он перезапросится уже в новых цветах.
+//
+// Theme.clientTitleBar — полосы заголовка у главного окна нет, кнопки окна
+// рисует программа (WindowControls; см. common/ownheader.h).
 class Theme : public QQmlPropertyMap
 {
     Q_OBJECT

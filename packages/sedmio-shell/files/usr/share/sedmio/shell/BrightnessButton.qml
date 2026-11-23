@@ -13,9 +13,11 @@ BarButton {
     hint: "Яркость"
     onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName, "brightness"); }
 
-    IconImage {
+    SIcon {
         anchors.centerIn: parent
         implicitSize: root.iconSize
-        source: Icons.path("brightness-high")
+        symbolic: true
+        color: Theme.ink
+        name: ("brightness-high")
     }
 }

@@ -24,7 +24,7 @@ RowLayout {
         implicitHeight: 36
         radius: 11
         color: root.iconClickable && iconArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
-        SIcon { anchors.centerIn: parent; name: root.icon }
+        SIcon { anchors.centerIn: parent; name: root.icon; symbolic: true }
         MouseArea {
             id: iconArea
             anchors.fill: parent
@@ -72,7 +72,7 @@ RowLayout {
         implicitHeight: 30
         radius: 10
         color: detailsArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
-        SIcon { anchors.centerIn: parent; implicitSize: 16; name: "go-next" }
+        SIcon { anchors.centerIn: parent; implicitSize: 16; name: "go-next"; symbolic: true }
         MouseArea {
             id: detailsArea
             anchors.fill: parent

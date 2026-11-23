@@ -1,6 +1,7 @@
 #include "decoration.h"
 
 #include "button.h"
+#include "ownheader.h"
 #include "shadow.h"
 #include "themedata.h"
 
@@ -52,7 +53,10 @@ bool Decoration::init()
         updateShadow();
         update();
     });
-    connect(w, &KDecoration3::DecoratedWindow::captionChanged, this, repaint);
+    // app_id и «модальное» приходят от программы — могли прийти и после
+    // рамки; заодно перепроверить, чей заголовок.
+    connect(w, &KDecoration3::DecoratedWindow::captionChanged, this, &Decoration::updateLayout);
+    connect(w, &KDecoration3::DecoratedWindow::maximizeableChanged, this, &Decoration::updateLayout);
     connect(w, &KDecoration3::DecoratedWindow::iconChanged, this, repaint);
     connect(w, &KDecoration3::DecoratedWindow::widthChanged, this, &Decoration::updateLayout);
     connect(w, &KDecoration3::DecoratedWindow::maximizedChanged, this, [this] {
@@ -86,6 +90,8 @@ bool Decoration::isMaximized() const
 
 qreal Decoration::titleHeight() const
 {
+    if (m_ownHeader)
+        return 0;
     return std::clamp(ThemeData::instance()->number(QStringLiteral("titleHeight")), 24.0, 64.0);
 }
 
@@ -130,11 +136,16 @@ void Decoration::updateButtonsGeometryLater()
 
 void Decoration::updateLayout()
 {
+    // Диалоги (модальные, постоянного размера) — с нашим заголовком: свои
+    // кнопки окна есть только у главных окон.
+    const KDecoration3::DecoratedWindow *w = window();
+    m_ownHeader = drawsOwnHeader(w->windowClass()) && !w->isModal() && w->isMaximizeable();
+
     const qreal title = titleHeight();
     setBorders(QMarginsF(0, title, 0, 0));
     const qreal margin = isMaximized() ? 0 : resizeMargin;
     setResizeOnlyBorders(QMarginsF(margin, margin, margin, margin));
-    setTitleBar(QRectF(0, 0, window()->width(), title));
+    setTitleBar(m_ownHeader ? QRectF() : QRectF(0, 0, window()->width(), title));
 
     const qreal radius = cornerRadius();
     setBorderRadius(KDecoration3::BorderRadius(radius));
@@ -142,7 +153,7 @@ void Decoration::updateLayout()
                                                  KDecoration3::BorderRadius(radius)));
     // Развёрнутое окно непрозрачно, если заголовок без прозрачности (тема
     // может дать #AARRGGBB) — иначе под ним остался бы мусор.
-    setOpaque(isMaximized() && themeColor(QStringLiteral("windowTitle")).alpha() == 255
+    setOpaque(!m_ownHeader && isMaximized() && themeColor(QStringLiteral("windowTitle")).alpha() == 255
               && themeColor(QStringLiteral("windowTitleInactive")).alpha() == 255);
 
     updateButtonsGeometry();
@@ -154,7 +165,8 @@ void Decoration::updateButtonsGeometry()
     if (!m_left || !m_right)
         return;
     const qreal title = titleHeight();
-    const qreal size = title - 8;
+    // Без полосы заголовка кнопок нет (свои — у программы).
+    const qreal size = m_ownHeader ? 0 : title - 8;
     for (KDecoration3::DecorationButton *button : m_left->buttons() + m_right->buttons())
         button->setGeometry(QRectF(0, 0, size, size));
     const qreal top = (title - size) / 2;
@@ -170,6 +182,10 @@ void Decoration::updateShadow()
 
 void Decoration::paint(QPainter *painter, const QRectF &repaintArea)
 {
+    // Рисовать нечего: контур — KWin (setBorderOutline), остальное — программа.
+    if (m_ownHeader)
+        return;
+
     const qreal width = window()->width();
     const qreal title = titleHeight();
     const qreal radius = cornerRadius();

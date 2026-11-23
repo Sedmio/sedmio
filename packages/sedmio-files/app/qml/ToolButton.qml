@@ -20,7 +20,8 @@ Rectangle {
     SIcon {
         anchors.centerIn: parent
         name: root.icon
-        size: 16
+        size: 18
+        symbolic: true
     }
 
     MouseArea {

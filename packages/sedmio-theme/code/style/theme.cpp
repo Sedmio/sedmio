@@ -1,9 +1,11 @@
 #include "theme.h"
 
+#include "ownheader.h"
 #include "themedata.h"
 
 #include <QCoreApplication>
 #include <QEvent>
+#include <QGuiApplication>
 
 Theme::Theme(QObject *parent)
     : QQmlPropertyMap(this, parent)
@@ -11,6 +13,11 @@ Theme::Theme(QObject *parent)
     connect(Sedmio::ThemeData::instance(), &Sedmio::ThemeData::changed, this, &Theme::update);
     update();
     insert(QStringLiteral("paletteSerial"), m_paletteSerial);
+    // Заголовок окна рисует программа (common/ownheader.h): рамка наша, а
+    // программа — из тех, чьи окна она оставляет без полосы заголовка.
+    insert(QStringLiteral("clientTitleBar"),
+           QGuiApplication::platformName().startsWith(QLatin1String("wayland"))
+               && Sedmio::drawsOwnHeader(QGuiApplication::desktopFileName()) && Sedmio::ourDecoration());
     if (QCoreApplication::instance())
         QCoreApplication::instance()->installEventFilter(this);
 }
@@ -32,7 +39,7 @@ void Theme::update()
     }
     // Ключа нет в новой теме — не оставлять значение прежней.
     for (const QString &key : keys()) {
-        if (!values.contains(key) && key != QLatin1String("paletteSerial") && value(key).isValid())
+        if (!values.contains(key) && key != QLatin1String("paletteSerial") && key != QLatin1String("clientTitleBar") && value(key).isValid())
             clear(key);
     }
 }

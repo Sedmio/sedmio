@@ -44,6 +44,13 @@ ApplicationWindow {
 
     Shortcut { sequences: [StandardKey.Close, StandardKey.Quit]; onActivated: win.close() }
 
+    // Заголовка у окна нет: верх окна — за него (WindowDragArea), кнопки
+    // окна — справа вверху, вровень с названием раздела.
+    WindowDragArea {
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: 64
+    }
+
     Rectangle {
         id: sidebar
         anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
@@ -75,7 +82,9 @@ ApplicationWindow {
                         id: navIcon
                         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                         name: parent.modelData.icon
-                        size: 22
+                        size: 20
+                        symbolic: true
+                        color: parent.current ? Theme.green : Theme.inkSoft
                     }
                     SText {
                         anchors { left: navIcon.right; leftMargin: 10; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
@@ -112,6 +121,17 @@ ApplicationWindow {
                        : App.page === "updates" ? updatesPage
                        : App.page === "about" ? aboutPage
                        : displayPage
+        onLoaded: pageIn.restart()
+    }
+    // Новый раздел проявляется и чуть всплывает.
+    ParallelAnimation {
+        id: pageIn
+        NumberAnimation { target: page.item; property: "opacity"; from: 0; to: 1; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+        NumberAnimation { target: page.item; property: "y"; from: 12; to: 0; duration: Theme.animNormal; easing.type: Easing.OutCubic }
+    }
+
+    WindowControls {
+        anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 22 }
     }
 
     Component { id: displayPage; DisplayPage { displays: screens } }

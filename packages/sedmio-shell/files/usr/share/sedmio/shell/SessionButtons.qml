@@ -58,7 +58,7 @@ RowLayout {
             id: settingsRow
             anchors.centerIn: parent
             spacing: 8
-            SIcon { name: "configure" }
+            SIcon { name: "configure"; symbolic: true }
             SText { text: "Параметры"; size: 13; weight: 550 }
         }
         MouseArea {
@@ -99,6 +99,7 @@ RowLayout {
             SIcon {
                 anchors.centerIn: parent
                 name: action.modelData.icon
+                symbolic: true
                 light: action.asking
             }
             MouseArea {

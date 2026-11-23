@@ -20,7 +20,9 @@ Rectangle {
         id: glyph
         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
         name: root.icon
-        size: 22
+        size: 20
+        symbolic: true
+        color: root.current ? Theme.green : Theme.inkSoft
     }
     SText {
         anchors { left: glyph.right; leftMargin: 10; right: count.left; rightMargin: 8; verticalCenter: parent.verticalCenter }

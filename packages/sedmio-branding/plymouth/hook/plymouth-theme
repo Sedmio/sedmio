@@ -1,0 +1,13 @@
+#!/bin/sh
+# Тема Plymouth по умолчанию — sedmio, если стоит своя по умолчанию
+# пакета (bgrt) или не задана. Выбранную человеком не трогаем.
+# initramfs не пересобираем: тему в него кладёт хук mkinitcpio plymouth,
+# а пересборка — дело 90-mkinitcpio-install.hook (ядро, plymouth) или
+# установщика.
+command -v plymouth-set-default-theme >/dev/null || exit 0
+[ -f /usr/share/plymouth/themes/sedmio/sedmio.plymouth ] || exit 0
+current="$(plymouth-set-default-theme 2>/dev/null)"
+case "$current" in
+    ""|bgrt) plymouth-set-default-theme sedmio ;;
+esac
+exit 0

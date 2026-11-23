@@ -36,6 +36,7 @@ Rectangle {
 
         SIcon {
             name: root.icon
+            symbolic: true
             light: root.active
         }
 
@@ -83,6 +84,7 @@ Rectangle {
             anchors.centerIn: parent
             implicitSize: 16
             name: "go-next"
+            symbolic: true
             light: root.active
         }
         MouseArea {

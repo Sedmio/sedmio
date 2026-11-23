@@ -9,16 +9,18 @@
 
 pkgname=sedmio-settings
 pkgver=0.1.0
-pkgrel=34
+pkgrel=35
 pkgdesc="Sedmio: название системы, настройки KDE, раскладок, значков и приложений по умолчанию"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
 license=('MIT')
 depends=('kconfig' 'breeze-icons'  # kconfig: kreadconfig6 и kwriteconfig6 в kconf_update
+         'papirus-icon-theme'         # значки программ (тема sedmio наследует Papirus)
          'zram-generator')            # своп в сжатой памяти (usr/lib/systemd/zram-generator.conf)
 # Тема значков sedmio собирается из Breeze (icons/make-theme.py).
 makedepends=('python' 'breeze-icons')
-optdepends=('firefox: политики браузера из /etc/firefox/policies'
+optdepends=('darkly: стиль программ Qt (/etc/xdg/darklyrc, widgetStyle в kdeglobals)'
+            'firefox: политики браузера из /etc/firefox/policies'
             'sedmio-screenshot: снимки экрана по PrtSc и Win+Shift+S')
 # Название системы (os-release): см. sedmio-settings.install и хук
 # usr/share/libalpm/hooks/90-sedmio-os-release.hook

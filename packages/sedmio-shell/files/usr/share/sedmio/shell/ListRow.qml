@@ -35,7 +35,7 @@ Rectangle {
         height: 48
         spacing: 12
 
-        SIcon { name: root.icon; visible: root.icon !== "" }
+        SIcon { name: root.icon; visible: root.icon !== ""; symbolic: true }
 
         ColumnLayout {
             Layout.fillWidth: true
@@ -60,6 +60,7 @@ Rectangle {
             visible: root.trailingIcon !== ""
             implicitSize: 16
             name: root.trailingIcon
+            symbolic: true
         }
     }
 

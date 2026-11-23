@@ -154,7 +154,10 @@ Item {
                             id: rowIcon
                             anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                             implicitSize: 18
-                            source: row.modelData.icon ? Icons.path(row.modelData.icon, true) : ""
+                            // Действия — однотонными символами (Symbols), программы — своим значком.
+                            source: !row.modelData.icon ? ""
+                                  : Symbols.has(row.modelData.icon) ? Symbols.url(row.modelData.icon, Theme.inkSoft, 18)
+                                  : Icons.path(row.modelData.icon, true)
                         }
                         SText {
                             anchors { left: rowIcon.right; leftMargin: 10; right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }

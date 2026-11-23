@@ -1,0 +1,49 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Darkly — стиль чужих программ Qt (развитие Breeze: скругления, мягкие
+# тени, полупрозрачные меню) вместо Breeze. Цвета — наши: стиль берёт
+# схему из kdeglobals, а её пишет sedmio-theme-sync. Настройки по
+# умолчанию — /etc/xdg/darklyrc (sedmio-settings).
+#
+# В Arch его нет (только AUR), поэтому собираем сами. Основа — PKGBUILD
+# из AUR (darkly). Только Qt6: программ на Qt5 в системе нет.
+
+pkgname=darkly
+pkgver=0.5.45
+pkgrel=1
+pkgdesc='Fork of Lightly: a modern style for Qt applications (сборка Sedmio)'
+arch=('x86_64')
+url='https://github.com/Bali10050/Darkly'
+license=('GPL-2.0-or-later')
+depends=(
+  'kdecoration'
+  'qt6-declarative'
+  'kcoreaddons'
+  'kcmutils'
+  'kcolorscheme'
+  'kconfig'
+  'kguiaddons'
+  'kiconthemes'
+  'kwindowsystem'
+  'frameworkintegration'
+  'libplasma'
+)
+makedepends=('cmake' 'extra-cmake-modules')
+options=(!emptydirs)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('176ddd08c489ede1629023113fbd9c8e21c1a617bb434c465bdf2c2e56c236e4')
+
+build() {
+  cmake -B build -S "Darkly-$pkgver" -W no-dev \
+    -D CMAKE_BUILD_TYPE=Release \
+    -D CMAKE_INSTALL_PREFIX=/usr \
+    -D BUILD_TESTING=OFF \
+    -D BUILD_QT6=ON \
+    -D BUILD_QT5=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  rm -rf "$pkgdir/usr/lib/cmake"
+}

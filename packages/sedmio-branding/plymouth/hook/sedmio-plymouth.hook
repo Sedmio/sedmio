@@ -1,0 +1,14 @@
+# Заставка Sedmio — тема Plymouth по умолчанию (если её не меняли).
+# Раньше 90-mkinitcpio-install.hook: initramfs, если его пересобирают в
+# этой же транзакции (поставили plymouth или ядро), берёт уже её.
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = plymouth
+Target = sedmio-branding
+
+[Action]
+Description = Заставка загрузки Sedmio…
+When = PostTransaction
+Exec = /usr/lib/sedmio/plymouth-theme

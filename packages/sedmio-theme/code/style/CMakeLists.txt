@@ -5,9 +5,10 @@ qt_add_qml_module(sedmiostyle
     VERSION 1.0
     PLUGIN_TARGET sedmiostyle
     OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Sedmio/Style
-    SOURCES theme.cpp theme.h
+    SOURCES theme.cpp theme.h symbols.cpp symbols.h
+    QML_FILES WindowControls.qml WindowDragArea.qml
 )
-target_link_libraries(sedmiostyle PRIVATE Qt6::Qml sedmio-themedata)
+target_link_libraries(sedmiostyle PRIVATE Qt6::Qml Qt6::Quick sedmio-themedata)
 
 set(QML_DEST ${QT6_INSTALL_QML}/Sedmio/Style)
 install(TARGETS sedmiostyle LIBRARY DESTINATION ${QML_DEST})

@@ -37,6 +37,8 @@ BarButton {
         implicitSize: root.running.length > 0 ? Math.round(root.iconSize * 0.8) : root.iconSize
         Behavior on implicitSize { NumberAnimation { duration: Theme.animFast } }
         name: NotificationState.doNotDisturb ? "notifications-disabled" : "notifications"
+        symbolic: true
+        color: Theme.ink
     }
 
     // Кольцо хода операций

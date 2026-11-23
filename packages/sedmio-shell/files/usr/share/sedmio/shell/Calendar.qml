@@ -66,7 +66,7 @@ ColumnLayout {
                 implicitHeight: 30
                 radius: 10
                 color: arrowArea.containsMouse ? Theme.paperDeep : Qt.alpha(Theme.paperDeep, 0)
-                SIcon { anchors.centerIn: parent; implicitSize: 16; name: parent.modelData.icon }
+                SIcon { anchors.centerIn: parent; implicitSize: 16; name: parent.modelData.icon; symbolic: true }
                 MouseArea {
                     id: arrowArea
                     anchors.fill: parent
