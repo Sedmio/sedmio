@@ -31,8 +31,10 @@ Singleton {
     // модуль, чья. Буфер обмена — шторка модуля clipboard.
     property string panelScreen: ""
     property string panelModule: ""
-    // Меню быстрых ссылок (Win+X, QuickMenu.qml).
+    // Меню у знака Sedmio (Win+X) — часть "menu" модуля (быстрые ссылки).
     property string quickMenuScreen: ""
+    readonly property string menuModule: Modules.withPart("menu")[0] ?? ""
+    onMenuModuleChanged: if (menuModule === "" && quickMenuScreen !== "") closeAll(false)
 
     readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
         || centerScreen !== "" || panelScreen !== "" || quickMenuScreen !== ""
@@ -143,6 +145,7 @@ Singleton {
     }
 
     function openQuickMenu(screenName) {
+        if (menuModule === "") return;
         rememberFocus();
         launcherScreen = "";
         controlScreen = "";

@@ -1,0 +1,9 @@
+{
+    "name": "Быстрые ссылки",
+    "description": "Меню у знака Sedmio, как Win+X: Meta+X или правый клик по знаку. Параметры, диспетчер задач, терминал, «Выполнить», выход.",
+    "icon": "preferences-system",
+    "group": "Инструменты",
+    "order": 230,
+    "main": "Main.qml",
+    "menu": "Menu.qml"
+}

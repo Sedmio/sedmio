@@ -93,17 +93,6 @@ ShellRoot {
         function close(): void { ShellState.closeAll(); }
     }
 
-    // Меню быстрых ссылок: Meta+X (usr/share/kglobalaccel/sedmio-quickmenu.desktop).
-    IpcHandler {
-        target: "quickmenu"
-        function toggle(): void {
-            if (ShellState.quickMenuScreen !== "") ShellState.closeAll();
-            else ShellState.openQuickMenu(ShellState.focusedScreen());
-        }
-        function open(): void { ShellState.openQuickMenu(ShellState.focusedScreen()); }
-        function close(): void { ShellState.closeAll(); }
-    }
-
     // Программы на панели по номеру: Meta+1…9
     // (usr/share/kglobalaccel/sedmio-windows.desktop).
     IpcHandler {

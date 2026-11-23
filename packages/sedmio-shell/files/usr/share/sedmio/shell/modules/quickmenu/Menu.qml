@@ -1,9 +1,11 @@
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
+import qs
 import Sedmio.Style
 
-// Меню быстрых ссылок, как Win+X и правый клик по «Пуску» в Windows:
+// Меню быстрых ссылок (часть "menu"), как Win+X и правый клик по «Пуску»
+// в Windows:
 // параметры, диспетчер задач, терминал, «Выполнить», рабочий стол,
 // завершение работы. Открывают Meta+X (usr/share/kglobalaccel/
 // sedmio-quickmenu.desktop) и правый клик по знаку Sedmio на панели.

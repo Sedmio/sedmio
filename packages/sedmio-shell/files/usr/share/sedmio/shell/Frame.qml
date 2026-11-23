@@ -793,15 +793,16 @@ PanelWindow {
             visible: frame.osdProgress > 0
         }
 
-        // Меню Win+X — карточкой у знака Sedmio, поверх рамки.
-        QuickMenu {
+        // Меню Win+X — карточкой у знака Sedmio, поверх рамки. Часть
+        // "menu" модуля (ModulePart): open, screenName; размер — свой
+        // (implicitWidth, implicitHeight), сигнал closeRequested(bool).
+        ModulePart {
             id: quickMenu
-            open: frame.quickMenuOpen
-            screenName: frame.screenName
+            module: ShellState.menuModule
+            part: "menu"
+            props: ({ open: frame.quickMenuOpen, screenName: frame.screenName })
             x: frame.quickMenuX
             y: frame.quickMenuY
-            width: implicitWidth
-            height: implicitHeight
             opacity: frame.quickMenuOpen ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
@@ -834,7 +835,11 @@ PanelWindow {
                     }
                 }
             }
-            onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
+            Connections {
+                target: quickMenu.item
+                ignoreUnknownSignals: true
+                function onCloseRequested(restoreFocus) { ShellState.closeAll(restoreFocus); }
+            }
         }
 
         // Панели по макету.
