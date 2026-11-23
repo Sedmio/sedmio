@@ -169,7 +169,7 @@ def cmd_info(args):
         print(m["description"])
     print("Включён" if is_on(m, choices) else "Выключен", end="")
     print(", по умолчанию " + ("включён" if default_on(m) else "выключен"))
-    parts = [p for p in ("status", "screen", "main", "panel", "center", "popups", "tile", "menu") if m.get(p)]
+    parts = [p for p in ("status", "screen", "main", "panel", "center", "popups", "tile", "osd", "menu") if m.get(p)]
     if parts:
         print("Части оболочки: " + ", ".join(parts))
     if m.get("kwinScripts"):

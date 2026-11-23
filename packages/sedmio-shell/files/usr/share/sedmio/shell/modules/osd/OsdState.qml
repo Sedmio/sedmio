@@ -1,10 +1,12 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import qs
 
 // Что сейчас показывает всплывающий индикатор (громкость, яркость,
-// раскладка...). Запросы приходят от OsdServer (shell.qml): их шлют kded,
-// powerdevil и KWin — раньше они шли в plasmashell.
+// раскладка...). Запросы приходят от OsdServer (Main.qml): их шлют kded,
+// powerdevil и KWin — раньше они шли в plasmashell; и от самой оболочки
+// (ShellState.osdRequested: колесо над кнопкой громкости).
 Singleton {
     id: root
 

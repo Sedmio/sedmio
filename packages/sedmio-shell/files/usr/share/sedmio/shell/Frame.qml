@@ -173,7 +173,7 @@ PanelWindow {
         && ((popups.item ? popups.item.count : 0) > 0 || JobsState.popups.length > 0)
         && ShellState.centerScreen === ""
         && !(controlOpen && controlPlace === "topRight")
-    readonly property bool osdShown: OsdState.shown && isHere(OsdState.screenName)
+    readonly property bool osdShown: osd.item ? osd.item.shown : false
 
     // Справа сверху один выдвижной ящик: в нём либо всплывающие карточки,
     // либо центр уведомлений. Уведомления — модуль: карточки — его часть
@@ -191,7 +191,7 @@ PanelWindow {
             easing.bezierCurve: Motion.spring
         }
     }
-    property real osdWidth: osd.wantedWidth
+    property real osdWidth: osd.item ? osd.item.wantedWidth : 300
     Behavior on osdWidth { NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutCubic } }
     // С доком индикатор сверху: внизу док.
     readonly property bool osdOnTop: DesktopLayout.dock
@@ -782,8 +782,13 @@ PanelWindow {
             }
         }
 
-        Osd {
+        // Индикатор — часть "osd" модуля (ModulePart): screenName; отдаёт
+        // shown и wantedWidth.
+        ModulePart {
             id: osd
+            module: Modules.withPart("osd")[0] ?? ""
+            part: "osd"
+            props: ({ screenName: frame.screenName })
             width: frame.osdWidth
             height: 54
             x: hole.x + hole.width / 2 - width / 2

@@ -39,6 +39,10 @@ Singleton {
     readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
         || centerScreen !== "" || panelScreen !== "" || quickMenuScreen !== ""
 
+    // Показать индикатор (модуль osd, если включён): колесо над кнопкой
+    // громкости. Аргументы — как у OsdServer.progress.
+    signal osdRequested(string kind, string icon, int percent, int maximum, string label)
+
     // Сколько открыто меню и списков окон у кнопок панелей: пока открыты,
     // док не прячется (меню прикреплены к его кнопкам).
     property int panelMenus: 0

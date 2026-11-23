@@ -14,10 +14,10 @@ PanelWindow {
     // показывается, и visible от него зациклилось бы.
     required property string screenName
 
-    visible: ShellState.fullscreenOn(screenName) && OsdState.shown && OsdState.screenName === screenName
+    visible: ShellState.fullscreenOn(screenName) && osd.item !== null && osd.item.shown
     anchors.bottom: true
     margins.bottom: 56
-    implicitWidth: osd.wantedWidth
+    implicitWidth: osd.item ? osd.item.wantedWidth : 300
     implicitHeight: 54
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -33,8 +33,12 @@ PanelWindow {
         border.width: 1
         border.color: Theme.line
 
-        Osd {
+        // Часть "osd" модуля индикаторов.
+        ModulePart {
             id: osd
+            module: Modules.withPart("osd")[0] ?? ""
+            part: "osd"
+            props: ({ screenName: root.screenName })
             anchors.fill: parent
         }
     }

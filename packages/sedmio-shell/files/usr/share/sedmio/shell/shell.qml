@@ -4,7 +4,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Services.Kde
 
 ShellRoot {
     id: root
@@ -98,19 +97,6 @@ ShellRoot {
     IpcHandler {
         target: "windows"
         function activate(number: int): void { ShellState.activateGroup(number - 1); }
-    }
-
-    // Всплывающие индикаторы: служба org.kde.osdService вместо plasmashell.
-    // Её вызывают kded (клавиши громкости, плееры), powerdevil (яркость),
-    // KWin (раскладка).
-    OsdServer {
-        onProgress: (kind, icon, percent, maximum, label) => OsdState.progress(kind, icon, percent, maximum, label)
-        onMessage: (kind, icon, text) => {
-            if (kind === "powerProfile") OsdState.powerProfile(text);
-            else OsdState.message(kind, icon, text);
-        }
-        onToggled: (kind, enabled) => OsdState.toggled(kind, enabled)
-        onHideRequested: OsdState.hide()
     }
 
     // Окна паролей (администратор, Wi‑Fi, сопряжение Bluetooth) — не здесь,

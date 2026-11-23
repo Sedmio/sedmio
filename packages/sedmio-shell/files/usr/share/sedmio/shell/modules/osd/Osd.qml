@@ -1,12 +1,17 @@
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
+import qs
 import Sedmio.Style
 
-// Содержимое всплывающего индикатора: значок, полоса и проценты или
-// значок и подпись. Подложку рисует EdgeDrawerShape в слое рамки.
+// Содержимое всплывающего индикатора (часть "osd"): значок, полоса и
+// проценты или значок и подпись. Подложку рисует оболочка: в рамке —
+// EdgeDrawerShape, поверх окна во весь экран — FullscreenOsd. shown —
+// показать сейчас на этом экране (screenName).
 Item {
     id: root
+    property string screenName
+    readonly property bool shown: OsdState.shown && screenName !== "" && OsdState.screenName === screenName
     readonly property bool progress: OsdState.mode === "progress"
 
     // Ширина по содержимому: полосе нужно место, подписи — сколько займёт

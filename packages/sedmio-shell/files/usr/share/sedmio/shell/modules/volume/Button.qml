@@ -27,7 +27,7 @@ BarButton {
         if (!ready) return;
         const step = event.angleDelta.y > 0 ? 0.05 : -0.05;
         sink.audio.volume = Math.max(0, Math.min(1, Math.round((volume + step) * 20) / 20));
-        OsdState.progress("volume", "", Math.round(sink.audio.volume * 100), 100, "");
+        ShellState.osdRequested("volume", "", Math.round(sink.audio.volume * 100), 100, "");
     }
 
     SIcon {
