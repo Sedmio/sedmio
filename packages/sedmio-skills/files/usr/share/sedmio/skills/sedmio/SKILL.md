@@ -59,7 +59,8 @@ Win+PrtSc — весь экран, Alt+PrtSc — окно. Ctrl+Shift+Esc — д
 задач. Ctrl+Alt+Del — выход/выключение. Alt+Tab — переключение окон,
 Win+Tab — обзор. Win+↑/↓ — развернуть/свернуть, Win+M — свернуть все,
 Win+Ctrl+D — новый рабочий стол. Раскладка us/ru — Alt+Shift (и
-Win+Пробел). Менять клавиши — «Параметры» → «Клавиатура».
+Win+Пробел). Клавиши переключения раскладки — «Параметры» →
+«Клавиатура»; своего редактора остальных клавиш в «Параметрах» нет.
 
 ## Команды
 
@@ -69,8 +70,10 @@ Win+Пробел). Менять клавиши — «Параметры» → «
 - `quickshell ipc -p /usr/share/sedmio/shell call <цель> <функция>` —
   команды оболочке: `launcher toggle`, `control openSection network`,
   `layout reload`, `shell reload`…
-- Снимки системы: `/usr/lib/sedmio/update-snapshots` (список),
-  `pkexec /usr/lib/sedmio/update-helper create|delete|restore <id>`.
+- Снимки системы: список — `pkexec /usr/lib/sedmio/update-snapshots`
+  (без пароля); `pkexec /usr/lib/sedmio/update-helper create "заметка"`,
+  `… delete <id>`, `… restore <id>`. Пока работает pacman, создать и
+  вернуть снимок нельзя — подождать.
 
 ## Обновления и снимки
 
@@ -79,8 +82,9 @@ Win+Пробел). Менять клавиши — «Параметры» → «
 «Параметры» → «Обновление» → снимок → вернуть; действует после
 перезагрузки, текущее состояние само становится снимком. Загрузились в
 снимок и всё хорошо — там же «Оставить эту версию». Если система не
-загружается — в меню загрузки пункт предыдущей версии. Ход обновления —
-`/run/sedmio-update/upgrade.log`.
+загружается — в меню загрузки пункт предыдущей версии. Журнал обновления кнопкой
+«Обновить» — `/run/sedmio-update/upgrade.log` (у `pacman -Syu` в
+терминале — его собственный вывод и `/var/log/pacman.log`).
 
 ## Сбои и журналы
 
@@ -101,7 +105,8 @@ Win+Пробел). Менять клавиши — «Параметры» → «
   sedmio-agents`.
 - Свои окна выбора файлов не нравятся или сломались — окна KDE одному
   пользователю: скопировать `/etc/xdg/xdg-desktop-portal/kde-portals.conf`
-  в `~/.config/xdg-desktop-portal/` без строк `FileChooser=` и
-  `AppChooser=`.
+  в `~/.config/xdg-desktop-portal/` без строк
+  `org.freedesktop.impl.portal.FileChooser=` и `…AppChooser=`, затем
+  перезайти.
 - Мало места или памяти — система предупреждает сама (уведомления).
   Что ест память — диспетчер задач (Ctrl+Shift+Esc).

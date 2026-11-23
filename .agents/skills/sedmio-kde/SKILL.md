@@ -79,7 +79,8 @@ kded, powerdevil, порталы. Всё видимое — своё. Решен
 ## Порталы
 
 - Выбор файла и «Открыть с помощью» — наш портал (`sedmio-files
-  --portal`), строки `FileChooser=sedmio;kde`, `AppChooser=sedmio;kde` в
+  --portal`), строки `org.freedesktop.impl.portal.FileChooser=sedmio;kde` и
+  `…AppChooser=sedmio;kde` в
   `/etc/xdg/xdg-desktop-portal/kde-portals.conf` (копия файла
   plasma-workspace — после его обновления сверять). Qt/KDE-программы
   идут в портал с `PLASMA_INTEGRATION_USE_PORTAL=1`, GTK3 — с
