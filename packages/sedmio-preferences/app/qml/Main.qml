@@ -49,7 +49,7 @@ ApplicationWindow {
     // окна — справа вверху, вровень с названием раздела.
     WindowDragArea {
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: 64
+        height: 48
     }
 
     Rectangle {
@@ -59,7 +59,7 @@ ApplicationWindow {
         color: Theme.paperDeep
 
         Column {
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10; topMargin: 16 }
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10; topMargin: 12 }
             spacing: 2
 
             SText {
@@ -132,8 +132,9 @@ ApplicationWindow {
         NumberAnimation { target: page.item; property: "y"; from: 12; to: 0; duration: Theme.animNormal; easing.type: Easing.OutCubic }
     }
 
+    // Вровень с названием раздела (Page: y 10, высота строки 32).
     WindowControls {
-        anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 22 }
+        anchors { right: parent.right; rightMargin: 8; top: parent.top; topMargin: 12 }
     }
 
     Component { id: displayPage; DisplayPage { displays: screens } }

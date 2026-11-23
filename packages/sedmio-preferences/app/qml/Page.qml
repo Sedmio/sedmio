@@ -23,7 +23,7 @@ Item {
     SText {
         id: heading
         x: 32
-        y: 22
+        y: 10
         text: root.title
         size: 24
         weight: 650
@@ -31,7 +31,7 @@ Item {
 
     Flickable {
         id: flick
-        anchors { left: parent.left; right: parent.right; top: heading.bottom; topMargin: 16; bottom: footerSlot.top }
+        anchors { left: parent.left; right: parent.right; top: heading.bottom; topMargin: 10; bottom: footerSlot.top }
         contentHeight: column.height + 32
         clip: true
         boundsBehavior: Flickable.StopAtBounds
