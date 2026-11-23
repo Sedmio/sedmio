@@ -1,6 +1,7 @@
 #!/bin/sh
 # Снимки экрана как в Windows 11 («Ножницы»). Снимок сразу в буфере обмена
-# и в папке «Изображения/Снимки экрана», в уведомлении — миниатюра.
+# и в папке «Изображения/Снимки экрана», в уведомлении — миниатюра; щелчок
+# по нему — редактор снимков (sedmio-screenshot-editor: пометки, обрезка).
 #
 #   screenshot          PrtSc, Win+Shift+S: «Ножницы» оболочки — экран
 #                       замирает, выделить область мышью, сверху — режимы
@@ -37,7 +38,8 @@ run() { # программа в своей группе systemd (как из м�
   if [ -x /usr/lib/sedmio/launch ]; then /usr/lib/sedmio/launch "" "$@"; else "$@"; fi
 }
 
-# Готовый снимок: в буфер обмена, уведомление с миниатюрой.
+# Готовый снимок: в буфер обмена, уведомление с миниатюрой. Щелчок по
+# уведомлению или «Изменить» — редактор снимков; его нет — просмотрщик.
 done_shot() { # файл
   file=$1
   wl-copy --type image/png < "$file" >/dev/null 2>&1
@@ -46,10 +48,15 @@ done_shot() { # файл
   (
     action=$(notify-send --app-name="Снимок экрана" --icon=accessories-screenshot-tool \
       --hint="string:image-path:file://$file" --hint=string:desktop-entry:sedmio-capture \
-      --action=default=Открыть --action=folder="Открыть папку" --wait \
+      --action=default=Изменить --action=edit=Изменить --action=folder="Открыть папку" --wait \
       "Снимок экрана сохранён" "Он в буфере обмена — можно вставить. Файл — в папке «$(basename -- "$dir")».")
     case "$action" in
-      default) run xdg-open "$file" ;;
+      default|edit)
+        if command -v sedmio-screenshot-editor >/dev/null 2>&1; then
+          run sedmio-screenshot-editor "$file"
+        else
+          run xdg-open "$file"
+        fi ;;
       folder) run xdg-open "$dir" ;;
     esac
   ) </dev/null >/dev/null 2>&1 &

@@ -1,0 +1,15 @@
+# Редактор снимков «Ножниц». Открывается из уведомления о снимке
+# («Изменить», /usr/lib/sedmio/screenshot) — в меню его нет: без снимка
+# в нём делать нечего.
+[Desktop Entry]
+Type=Application
+Name=Screenshot editor
+Name[ru]=Ножницы — редактор снимков
+Comment=Draw on a screenshot, hide private details, crop
+Comment[ru]=Пометки на снимке экрана: перо, стрелки, текст, скрыть, обрезка
+Icon=accessories-screenshot-tool
+Exec=sedmio-screenshot-editor %f
+Terminal=false
+NoDisplay=true
+Categories=Qt;Graphics;
+StartupNotify=true

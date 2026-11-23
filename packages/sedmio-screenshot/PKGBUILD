@@ -5,20 +5,24 @@
 # usr/share/applications/sedmio-capture.desktop) и вырезает область.
 # Вид — в оболочке (sedmio-shell: ScreenshotOverlay, ScreenshotState),
 # клавиши PrtSc, Win+Shift+S, Win+PrtSc, Alt+PrtSc — /usr/lib/sedmio/screenshot
-# (sedmio-settings). Spectacle в системе нет: ни редактора снимков, ни
-# записи экрана пока нет.
+# (sedmio-settings). Редактор снимков — sedmio-screenshot-editor (app/editor.cpp,
+# app/qml): пометки, скрыть, обрезка; открывает уведомление о снимке.
+# Spectacle в системе нет, записи экрана пока нет.
 #
 # Исходники — app/ рядом с этим файлом (src/ занята makepkg).
 
 pkgname=sedmio-screenshot
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 pkgdesc="Sedmio: снимки экрана"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"
 license=('MIT')
 depends=(
   'qt6-base'
+  'qt6-declarative'  # редактор снимков
+  # Шрифт и цвета редактора (sedmio-theme, модуль Sedmio.Style) не вписаны —
+  # как у sedmio-tasks: их тянет sedmio-base.
   'kwin'          # снимает он (ScreenShot2)
   'wl-clipboard'  # снимок — в буфер обмена (wl-copy)
   'libnotify'     # уведомление с кнопками (notify-send)

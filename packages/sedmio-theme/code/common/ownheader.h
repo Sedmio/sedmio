@@ -24,6 +24,7 @@ inline bool drawsOwnHeader(const QString &windowClass)
         QStringLiteral("sedmio-store"),
         QStringLiteral("sedmio-files"),
         QStringLiteral("sedmio-tasks"),
+        QStringLiteral("sedmio-screenshot-editor"),
     };
     // У KWin это «имя_файла app_id».
     const QStringList parts = windowClass.split(QLatin1Char(' '), Qt::SkipEmptyParts);
