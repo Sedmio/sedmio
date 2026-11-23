@@ -11,8 +11,8 @@
 
 #include <QBuffer>
 #include <QDir>
+#include <QApplication>
 #include <QFileInfo>
-#include <QGuiApplication>
 #include <QIcon>
 #include <QImage>
 #include <QImageWriter>
@@ -140,7 +140,10 @@ void Editor::openFolder() const
 
 int main(int argc, char *argv[])
 {
-    QGuiApplication app(argc, argv);
+    // QApplication, а не QGuiApplication: «Сохранить как» — окно выбора
+    // файла Sedmio через портал (тема KDE даёт его только программам на
+    // виджетах), иначе — запасное окно Qt без перевода.
+    QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("sedmio-screenshot-editor"));
     app.setApplicationDisplayName(QStringLiteral("Ножницы"));
     app.setOrganizationName(QStringLiteral("sedmio"));

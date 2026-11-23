@@ -9,7 +9,7 @@
 #include <QDBusMessage>
 
 #include <QDir>
-#include <QGuiApplication>
+#include <QApplication>
 #include <QIcon>
 #include <QNetworkAccessManager>
 #include <QNetworkDiskCache>
@@ -77,7 +77,10 @@ public:
 
 int main(int argc, char *argv[])
 {
-    QGuiApplication app(argc, argv);
+    // QApplication, а не QGuiApplication: «Выбрать файл…» — окно выбора
+    // файла Sedmio через портал (тема KDE даёт его только программам на
+    // виджетах), иначе — запасное окно Qt без перевода.
+    QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("sedmio-store"));
     app.setApplicationDisplayName(QStringLiteral("Программы"));
     app.setOrganizationName(QStringLiteral("sedmio"));

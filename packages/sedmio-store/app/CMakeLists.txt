@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # GLib (libflatpak, appstream) называет поле «signals» — без ключевых слов Qt.
 add_compile_definitions(QT_NO_KEYWORDS)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core DBus Gui Network Quick QuickControls2)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core DBus Gui Widgets Network Quick QuickControls2)
 # Поднять уже открытое окно (токен активации Wayland).
 find_package(KF6WindowSystem 6.10 REQUIRED)
 # Открыть установленную программу по её .desktop.
@@ -69,6 +69,7 @@ qt_add_qml_module(sedmio-store
 
 target_link_libraries(sedmio-store PRIVATE
     Qt6::DBus
+    Qt6::Widgets
     Qt6::Network
     Qt6::Quick
     Qt6::QuickControls2

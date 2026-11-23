@@ -73,6 +73,18 @@ Rectangle {
         else NotificationState.remove(notification);
     }
 
+    // Нажали действие (null — просто карточку): программа откроется,
+    // уведомление закрыть. Уведомление без resident сервер закрывает сам
+    // прямо в invoke(), и карточка уходит вместе с ним — после invoke()
+    // только локальные ссылки, второй раз не закрывать (tracked = false).
+    function run(action) {
+        const n = notification;
+        if (!n) return;
+        activated();
+        if (action) action.invoke();
+        if (n.tracked) n.dismiss();
+    }
+
     Timer {
         // -1 — на усмотрение сервера: 6 секунд; 0 — не прятать.
         interval: card.info.expireTimeout > 0 ? card.info.expireTimeout : 6000
@@ -84,12 +96,7 @@ Rectangle {
         id: hover
         anchors.fill: parent
         hoverEnabled: true
-        onClicked: {
-            if (!card.notification) return;
-            if (card.defaultAction) card.defaultAction.invoke();
-            card.notification.dismiss();
-            card.activated();
-        }
+        onClicked: card.run(card.defaultAction)
     }
 
     ColumnLayout {
@@ -209,12 +216,7 @@ Rectangle {
                         id: actionArea
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: {
-                            if (!card.notification) return;
-                            parent.modelData.invoke();
-                            card.notification.dismiss();
-                            card.activated();
-                        }
+                        onClicked: card.run(parent.modelData)
                     }
                 }
             }
