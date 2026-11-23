@@ -107,10 +107,13 @@ Singleton {
     //   quickshell ipc -p /usr/share/sedmio/shell call modules reload
     function reload() { choicesFile.reload(); }
 
+    Component.onCompleted: apply(choicesFile.text())
+
     FileView {
         id: choicesFile
         path: root.path
         printErrors: false   // файла нет, пока ничего не переключали
+        blockLoading: true   // выключенные кнопки не мелькают при запуске
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root.apply(text())

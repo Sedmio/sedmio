@@ -78,10 +78,20 @@ Singleton {
         custom = c;
     }
 
+    // text() с blockLoading ждёт, пока файл прочитается; нет файла — "".
+    Component.onCompleted: apply(file.text())
+
     FileView {
         id: file
         path: root.path
         printErrors: false   // файла нет, пока макет не выбирали
+        // Читается сразу (blockLoading) и применяется при создании
+        // (Component.onCompleted ниже), до первых окон: сигнал loaded
+        // приходит позже, окна успевали создаться с макетом "left" по
+        // умолчанию, и его зоны (Exclusions) оставались в KWin — сброс
+        // левой и правой в 0 сразу после создания окна терялся, у окон
+        // было пустое место слева.
+        blockLoading: true
         watchChanges: true
         onFileChanged: reload()
         onLoaded: root.apply(text())

@@ -38,9 +38,9 @@ PanelWindow {
     readonly property bool launcherOpen: isHere(ShellState.launcherScreen)
     readonly property bool controlOpen: isHere(ShellState.controlScreen)
     readonly property bool historyOpen: isHere(ShellState.notificationsScreen)
-    readonly property bool clipboardOpen: isHere(ShellState.clipboardScreen)
+    readonly property bool panelOpen: isHere(ShellState.panelScreen)
     readonly property bool quickMenuOpen: isHere(ShellState.quickMenuScreen)
-    readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen || clipboardOpen || quickMenuOpen
+    readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen || panelOpen || quickMenuOpen
 
     // ── Док ─────────────────────────────────────────────────────────────
     // Прячется, пока на этом экране развёрнуто окно (или во весь экран):
@@ -139,20 +139,27 @@ PanelWindow {
     readonly property real controlY: controlPlace === "bottomLeft"
         ? frame.height - DesktopLayout.insetBottom - controlHeight : DesktopLayout.insetTop
 
-    // ── Буфер обмена: выезжает из верхней полосы посередине ─────────────
-    property real clipboardProgress: clipboardOpen ? 1 : 0
-    Behavior on clipboardProgress {
+    // ── Шторка модуля (буфер обмена): из верхней полосы посередине ──────
+    property real panelProgress: panelOpen ? 1 : 0
+    Behavior on panelProgress {
         NumberAnimation {
             // Выезжает с пружинкой, уезжает быстро и без неё.
-            duration: frame.clipboardOpen ? Motion.springDuration : Theme.animFast + 40
-            easing.type: frame.clipboardOpen ? Easing.BezierSpline : Easing.InCubic
+            duration: frame.panelOpen ? Motion.springDuration : Theme.animFast + 40
+            easing.type: frame.panelOpen ? Easing.BezierSpline : Easing.InCubic
             easing.bezierCurve: Motion.spring
         }
     }
-    readonly property real clipboardWidth: Math.min(580, hole.width - 120)
-    property real clipboardHeight: clipboard.wantedHeight + 28
-    Behavior on clipboardHeight {
-        enabled: frame.clipboardProgress === 1
+    // Модуль шторки: последний открытый — пока она уезжает, в ней то же.
+    property string panelModule: ""
+    Connections {
+        target: ShellState
+        function onPanelModuleChanged() { if (ShellState.panelModule !== "") frame.panelModule = ShellState.panelModule; }
+    }
+    Component.onCompleted: panelModule = ShellState.panelModule
+    readonly property real panelWidth: Math.min(Modules.manifests[panelModule]?.panelWidth ?? 580, hole.width - 120)
+    property real panelHeight: (panel.item ? panel.item.wantedHeight : 0) + 28
+    Behavior on panelHeight {
+        enabled: frame.panelProgress === 1
         NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic }
     }
 
@@ -262,13 +269,13 @@ PanelWindow {
             height: frame.notificationsHeight > 0.5 ? frame.notificationsHeight : 0
             bottomLeftRadius: Theme.frameRadius
         }
-        // Буфер обмена.
+        // Шторка модуля (буфер обмена).
         Region {
-            readonly property real h: frame.clipboardHeight * frame.clipboardProgress
+            readonly property real h: frame.panelHeight * frame.panelProgress
             intersection: Intersection.Combine
-            x: hole.x + hole.width / 2 - frame.clipboardWidth / 2
+            x: hole.x + hole.width / 2 - frame.panelWidth / 2
             y: DesktopLayout.insetTop
-            width: h > 0.5 ? frame.clipboardWidth : 0
+            width: h > 0.5 ? frame.panelWidth : 0
             height: h > 0.5 ? h : 0
             bottomLeftRadius: Theme.frameRadius
             bottomRightRadius: Theme.frameRadius
@@ -368,15 +375,15 @@ PanelWindow {
             cx: sx + f; cy: sy + f
         }
         ShoulderRegion {
-            readonly property real h: frame.clipboardHeight * frame.clipboardProgress
+            readonly property real h: frame.panelHeight * frame.panelProgress
             f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
-            sx: hole.x + hole.width / 2 - frame.clipboardWidth / 2 - f; sy: DesktopLayout.insetTop
+            sx: hole.x + hole.width / 2 - frame.panelWidth / 2 - f; sy: DesktopLayout.insetTop
             cx: sx; cy: sy + f
         }
         ShoulderRegion {
-            readonly property real h: frame.clipboardHeight * frame.clipboardProgress
+            readonly property real h: frame.panelHeight * frame.panelProgress
             f: h > 0.5 ? Math.min(Theme.frameRadius, h) : 0
-            sx: hole.x + hole.width / 2 + frame.clipboardWidth / 2; sy: DesktopLayout.insetTop
+            sx: hole.x + hole.width / 2 + frame.panelWidth / 2; sy: DesktopLayout.insetTop
             cx: sx + f; cy: sy + f
         }
         // Индикатор — EdgeDrawerShape снизу (с доком — отражённый к верху).
@@ -458,11 +465,11 @@ PanelWindow {
             height: frame.controlHeight
         }
         MouseArea {
-            visible: frame.clipboardOpen
-            x: hole.x + hole.width / 2 - frame.clipboardWidth / 2
+            visible: frame.panelOpen
+            x: hole.x + hole.width / 2 - frame.panelWidth / 2
             y: DesktopLayout.insetTop
-            width: frame.clipboardWidth
-            height: frame.clipboardHeight
+            width: frame.panelWidth
+            height: frame.panelHeight
         }
         MouseArea {
             visible: frame.quickMenuOpen
@@ -634,7 +641,7 @@ PanelWindow {
                 }
             }
 
-            // Буфер обмена: та же форма, что у индикатора, отражённая к верху.
+            // Шторка модуля (буфер обмена): та же форма, что у индикатора, отражённая к верху.
             Item {
                 anchors.fill: parent
                 transform: Scale { yScale: -1; origin.y: frame.height / 2 }
@@ -642,8 +649,8 @@ PanelWindow {
                 EdgeDrawerShape {
                     centerX: hole.x + hole.width / 2
                     edgeY: frame.height - DesktopLayout.insetTop
-                    drawerWidth: frame.clipboardWidth
-                    drawerHeight: frame.clipboardHeight * frame.clipboardProgress
+                    drawerWidth: frame.panelWidth
+                    drawerHeight: frame.panelHeight * frame.panelProgress
                 }
             }
 
@@ -692,19 +699,26 @@ PanelWindow {
             onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
         }
 
-        ClipboardPanel {
-            id: clipboard
-            open: frame.clipboardOpen
-            x: hole.x + hole.width / 2 - frame.clipboardWidth / 2 + 14
+        // Содержимое шторки — часть "panel" модуля (ModulePart): open,
+        // maxHeight, wantedHeight, сигнал closeRequested(bool).
+        ModulePart {
+            id: panel
+            module: frame.panelModule
+            part: "panel"
+            props: ({ open: frame.panelOpen, maxHeight: Math.min(640, hole.height - 120) })
+            x: hole.x + hole.width / 2 - frame.panelWidth / 2 + 14
             y: DesktopLayout.insetTop + 14
-            width: frame.clipboardWidth - 28
-            height: frame.clipboardHeight - 28
-            maxHeight: Math.min(640, hole.height - 120)
+            width: frame.panelWidth - 28
+            height: frame.panelHeight - 28
             clip: true
-            opacity: Math.max(0, frame.clipboardProgress * 2 - 1)
-            visible: frame.clipboardProgress > 0
-            transform: Translate { y: (1 - frame.clipboardProgress) * -24 }
-            onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
+            opacity: Math.max(0, frame.panelProgress * 2 - 1)
+            visible: frame.panelProgress > 0
+            transform: Translate { y: (1 - frame.panelProgress) * -24 }
+            Connections {
+                target: panel.item
+                ignoreUnknownSignals: true
+                function onCloseRequested(restoreFocus) { ShellState.closeAll(restoreFocus); }
+            }
         }
 
         NotificationCenter {

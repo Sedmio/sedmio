@@ -105,17 +105,6 @@ ShellRoot {
         function clear(): void { NotificationState.clearAll(); }
     }
 
-    // История буфера обмена: Meta+V (usr/share/kglobalaccel/sedmio-clipboard.desktop).
-    IpcHandler {
-        target: "clipboard"
-        function toggle(): void {
-            if (ShellState.clipboardScreen !== "") ShellState.closeAll();
-            else ShellState.openClipboard(ShellState.focusedScreen());
-        }
-        function open(): void { ShellState.openClipboard(ShellState.focusedScreen()); }
-        function close(): void { ShellState.closeAll(); }
-    }
-
     // Меню быстрых ссылок: Meta+X (usr/share/kglobalaccel/sedmio-quickmenu.desktop).
     IpcHandler {
         target: "quickmenu"
@@ -155,12 +144,11 @@ ShellRoot {
     // plasma-nm, просьба о пожертвованиях), не загружаются вовсе —
     // /etc/xdg/kded5rc. Выгружать их на ходу нельзя: kded6 от этого падает.
 
-    // Сервер уведомлений живёт в NotificationState, движок буфера обмена —
-    // в ClipboardState, сервер заданий (ход копирования файлов) — в JobsState;
-    // обращение запускает их сразу, а не при первом показе.
+    // Сервер уведомлений живёт в NotificationState, сервер заданий (ход
+    // копирования файлов) — в JobsState; обращение запускает их сразу, а не
+    // при первом показе. Движок буфера обмена — в модуле clipboard.
     Component.onCompleted: {
         NotificationState.popups;
-        ClipboardState.count;
         JobsState.active;
     }
 

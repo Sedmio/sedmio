@@ -38,6 +38,7 @@ Page {
                     required property int index
                     label: entry.name
                     hint: entry.description
+                        + (entry.restartOnDisable && entry.enabled ? " Выключение на секунду перезапустит панель." : "")
                     last: index === group.modelData.model.count - 1
                     SSwitch {
                         checked: row.entry.enabled

@@ -12,7 +12,9 @@
 (поля — README.md там же). Решения пользователя — ~/.config/sedmio/modules,
 строки «<имя>=on|off»; строки нет — как сказано в module.json ("default").
 Оболочка перечитывает файл сразу; скрипты KWin модуля ("kwinScripts")
-включаются и выключаются здесь же, тоже на ходу.
+включаются и выключаются здесь же, тоже на ходу. Модуль, который можно
+остановить только вместе с оболочкой ("restartOnDisable", движок буфера
+обмена), при выключении перезапускает её.
 """
 
 import json
@@ -122,6 +124,10 @@ def notify_shell():
     run("quickshell", "ipc", "-p", SHELL_DIR, "call", "modules", "reload")
 
 
+def restart_shell():
+    run("systemctl", "--user", "try-restart", "sedmio-shell.service")
+
+
 def as_json(m, choices):
     return {
         "id": m["id"],
@@ -131,6 +137,7 @@ def as_json(m, choices):
         "group": m.get("group", ""),
         "enabled": is_on(m, choices),
         "default": default_on(m),
+        "restartOnDisable": m.get("restartOnDisable") is True,
     }
 
 
@@ -162,11 +169,13 @@ def cmd_info(args):
         print(m["description"])
     print("Включён" if is_on(m, choices) else "Выключен", end="")
     print(", по умолчанию " + ("включён" if default_on(m) else "выключен"))
-    parts = [p for p in ("status", "screen", "main") if m.get(p)]
+    parts = [p for p in ("status", "screen", "main", "panel") if m.get(p)]
     if parts:
         print("Части оболочки: " + ", ".join(parts))
     if m.get("kwinScripts"):
         print("Скрипты KWin: " + ", ".join(m["kwinScripts"]))
+    if m.get("restartOnDisable") is True:
+        print("Выключение перезапускает оболочку")
 
 
 def cmd_switch(args, value):
@@ -190,7 +199,10 @@ def cmd_switch(args, value):
     write_choices(choices)
     for m, on in changed:
         apply_kwin(m, on)
-    notify_shell()
+    if any(not on and m.get("restartOnDisable") is True for m, on in changed):
+        restart_shell()
+    else:
+        notify_shell()
 
 
 def main(argv):

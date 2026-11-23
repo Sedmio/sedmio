@@ -23,12 +23,15 @@ Singleton {
     // в Пуске.
     property string controlSection: "calendar"
     property string notificationsScreen: ""
-    property string clipboardScreen: ""
+    // Шторка модуля сверху посередине (часть "panel", Frame): экран и
+    // модуль, чья. Буфер обмена — шторка модуля clipboard.
+    property string panelScreen: ""
+    property string panelModule: ""
     // Меню быстрых ссылок (Win+X, QuickMenu.qml).
     property string quickMenuScreen: ""
 
     readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
-        || notificationsScreen !== "" || clipboardScreen !== "" || quickMenuScreen !== ""
+        || notificationsScreen !== "" || panelScreen !== "" || quickMenuScreen !== ""
 
     // Сколько открыто меню и списков окон у кнопок панелей: пока открыты,
     // док не прячется (меню прикреплены к его кнопкам).
@@ -69,7 +72,7 @@ Singleton {
         quickMenuScreen = "";
         controlScreen = "";
         notificationsScreen = "";
-        clipboardScreen = "";
+        panelScreen = "";
         launcherScreen = screenName;
     }
 
@@ -85,7 +88,7 @@ Singleton {
         quickMenuScreen = "";
         launcherScreen = "";
         notificationsScreen = "";
-        clipboardScreen = "";
+        panelScreen = "";
         controlSection = section;
         controlScreen = screenName;
     }
@@ -104,24 +107,31 @@ Singleton {
         quickMenuScreen = "";
         launcherScreen = "";
         controlScreen = "";
-        clipboardScreen = "";
+        panelScreen = "";
         notificationsScreen = screenName;
         NotificationState.markRead();
     }
 
-    function toggleClipboard(screenName) {
-        if (clipboardScreen === screenName) closeAll();
-        else openClipboard(screenName);
+    // Шторка модуля: та же шторка того же модуля — закрыть.
+    function togglePanel(screenName, module) {
+        if (panelScreen === screenName && panelModule === module) closeAll();
+        else openPanel(screenName, module);
     }
 
-    function openClipboard(screenName) {
+    function openPanel(screenName, module) {
+        if (!Modules.on(module)) return;
         rememberFocus();
         quickMenuScreen = "";
         launcherScreen = "";
         controlScreen = "";
         notificationsScreen = "";
-        clipboardScreen = screenName;
+        panelModule = module;
+        panelScreen = screenName;
     }
+
+    // Модуль со шторкой выключили, пока она открыта, — закрыть.
+    readonly property bool panelModuleOn: panelModule === "" || Modules.on(panelModule)
+    onPanelModuleOnChanged: if (!panelModuleOn && panelScreen !== "") closeAll(false)
 
     function toggleQuickMenu(screenName) {
         if (quickMenuScreen === screenName) closeAll();
@@ -133,7 +143,7 @@ Singleton {
         launcherScreen = "";
         controlScreen = "";
         notificationsScreen = "";
-        clipboardScreen = "";
+        panelScreen = "";
         quickMenuScreen = screenName;
     }
 
@@ -143,7 +153,7 @@ Singleton {
         launcherScreen = "";
         controlScreen = "";
         notificationsScreen = "";
-        clipboardScreen = "";
+        panelScreen = "";
         quickMenuScreen = "";
         if (restoreFocus !== false && windowBefore) windowBefore.activate();
         windowBefore = null;
