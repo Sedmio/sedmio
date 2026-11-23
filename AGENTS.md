@@ -30,6 +30,7 @@ packages/<пакет>/     PKGBUILD + files/ (как в системе) или a
   sedmio-store/         «Программы»: Arch, Flathub, AUR, AppImage
   sedmio-screenshot/    «Ножницы»: снимок у KWin и редактор
   sedmio-tasks/         диспетчер задач
+  sedmio-skills/        навыки для нейронки пользователя на установленной системе
   sedmio-base/          метапакет: состав системы
   quickshell/, calamares/, plasma-*, …  свои сборки чужих проектов с патчами
 iso/                  дополнения к профилю archiso

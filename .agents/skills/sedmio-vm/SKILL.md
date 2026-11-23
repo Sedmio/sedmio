@@ -73,6 +73,9 @@ scripts/vm-input.py type hello.png
 
 ## Ловушки
 
+- `vm-exec.sh 'systemctl reboot'` не возвращается (агент уходит вместе с
+  системой, а скрипт ждёт ответа): `timeout 20 scripts/vm-exec.sh
+  'systemctl reboot'`, потом ждать `vm-exec.sh true`.
 - `pkill -f путь` и `pgrep -f` внутри vm-exec находят саму команду
   (путь есть в её строке). Только `pkill -x имя` / `pgrep -x`
   (имя до 15 символов). То же на хосте в циклах ожидания.

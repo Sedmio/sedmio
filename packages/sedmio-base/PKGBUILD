@@ -8,7 +8,7 @@
 
 pkgname=sedmio-base
 pkgver=0.1.0
-pkgrel=24
+pkgrel=25
 pkgdesc="Sedmio: состав системы"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
@@ -52,6 +52,7 @@ depends=(
   'sedmio-screenshot'       # снимки экрана («Ножницы»: PrtSc, Win+Shift+S)
   'sedmio-update'           # обновления и снимки системы btrfs («Параметры» → «Обновление»)
   'sedmio-store'            # «Программы»: магазин (Arch, Flathub, AUR)
+  'sedmio-skills'           # навыки для нейронок: как устроена Sedmio и как её менять
   'ghostty'                 # терминал (настройки — /etc/skel/.config/ghostty, тема — sedmio-settings)
   'ark'
   'firefox'

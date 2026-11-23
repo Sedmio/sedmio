@@ -1,0 +1,12 @@
+# Навыки Sedmio для нейронок — ссылками в ~/.claude/skills и
+# ~/.agents/skills (/usr/lib/sedmio/skills-link). При каждом входе: новые
+# навыки из обновлений появляются сами. Включена для всех пользователей
+# ссылкой в sedmio-session.target.wants (PKGBUILD).
+[Unit]
+Description=Sedmio: навыки для нейронок
+After=sedmio-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/sedmio/skills-link
+Slice=background.slice

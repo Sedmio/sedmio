@@ -1,0 +1,38 @@
+#!/bin/sh
+# Навыки Sedmio для нейронок пользователя (/usr/share/sedmio/skills) —
+# ссылками в папки навыков: ~/.claude/skills (Claude Code) и
+# ~/.agents/skills (общая папка для других агентов). Запускает служба
+# sedmio-skills.service при входе.
+#
+# Чужое не трогаем: на месте навыка уже лежит что-то не наше — оставляем.
+# Навык из пакета убрали — его ссылку убираем. Не нужны вовсе — первая
+# строка ~/.config/sedmio/skills «off»: наши ссылки убираются и больше не
+# ставятся.
+
+src=/usr/share/sedmio/skills
+
+off=0
+choice="${XDG_CONFIG_HOME:-$HOME/.config}/sedmio/skills"
+[ -f "$choice" ] && [ "$(head -n1 "$choice")" = off ] && off=1
+
+for base in "$HOME/.claude/skills" "$HOME/.agents/skills"; do
+  # Наши ссылки, которые больше не нужны: навык убран или всё выключено.
+  if [ -d "$base" ]; then
+    for link in "$base"/*; do
+      [ -L "$link" ] || continue
+      case $(readlink "$link") in
+        "$src"/*) [ $off = 1 ] || [ ! -f "$(readlink "$link")/SKILL.md" ] && rm -f "$link" ;;
+      esac
+    done
+  fi
+  [ $off = 1 ] && continue
+
+  for skill in "$src"/*/; do
+    [ -f "$skill/SKILL.md" ] || continue
+    name=$(basename "$skill")
+    target="$base/$name"
+    [ -e "$target" ] || [ -L "$target" ] && continue
+    mkdir -p "$base" && ln -s "$src/$name" "$target"
+  done
+done
+exit 0

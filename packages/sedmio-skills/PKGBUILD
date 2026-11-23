@@ -1,0 +1,33 @@
+# Maintainer: Sedmio <https://github.com/Sedmio>
+#
+# Навыки для нейронки пользователя: как устроена Sedmio, где её настройки,
+# как менять вид и модули, как чинить, не ломая систему. Формат —
+# SKILL.md (Claude Code, другие агенты), как навыки Omarchy.
+#
+#   usr/share/sedmio/skills/<навык>/SKILL.md   навыки
+#   usr/lib/sedmio/skills-link                 ссылки на них в ~/.claude/skills
+#                                              и ~/.agents/skills (при входе,
+#                                              служба sedmio-skills)
+#
+# Про каждый модуль оболочки — его AGENTS.md в папке модуля (пакет модуля),
+# навык sedmio-modules ведёт туда. Навыки для разработки самой Sedmio —
+# в репозитории (AGENTS.md, .agents/skills), не здесь.
+
+pkgname=sedmio-skills
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Sedmio: навыки для нейронок — как устроена система и как её менять"
+arch=('any')
+url="https://github.com/Sedmio/sedmio"
+license=('MIT')
+depends=()
+
+package() {
+  cp -a "$startdir/files/." "$pkgdir/"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+  chmod 755 "$pkgdir/usr/lib/sedmio/skills-link"
+  install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"
+  ln -s ../sedmio-skills.service \
+    "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants/sedmio-skills.service"
+}
