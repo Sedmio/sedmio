@@ -36,8 +36,10 @@ mkdir -p "$VM"
 args=(
   -enable-kvm
   # -cpu host: виртуальный процессор как настоящий (Zen 4, AVX-512) —
-  # пакеты CachyOS znver4 на другом не запустятся
-  -cpu host -smp 6 -m 8G
+  # пакеты CachyOS znver4 на другом не запустятся. 4 ГБ хватает; больше —
+  # и вместе со сборкой и программами хозяина память кончается (oomd
+  # закрывает целые группы программ).
+  -cpu host -smp 4 -m 4G
   -machine q35
   -drive if=pflash,format=raw,readonly=on,file="$OVMF/OVMF_CODE.4m.fd"
   -drive if=pflash,format=raw,file="$VARS"
@@ -50,6 +52,9 @@ args=(
   # Управление и снимки экрана:
   #   echo 'screendump shot.png -f png' | socat - UNIX-CONNECT:out/vm/monitor.sock
   -monitor unix:"$VM/monitor.sock",server,nowait
+  # Мышь, клавиши и снимки экрана для проверок — scripts/vm-input.py
+  # (монитор HMP mouse_move/sendkey до гостя не доходит)
+  -qmp unix:"$VM/qmp.sock",server,nowait
   # Гостевой агент: команды внутри виртуалки — scripts/vm-exec.sh
   -chardev socket,path="$VM/qga.sock",server=on,wait=off,id=qga0
   -device virtio-serial -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0

@@ -7,6 +7,7 @@
 # если эта версия уже есть в репозитории. Пакеты из одних конфигов
 # собираются за секунды и пересобираются всегда.
 # Пересобрать всё: FORCE=1 scripts/build-packages.sh
+# Потоков сборки — 8 (JOBS=4 scripts/build-packages.sh — меньше).
 #
 # Пакеты и база подписываются ключом Sedmio, если его закрытая часть есть
 # в gpg этого пользователя (отпечаток — в packages/sedmio-keyring/sedmio-trusted).
@@ -33,6 +34,22 @@ fi
 export PACKAGER="${PACKAGER:-Sedmio Linux <fsedis@yandex.ru>}"
 
 mkdir -p "$REPO"
+
+# Не больше 8 потоков (JOBS=…), как в build-iso.sh: в 18 потоков C++
+# съедает 7+ ГБ, и вместе с виртуалкой и программами память кончается.
+# makepkg.conf ставит MAKEFLAGS сам, поэтому — своя копия поверх него.
+JOBS="${JOBS:-8}"
+export CMAKE_BUILD_PARALLEL_LEVEL="$JOBS"
+if [[ -z ${MAKEPKG_CONF:-} ]]; then
+  conf="$(mktemp --suffix=.makepkg.conf)"
+  trap 'rm -f "$conf"' EXIT
+  {
+    echo 'source /etc/makepkg.conf'
+    echo 'for f in /etc/makepkg.conf.d/*.conf; do [[ -f $f ]] && source "$f"; done'
+    echo "MAKEFLAGS=\"-j$JOBS\""
+  } > "$conf"
+  export MAKEPKG_CONF="$conf"
+fi
 
 # Имена наших пакетов: их зависимости на них не ставим из репозиториев
 own=()
