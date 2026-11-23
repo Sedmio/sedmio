@@ -1,0 +1,32 @@
+diff -ru a/src/core/scan.cpp b/src/core/scan.cpp
+--- a/src/core/scan.cpp	2026-11-23 19:57:48.898730957 +0700
++++ b/src/core/scan.cpp	2026-11-23 19:57:48.905494937 +0700
+@@ -5,6 +5,7 @@
+ #include <qcontainerfwd.h>
+ #include <qcryptographichash.h>
+ #include <qdir.h>
++#include <qdiriterator.h>
+ #include <qfileinfo.h>
+ #include <qjsengine.h>
+ #include <qjsonarray.h>
+@@ -286,6 +287,20 @@
+ 	bool singleton = false;
+ 	bool internal = false;
+ 	this->scanQmlFile(path, singleton, internal);
++
++	// Every directory under the config root, not only the ones something imports:
++	// files loaded at runtime by path (Loader.source) can then use their sibling
++	// types, singletons and "import qs.<dir>" like statically imported ones do.
++	auto it = QDirIterator(
++	    this->rootPath.path(),
++	    QDir::Dirs | QDir::NoDotAndDotDot,
++	    QDirIterator::Subdirectories
++	);
++	while (it.hasNext()) {
++		auto dir = it.next();
++		if (dir.sliced(this->rootPath.path().length()).contains("/.")) continue;
++		this->scanDir(QDir(dir));
++	}
+ }
+ 
+ bool QmlScanner::scanQmlJson(const QString& path) {

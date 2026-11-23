@@ -10,7 +10,8 @@
 # учётная запись — AccountsService, вход без пароля — sedmio-login,
 # ночная подсветка — kwinrc [NightColor] и knighttimerc (KWin и knighttimed).
 #
-# Разделы пока: Экран, Обои, Мышь и тачпад, Клавиатура, Звук, Сеть, Bluetooth,
+# Разделы пока: Экран, Тема, Обои, Модули (модули оболочки — через
+# sedmio-modules из sedmio-shell), Мышь и тачпад, Клавиатура, Звук, Сеть, Bluetooth,
 # Питание, Программы по умолчанию, Автозапуск, Учётная запись, Дата и время,
 # Обновление (работа — пакет sedmio-update), О системе. «Параметров KDE»
 # (systemsettings) нет — ушли с Plasma; кнопка
@@ -25,7 +26,7 @@
 
 pkgname=sedmio-preferences
 pkgver=0.1.0
-pkgrel=37
+pkgrel=38
 pkgdesc="Sedmio: приложение «Параметры» на QML"
 arch=('x86_64')
 url="https://github.com/Sedmio/sedmio"

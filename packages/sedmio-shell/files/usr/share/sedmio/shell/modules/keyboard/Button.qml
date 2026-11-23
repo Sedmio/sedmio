@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import Quickshell.Services.Kde
 import Sedmio.Style
 

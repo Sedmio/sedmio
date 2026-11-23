@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import Quickshell
 import Sedmio.Style
 
@@ -7,7 +8,6 @@ import Sedmio.Style
 // Клик — календарь.
 BarButton {
     id: root
-    required property string screenName
     property bool wide: false
     active: ShellState.controlShows(screenName, "calendar")
     onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName, "calendar"); }

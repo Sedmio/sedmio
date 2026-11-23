@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import Quickshell
 import Quickshell.Services.Pipewire
 import Quickshell.Widgets
@@ -8,7 +9,6 @@ import Sedmio.Style
 // панели управления, средняя кнопка — без звука.
 BarButton {
     id: root
-    required property string screenName
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property bool ready: sink !== null && sink.audio !== null
     readonly property real volume: ready ? sink.audio.volume : 0

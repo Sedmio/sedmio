@@ -1,0 +1,8 @@
+{
+    "name": "Часы",
+    "description": "Время и дата на панели, щелчок — календарь.",
+    "icon": "preferences-system-time",
+    "group": "Панель",
+    "order": 70,
+    "status": "Button.qml"
+}

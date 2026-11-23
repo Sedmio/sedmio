@@ -2,10 +2,11 @@ import QtQuick
 import Sedmio.Style
 
 // Кнопки состояния (раскладка, сеть, батарея, яркость, звук, уведомления,
-// часы) в порядке из BarOrder — столбиком (полоса слева) или в строку
-// (верхняя панель). Зажать и потянуть — кнопка встаёт на место той, над
-// которой её держат; отпустили — порядок сохраняется. Невидимая кнопка
-// (батареи нет, раскладка одна) места не занимает.
+// часы) — части "status" включённых модулей (Modules), в порядке из
+// BarOrder — столбиком (полоса слева) или в строку (верхняя панель).
+// Зажать и потянуть — кнопка встаёт на место той, над которой её держат;
+// отпустили — порядок сохраняется. Невидимая кнопка (батареи нет,
+// раскладка одна) места не занимает.
 ListView {
     id: buttons
     required property string screenName
@@ -23,9 +24,13 @@ ListView {
     model: order
 
     ListModel { id: order }
-    function wanted() { return BarOrder.keys.filter(k => !exclude.includes(k)); }
+    // Выключенные модули и исключённые кнопки здесь не показываются, но в
+    // общем порядке остаются на своих местах.
+    function hidden(key) { return exclude.includes(key) || !Modules.on(key); }
+    readonly property var wanted: BarOrder.keys.filter(k => !hidden(k))
+    onWantedChanged: if (dragKey === "") sync()
     function sync() {
-        const keys = wanted();
+        const keys = wanted;
         for (let i = order.count - 1; i >= 0; --i)
             if (!keys.includes(order.get(i).key)) order.remove(i);
         for (let i = 0; i < keys.length; ++i) {
@@ -38,11 +43,6 @@ ListView {
         }
     }
     Component.onCompleted: sync()
-    onExcludeChanged: sync()
-    Connections {
-        target: BarOrder
-        function onKeysChanged() { if (buttons.dragKey === "") buttons.sync(); }
-    }
 
     property string dragKey: ""
     function dragTo(pos) {
@@ -51,13 +51,13 @@ ListView {
         const to = horizontal ? indexAt(pos.x, height / 2) : indexAt(width / 2, pos.y);
         if (from >= 0 && to >= 0 && to !== from) order.move(from, to, 1);
     }
-    // Исключённые кнопки (часы) остаются в общем порядке на своих местах.
     function drop() {
         const shown = [];
         for (let i = 0; i < order.count; ++i) shown.push(order.get(i).key);
         dragKey = "";
         let next = 0;
-        BarOrder.setOrder(BarOrder.keys.map(k => exclude.includes(k) ? k : shown[next++]));
+        BarOrder.setOrder(BarOrder.keys.map(k => hidden(k) ? k : shown[next++]));
+        sync();
     }
 
     delegate: Item {
@@ -73,15 +73,13 @@ ListView {
         scale: buttons.dragKey === key ? 1.1 : 1
         Behavior on scale { NumberAnimation { duration: Theme.animFast } }
 
-        Loader {
+        ModulePart {
             id: loader
             x: buttons.horizontal ? 2 : (slot.width - width) / 2
             y: buttons.horizontal ? (slot.height - height) / 2 : slot.gap
-            sourceComponent: ({
-                keyboard: keyboardButton, network: networkButton, battery: batteryButton,
-                brightness: brightnessButton, volume: volumeButton,
-                notifications: notificationsButton, clock: clockButton,
-            })[slot.key] ?? null
+            module: slot.key
+            part: "status"
+            props: ({ size: buttons.buttonSize, screenName: buttons.screenName, tooltip: buttons.tooltip })
         }
 
         DragHandler {
@@ -109,12 +107,4 @@ ListView {
     move: Transition {
         NumberAnimation { properties: "x,y"; duration: Theme.animNormal; easing.type: Easing.OutCubic }
     }
-
-    Component { id: keyboardButton; KeyboardLayout { size: buttons.buttonSize; tooltip: buttons.tooltip } }
-    Component { id: networkButton; NetworkButton { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: batteryButton; Battery { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: brightnessButton; BrightnessButton { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: volumeButton; Volume { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: notificationsButton; NotificationsButton { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
-    Component { id: clockButton; Clock { size: buttons.buttonSize; screenName: buttons.screenName; tooltip: buttons.tooltip } }
 }

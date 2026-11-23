@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import Quickshell.Services.Kde
 import Quickshell.Widgets
 import Sedmio.Style
@@ -7,7 +8,6 @@ import Sedmio.Style
 // экранов с настраиваемой яркостью — не видна.
 BarButton {
     id: root
-    required property string screenName
     visible: ScreenBrightness.displays.length > 0
     active: ShellState.controlShows(screenName, "brightness")
     hint: "Яркость"

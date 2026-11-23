@@ -1,12 +1,13 @@
 pragma Singleton
 import QtQuick
+import qs
 import Quickshell
 import Quickshell.Io
 
 // «Ножницы»: снимок экрана как в Windows 11 (PrtSc, Win+Shift+S —
 // /usr/lib/sedmio/screenshot зовёт `call screenshot open`).
 // Сначала снимаем все экраны (sedmio-capture, пакет sedmio-screenshot), потом
-// показываем снимки поверх (ScreenshotOverlay) — экран как будто замер, и
+// показываем снимки поверх (Screen.qml) — экран как будто замер, и
 // выделять можно и то, что сейчас движется или исчезнет от щелчка (меню,
 // подсказки). Вырезает и сохраняет /usr/lib/sedmio/screenshot save.
 Singleton {

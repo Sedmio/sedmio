@@ -19,6 +19,7 @@ ApplicationWindow {
         { id: "display", title: "Экран", icon: "preferences-desktop-display" },
         { id: "theme", title: "Тема", icon: "preferences-desktop-theme-global" },
         { id: "wallpaper", title: "Обои", icon: "preferences-desktop-wallpaper" },
+        { id: "modules", title: "Модули", icon: "preferences-plugin" },
         { id: "mouse", title: "Мышь и тачпад", icon: "preferences-desktop-mouse" },
         { id: "keyboard", title: "Клавиатура", icon: "preferences-desktop-keyboard" },
         { id: "sound", title: "Звук", icon: "preferences-desktop-sound" },
@@ -108,6 +109,7 @@ ApplicationWindow {
         anchors { left: sidebar.right; right: parent.right; top: parent.top; bottom: parent.bottom }
         sourceComponent: App.page === "theme" ? themePage
                        : App.page === "wallpaper" ? wallpaperPage
+                       : App.page === "modules" ? modulesPage
                        : App.page === "mouse" ? mousePage
                        : App.page === "keyboard" ? keyboardPage
                        : App.page === "sound" ? soundPage
@@ -137,6 +139,7 @@ ApplicationWindow {
     Component { id: displayPage; DisplayPage { displays: screens } }
     Component { id: themePage; ThemePage {} }
     Component { id: wallpaperPage; WallpaperPage {} }
+    Component { id: modulesPage; ModulesPage {} }
     Component { id: mousePage; MousePage {} }
     Component { id: keyboardPage; KeyboardPage {} }
     Component { id: soundPage; SoundPage {} }

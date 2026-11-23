@@ -1,0 +1,8 @@
+{
+    "name": "Сеть",
+    "description": "Значок подключения на панели, щелчок — проводная сеть и Wi‑Fi.",
+    "icon": "network-wireless",
+    "group": "Панель",
+    "order": 20,
+    "status": "Button.qml"
+}

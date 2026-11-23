@@ -13,7 +13,7 @@
 
 pkgname=quickshell
 pkgver=0.3.2
-pkgrel=18
+pkgrel=19
 pkgdesc='Flexible toolkit for making desktop shells with QtQuick (сборка Sedmio)'
 arch=('x86_64')
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
@@ -58,7 +58,9 @@ source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
         'reload-screen.patch'
         'kde-virtual-desktops.patch'
         'kde-window-thumbnails.patch'
-        'tray-context-menu.patch')
+        'tray-context-menu.patch'
+        'scan-subdirs.patch'
+        'ipc-exit-code.patch')
 sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             '8e147c038acd8636225c6a8cc95386f02b5ab20089aa0fc68e0e27b4909b489d'
             'abd55c5207f783e0875329ab1094139e70b9d1313d6a5f6e0577417050de2d88'
@@ -69,7 +71,9 @@ sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             'b85c82a621ffd23b7672a21ddc6330fb1caaf150477dbb776c09f492d55a76b7'
             '3e7e989d902b376ff728fa4fb2f6b2ea9f9d31e760139fb4bbb9fc8ad1c87728'
             '4dfe44c4c87f13a815cfbe07839154eb4575f64c4706c1a07ff5c83cfedf38ca'
-            '31c78941c43ef371d3dd0767e608b298644ea31d35ea4c1c42a37598efd91088')
+            '31c78941c43ef371d3dd0767e608b298644ea31d35ea4c1c42a37598efd91088'
+            '1b591727274038bb673fece588e8ad829fe8f60df601107e3d99b38c770f0761'
+            'ca4c749b5bb25902ca6377b8ac4bbaee9961bd0aad2eca005ec0eca51d9da226')
 
 prepare() {
   cd "$pkgname"
@@ -125,6 +129,15 @@ prepare() {
   # щёлкает правой кнопкой по самому значку), и activate/secondaryActivate
   # с координатами — прокси щёлкает там, и меню программы появляется у трея.
   patch -Np1 -i ../tray-context-menu.patch
+  # Просматривать все папки конфигурации, а не только те, что кто-то
+  # импортирует: модули оболочки (modules/<имя>) грузятся Loader'ом по
+  # пути, и без этого в них не видны соседние файлы, синглтоны и
+  # import qs.modules.<имя>.
+  patch -Np1 -i ../scan-subdirs.patch
+  # quickshell ipc call: код выхода — итог вызова. Было всегда 0, даже на
+  # «Target not found», и запасные пути скриптов (PrtSc без «Ножниц»,
+  # Meta+X без оболочки) не срабатывали.
+  patch -Np1 -i ../ipc-exit-code.patch
 }
 
 build() {

@@ -34,7 +34,27 @@ ShellRoot {
             Frame { screen: perScreen.modelData }
             FullscreenOsd { screen: perScreen.modelData; screenName: perScreen.modelData.name }
             FullscreenNotifications { screen: perScreen.modelData; screenName: perScreen.modelData.name }
-            ScreenshotOverlay { modelData: perScreen.modelData }
+
+            // Части "screen" включённых модулей (Modules) — на каждом экране.
+            Variants {
+                model: Modules.withPart("screen")
+                ModulePart {
+                    required property string modelData
+                    module: modelData
+                    part: "screen"
+                    props: ({ screen: perScreen.modelData })
+                }
+            }
+        }
+    }
+
+    // Части "main" включённых модулей — по одной на всю оболочку.
+    Variants {
+        model: Modules.withPart("main")
+        ModulePart {
+            required property string modelData
+            module: modelData
+            part: "main"
         }
     }
 
@@ -43,6 +63,13 @@ ShellRoot {
     IpcHandler {
         target: "layout"
         function reload(): void { DesktopLayout.reload(); }
+    }
+
+    // Модуль включили или выключили (sedmio-modules, «Параметры» → «Модули»):
+    //   quickshell ipc -p /usr/share/sedmio/shell call modules reload
+    IpcHandler {
+        target: "modules"
+        function reload(): void { Modules.reload(); }
     }
 
     // Команды извне: клавиша Meta (usr/share/kglobalaccel/sedmio-launcher.desktop) —
@@ -98,13 +125,6 @@ ShellRoot {
         }
         function open(): void { ShellState.openQuickMenu(ShellState.focusedScreen()); }
         function close(): void { ShellState.closeAll(); }
-    }
-
-    // «Ножницы»: PrtSc, Win+Shift+S (/usr/lib/sedmio/screenshot из sedmio-settings).
-    IpcHandler {
-        target: "screenshot"
-        function open(): void { ScreenshotState.open(); }
-        function close(): void { ScreenshotState.close(); }
     }
 
     // Программы на панели по номеру: Meta+1…9

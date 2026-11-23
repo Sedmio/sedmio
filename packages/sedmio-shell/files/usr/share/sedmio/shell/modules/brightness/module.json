@@ -1,0 +1,8 @@
+{
+    "name": "Яркость",
+    "description": "Кнопка яркости экранов на панели. Видна, если яркость можно менять.",
+    "icon": "brightness-high",
+    "group": "Панель",
+    "order": 40,
+    "status": "Button.qml"
+}

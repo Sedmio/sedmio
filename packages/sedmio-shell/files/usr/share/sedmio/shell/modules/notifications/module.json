@@ -1,0 +1,8 @@
+{
+    "name": "Кнопка уведомлений",
+    "description": "Колокольчик на панели: новые уведомления и ход копирования файлов. Сами уведомления и Meta+N работают и без него.",
+    "icon": "preferences-desktop-notification",
+    "group": "Панель",
+    "order": 60,
+    "status": "Button.qml"
+}

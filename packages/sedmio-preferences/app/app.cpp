@@ -10,7 +10,7 @@ namespace
 {
 const QString service = QStringLiteral("org.sedmio.Preferences");
 const QString path = QStringLiteral("/org/sedmio/Preferences");
-const QStringList pages = {QStringLiteral("display"), QStringLiteral("theme"), QStringLiteral("wallpaper"), QStringLiteral("mouse"), QStringLiteral("keyboard"),
+const QStringList pages = {QStringLiteral("display"), QStringLiteral("theme"), QStringLiteral("wallpaper"), QStringLiteral("modules"), QStringLiteral("mouse"), QStringLiteral("keyboard"),
                            QStringLiteral("sound"), QStringLiteral("network"), QStringLiteral("bluetooth"), QStringLiteral("power"), QStringLiteral("defaults"), QStringLiteral("autostart"), QStringLiteral("account"), QStringLiteral("datetime"), QStringLiteral("updates"), QStringLiteral("about")};
 } // namespace
 

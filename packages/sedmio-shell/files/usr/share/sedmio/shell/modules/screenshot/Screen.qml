@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import Quickshell
 import Quickshell.Wayland
 import Sedmio.Style
@@ -9,10 +10,9 @@ import Sedmio.Style
 // область, окно, весь экран, закрыть. Esc — закрыть.
 PanelWindow {
     id: root
-    required property var modelData
-    screen: modelData
+    // screen — от оболочки (ModulePart): этот экран.
 
-    readonly property string name: modelData.name
+    readonly property string name: screen ? screen.name : ""
     readonly property var shot: ScreenshotState.shots[name] ?? null
     readonly property bool hasToolbar: ScreenshotState.toolbarScreen === name
         || !ScreenshotState.shots[ScreenshotState.toolbarScreen]

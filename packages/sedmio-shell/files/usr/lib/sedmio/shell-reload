@@ -22,6 +22,12 @@ reload() {
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$1/bus" \
     systemctl --user show -p MainPID --value "$2" 2>/dev/null)
   [ -n "$pid" ] && [ "$pid" != 0 ] || return 0
+  # Обновился и сам Quickshell — процесс работает со старым, уже удалённым
+  # файлом, и новый QML мог бы на нём не заработать (новые возможности
+  # нашей сборки, например папки модулей). Тогда перезапустить службу.
+  case $(readlink "/proc/$pid/exe" 2>/dev/null) in
+    *" (deleted)") as_user "$1" systemctl --user restart "$2"; return 0 ;;
+  esac
   as_user "$1" quickshell ipc --pid "$pid" call "$3" reload
 }
 

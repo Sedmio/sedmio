@@ -6,6 +6,8 @@ import Sedmio.Style
 Rectangle {
     id: button
     property Item tooltip
+    // Экран, на панели которого кнопка: панели и меню открываются там же.
+    property string screenName
     property string hint
     property bool active: false
     // Сторона кнопки; панель задаёт её по своей толщине. Значки внутри —
@@ -29,6 +31,10 @@ Rectangle {
         if (tooltip && hint !== "")
             tooltip.show(hint, button);
     }
+
+    // Кнопку убрали под указателем (выключили модуль, сменили макет) —
+    // её подсказка не должна остаться висеть.
+    Component.onDestruction: if (tooltip) tooltip.hide(button)
 
     // Подсказка стала пустой (у панели задач — когда окно одно) — убрать.
     onHintChanged: {

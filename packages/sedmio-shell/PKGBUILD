@@ -6,16 +6,19 @@
 #
 # Запуск — служба sedmio-shell.service в сеансе Sedmio (sedmio-session).
 # Упала насовсем — аварийный режим (плашка от sedmio-session-manager).
+#
+# Части, которые можно выключить, — модули (usr/share/sedmio/shell/modules,
+# README.md там же); переключает sedmio-modules и «Параметры» → «Модули».
 
 pkgname=sedmio-shell
 pkgver=0.1.0
-pkgrel=80
+pkgrel=81
 pkgdesc="Sedmio: оболочка рабочего стола (панель, рамка, обои) на Quickshell"
 arch=('any')
 url="https://github.com/Sedmio/sedmio"
 license=('MIT')
 depends=(
-  'quickshell>=0.3.2-18' # наша сборка: список окон под KWin, службы Plasma, буфер обмена, ход копирования, миниатюры окон, меню трея
+  'quickshell>=0.3.2-19' # наша сборка: список окон под KWin, службы Plasma, буфер обмена, ход копирования, миниатюры окон, меню трея, папки модулей
   'sedmio-branding'     # шрифт Onest
   'sedmio-theme'        # цвета и прочее оформление (Sedmio.Style)
   'sedmio-settings'     # знак Sedmio в hicolor
@@ -23,6 +26,7 @@ depends=(
   'breeze-icons'
   'qt6-svg'
   'libnotify'           # notify-send: «Выполнить» не нашёл программу
+  'python'              # sedmio-modules
   'kpipewire'           # миниатюры окон (PipeWireSourceItem)
 )
 
@@ -30,7 +34,7 @@ package() {
   cp -a "$startdir/files/." "$pkgdir/"
   find "$pkgdir" -type d -exec chmod 755 {} +
   find "$pkgdir" -type f -exec chmod 644 {} +
-  chmod 755 "$pkgdir/usr/lib/sedmio/shell-reload" "$pkgdir/usr/lib/sedmio/open-settings" "$pkgdir/usr/lib/sedmio/launch"
+  chmod 755 "$pkgdir/usr/bin/sedmio-modules" "$pkgdir/usr/lib/sedmio/shell-reload" "$pkgdir/usr/lib/sedmio/open-settings" "$pkgdir/usr/lib/sedmio/launch"
 
   # Включена для всех пользователей в сеансе Sedmio.
   install -dm755 "$pkgdir/usr/lib/systemd/user/sedmio-session.target.wants"

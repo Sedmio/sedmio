@@ -3,7 +3,7 @@ import Quickshell
 import Sedmio.Style
 
 // Верхняя панель макетов "dock" и "taskbar", часть рамки. Посередине —
-// дата и часы (клик — календарь), справа — трей и кнопки состояния
+// дата и часы (модуль clock, клик — календарь), справа — трей и кнопки состояния
 // (StatusButtons, без часов).
 Item {
     id: bar
@@ -16,13 +16,12 @@ Item {
         window: bar.window
     }
 
-    Clock {
-        id: clock
+    // Часы — модуль clock: здесь строкой с датой, в ряду кнопок их нет.
+    ModulePart {
         anchors.centerIn: parent
-        wide: true
-        size: DesktopLayout.topButton
-        screenName: bar.screenName
-        tooltip: bar.tooltip
+        module: "clock"
+        part: "status"
+        props: ({ wide: true, size: DesktopLayout.topButton, screenName: bar.screenName, tooltip: bar.tooltip })
     }
 
     Row {

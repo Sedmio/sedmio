@@ -1,0 +1,8 @@
+{
+    "name": "Громкость",
+    "description": "Громкость на панели: колесо — громче или тише, щелчок — звук и микрофон.",
+    "icon": "audio-volume-high",
+    "group": "Панель",
+    "order": 50,
+    "status": "Button.qml"
+}

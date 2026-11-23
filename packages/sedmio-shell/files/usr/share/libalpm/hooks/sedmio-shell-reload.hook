@@ -6,6 +6,8 @@ Operation = Install
 Operation = Upgrade
 Target = usr/share/sedmio/shell/*
 Target = usr/share/sedmio/agents/*
+# Сам Quickshell: оболочку и окна паролей перезапустить на новом (shell-reload).
+Target = usr/bin/quickshell
 
 [Action]
 Description = Перезагрузка оболочки Sedmio в открытых сеансах...

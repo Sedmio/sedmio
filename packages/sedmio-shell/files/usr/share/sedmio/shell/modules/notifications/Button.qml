@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import QtQuick.Shapes
 import Sedmio.Style
 
@@ -7,7 +8,6 @@ import Sedmio.Style
 // файлы, вокруг колокольчика кольцо их общего хода.
 BarButton {
     id: root
-    required property string screenName
     readonly property int unread: NotificationState.unread
     readonly property int count: NotificationState.history.length
     readonly property var running: JobsState.running

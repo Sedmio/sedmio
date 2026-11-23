@@ -1,0 +1,10 @@
+{
+    "name": "Привязка окон",
+    "description": "Окно к верхнему краю экрана — схемы раскладки, потом подбор окон на свободные места, как в Windows 11.",
+    "icon": "view-split-left-right",
+    "group": "Окна",
+    "order": 110,
+    "kwinScripts": [
+        "sedmio-snap"
+    ]
+}

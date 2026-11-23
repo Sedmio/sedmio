@@ -1,0 +1,215 @@
+#!/usr/bin/python3 -I
+"""Модули Sedmio: что включено, включить, выключить.
+
+  sedmio-modules                    список: включён ли, имя, название
+  sedmio-modules list [--json]      то же; --json — для программ
+  sedmio-modules info <имя>         описание модуля
+  sedmio-modules on <имя>...        включить
+  sedmio-modules off <имя>...       выключить
+  sedmio-modules reset <имя>...     как по умолчанию
+
+Модуль — папка /usr/share/sedmio/shell/modules/<имя> с module.json
+(поля — README.md там же). Решения пользователя — ~/.config/sedmio/modules,
+строки «<имя>=on|off»; строки нет — как сказано в module.json ("default").
+Оболочка перечитывает файл сразу; скрипты KWin модуля ("kwinScripts")
+включаются и выключаются здесь же, тоже на ходу.
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+MODULES_DIR = os.environ.get("SEDMIO_MODULES_DIR", "/usr/share/sedmio/shell/modules")
+SHELL_DIR = "/usr/share/sedmio/shell"
+CONFIG_DIR = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "sedmio")
+CHOICES = os.path.join(CONFIG_DIR, "modules")
+
+NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+LINE = re.compile(r"^\s*([a-z][a-z0-9_]*)\s*=\s*(on|off)\s*$")
+
+
+def fail(message):
+    print(f"sedmio-modules: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def manifests():
+    """{имя: описание} всех установленных модулей."""
+    found = {}
+    try:
+        names = sorted(os.listdir(MODULES_DIR))
+    except OSError:
+        return found
+    for name in names:
+        if not NAME.match(name):
+            continue
+        try:
+            with open(os.path.join(MODULES_DIR, name, "module.json"), encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict) or not isinstance(data.get("name"), str):
+            continue
+        data["id"] = name
+        found[name] = data
+    return found
+
+
+def read_choices():
+    choices = {}
+    try:
+        with open(CHOICES, encoding="utf-8") as f:
+            for line in f:
+                m = LINE.match(line)
+                if m:
+                    choices[m.group(1)] = m.group(2) == "on"
+    except OSError:
+        pass
+    return choices
+
+
+def write_choices(choices):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    text = "# Модули Sedmio, включённые или выключенные не так, как по умолчанию.\n"
+    text += "# Меняет sedmio-modules и «Параметры» → «Модули».\n"
+    text += "".join(f"{k}={'on' if v else 'off'}\n" for k, v in sorted(choices.items()))
+    fd, tmp = tempfile.mkstemp(dir=CONFIG_DIR, prefix=".modules.")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.replace(tmp, CHOICES)
+
+
+def default_on(m):
+    return m.get("default", True) is not False
+
+
+def is_on(m, choices):
+    return choices.get(m["id"], default_on(m))
+
+
+def ordered(found):
+    return sorted(found.values(), key=lambda m: (m.get("order", 100), m["name"]))
+
+
+def run(*command):
+    """Команда, которой может не быть или которая может не сработать
+    (KWin не запущен, вход по ssh): модуль всё равно переключён в файле."""
+    try:
+        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def apply_kwin(m, on):
+    scripts = [s for s in m.get("kwinScripts", []) if isinstance(s, str)]
+    for script in scripts:
+        # Явное true/false, а не удаление ключа: --delete при значении в
+        # /etc/xdg пишет маску [$d], и системное значение пропадает.
+        run("kwriteconfig6", "--file", "kwinrc", "--group", "Plugins",
+            "--key", f"{script}Enabled", "true" if on else "false")
+        if not on:
+            run("busctl", "--user", "call", "org.kde.KWin", "/Scripting",
+                "org.kde.kwin.Scripting", "unloadScript", "s", script)
+    if scripts:
+        # Загрузить включённые и ещё не загруженные скрипты.
+        run("busctl", "--user", "call", "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting", "start")
+
+
+def notify_shell():
+    run("quickshell", "ipc", "-p", SHELL_DIR, "call", "modules", "reload")
+
+
+def as_json(m, choices):
+    return {
+        "id": m["id"],
+        "name": m["name"],
+        "description": m.get("description", ""),
+        "icon": m.get("icon", ""),
+        "group": m.get("group", ""),
+        "enabled": is_on(m, choices),
+        "default": default_on(m),
+    }
+
+
+def cmd_list(args):
+    found, choices = manifests(), read_choices()
+    if args[:1] == ["--json"]:
+        print(json.dumps([as_json(m, choices) for m in ordered(found)], ensure_ascii=False, indent=2))
+        return
+    if args:
+        fail(f"неизвестный ключ {args[0]}")
+    if not found:
+        print("Модулей нет.")
+        return
+    width = max(len(n) for n in found)
+    for m in ordered(found):
+        on = is_on(m, choices)
+        mark = "вкл " if on else "выкл"
+        note = "" if on == default_on(m) else "  (не как по умолчанию)"
+        print(f"{mark}  {m['id']:<{width}}  {m['name']}{note}")
+
+
+def cmd_info(args):
+    if len(args) != 1:
+        fail("нужно одно имя модуля")
+    found, choices = manifests(), read_choices()
+    m = found.get(args[0]) or fail(f"нет модуля {args[0]}")
+    print(f"{m['name']} ({m['id']})")
+    if m.get("description"):
+        print(m["description"])
+    print("Включён" if is_on(m, choices) else "Выключен", end="")
+    print(", по умолчанию " + ("включён" if default_on(m) else "выключен"))
+    parts = [p for p in ("status", "screen", "main") if m.get(p)]
+    if parts:
+        print("Части оболочки: " + ", ".join(parts))
+    if m.get("kwinScripts"):
+        print("Скрипты KWin: " + ", ".join(m["kwinScripts"]))
+
+
+def cmd_switch(args, value):
+    if not args:
+        fail("нужно имя модуля")
+    found, choices = manifests(), read_choices()
+    for name in args:
+        if name not in found:
+            fail(f"нет модуля {name}; список — sedmio-modules list")
+    changed = []
+    for name in args:
+        m = found[name]
+        before = is_on(m, choices)
+        if value is None:
+            choices.pop(name, None)
+        else:
+            choices[name] = value
+        after = is_on(m, choices)
+        if before != after:
+            changed.append((m, after))
+    write_choices(choices)
+    for m, on in changed:
+        apply_kwin(m, on)
+    notify_shell()
+
+
+def main(argv):
+    command, args = (argv[0], argv[1:]) if argv else ("list", [])
+    if command in ("list", "ls"):
+        cmd_list(args)
+    elif command == "info":
+        cmd_info(args)
+    elif command in ("on", "enable"):
+        cmd_switch(args, True)
+    elif command in ("off", "disable"):
+        cmd_switch(args, False)
+    elif command == "reset":
+        cmd_switch(args, None)
+    elif command in ("-h", "--help", "help"):
+        print(__doc__.strip())
+    else:
+        fail(f"неизвестная команда {command}; помощь — sedmio-modules --help")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

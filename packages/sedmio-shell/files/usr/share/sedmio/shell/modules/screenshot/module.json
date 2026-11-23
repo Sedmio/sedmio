@@ -1,0 +1,9 @@
+{
+    "name": "Ножницы",
+    "description": "PrtSc и Win+Shift+S: экран замирает, область выделяется мышью, как в Windows 11. Выключены — PrtSc сразу снимает все экраны.",
+    "icon": "accessories-screenshot-tool",
+    "group": "Инструменты",
+    "order": 210,
+    "main": "Main.qml",
+    "screen": "Screen.qml"
+}

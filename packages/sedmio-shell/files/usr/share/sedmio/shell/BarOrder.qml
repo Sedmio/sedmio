@@ -3,23 +3,26 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Порядок кнопок внизу панели (раскладка, сеть, звук, часы…) — меняется
-// перетаскиванием (Bar.qml). Хранится в ~/.config/sedmio/bar.json; файла
-// нет — порядок по умолчанию. Кнопки, которых в файле нет (появились в
-// новой версии), встают на своё место из порядка по умолчанию.
+// Порядок кнопок состояния (раскладка, сеть, звук, часы…) — меняется
+// перетаскиванием (StatusButtons). Кнопки — модули с частью "status"
+// (Modules), и выключенные тоже: включили снова — кнопка на прежнем
+// месте. Хранится в ~/.config/sedmio/bar.json; файла нет — порядок по
+// умолчанию (order в module.json). Кнопки, которых в файле нет (новый
+// модуль), встают на своё место из порядка по умолчанию.
 Singleton {
     id: root
 
-    readonly property var defaults: ["keyboard", "network", "battery", "brightness",
-        "volume", "notifications", "clock"]
-    property var keys: defaults
+    readonly property var defaults: Modules.allWithPart("status")
+    // Как в файле; keys — он же, приведённый к установленным модулям.
+    property var saved: []
+    readonly property var keys: normalize(saved)
 
     readonly property string path:
         (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config")
         + "/sedmio/bar.json"
 
-    function normalize(saved) {
-        const known = saved.filter((key, i) => defaults.includes(key) && saved.indexOf(key) === i);
+    function normalize(order) {
+        const known = order.filter((key, i) => defaults.includes(key) && order.indexOf(key) === i);
         for (let i = 0; i < defaults.length; ++i) {
             if (known.includes(defaults[i])) continue;
             // Перед первой из следующих по умолчанию, что уже есть.
@@ -40,18 +43,21 @@ Singleton {
         onLoaded: {
             try {
                 const data = JSON.parse(text());
-                root.keys = root.normalize(Array.isArray(data.order) ? data.order : []);
+                root.saved = Array.isArray(data.order) ? data.order : [];
             } catch (e) {
-                root.keys = root.defaults;
+                root.saved = [];
             }
         }
-        onLoadFailed: root.keys = root.defaults
+        onLoadFailed: root.saved = []
     }
 
     function setOrder(order) {
         const next = normalize(order);
         if (JSON.stringify(next) === JSON.stringify(keys)) return;
-        keys = next;
-        file.setText(JSON.stringify({ order: keys }, null, 2) + "\n");
+        // Кнопки модулей, которых сейчас нет (удалён пакет), остаются в
+        // файле — в конце: поставят обратно — кнопка в конце ряда.
+        const gone = saved.filter(k => !defaults.includes(k));
+        saved = next.concat(gone);
+        file.setText(JSON.stringify({ order: saved }, null, 2) + "\n");
     }
 }

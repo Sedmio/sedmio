@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import Quickshell
 import Quickshell.Services.UPower
 import Quickshell.Widgets
@@ -8,7 +9,6 @@ import Sedmio.Style
 // На компьютере без батареи не видна.
 BarButton {
     id: root
-    required property string screenName
     active: ShellState.controlShows(screenName, "battery")
     onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName, "battery"); }
     readonly property var device: UPower.displayDevice

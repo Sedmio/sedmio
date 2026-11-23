@@ -1,4 +1,5 @@
 import QtQuick
+import qs
 import Quickshell.Networking
 import Quickshell.Widgets
 import Sedmio.Style
@@ -7,7 +8,6 @@ import Sedmio.Style
 // (проводное подключение и сети Wi‑Fi).
 BarButton {
     id: root
-    required property string screenName
     active: ShellState.controlShows(screenName, "network")
     onClicked: { if (tooltip) tooltip.hide(); ShellState.toggleControl(screenName, "network"); }
 
