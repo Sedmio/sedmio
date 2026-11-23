@@ -51,9 +51,9 @@ Bluetooth) — отдельный процесс `/usr/share/sedmio/agents`
 
 Оболочка за файлами не следит (`settings.watchFiles: false`): pacman
 меняет файлы по одному. Перечитывает хук pacman, вручную —
-`/usr/lib/sedmio/shell-reload` (от root, все сеансы) или
-`quickshell ipc -p /usr/share/sedmio/shell call shell reload` (от
-пользователя). Не перечитал — работает старый код.
+`/usr/lib/sedmio/shell-reload` (от root, все сеансы; находит процесс
+через systemd, даже если Quickshell перезапускал себя сам — тогда
+`quickshell ipc -p …` его не видит). Не перечитал — работает старый код.
 
 Ошибки QML — в журнале: `journalctl --user -u sedmio-shell -b`
 (в ВМ — `journalctl -b | grep quickshell`). `console.log` туда не
@@ -83,7 +83,7 @@ Bluetooth) — отдельный процесс `/usr/share/sedmio/agents`
 ход копирования, миниатюры окон, меню трея, просмотр всех папок
 конфигурации (`scan-subdirs` — без него модули не видят соседей), код
 выхода `ipc call`. Патч делается из рабочей копии исходников:
-`git diff` нужных путей → `<имя>.patch`, строка в `source` и
-`prepare()`. Обновился Quickshell — оболочка перезапускается, а не
+`git diff` нужных путей → `<имя>.patch`, строка в `source`, его сумма
+в `sha256sums` (`makepkg -g`) и применение в `prepare()`. Обновился Quickshell — оболочка перезапускается, а не
 перечитывается (у старого процесса нет новых возможностей); в depends
 sedmio-shell — минимальная версия (`quickshell>=…`).

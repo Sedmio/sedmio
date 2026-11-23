@@ -10,7 +10,7 @@ CMake, `qt_add_qml_module`. Вид — Sedmio.Style (навык `sedmio-theme`).
 
 ## Как устроена программа
 
-- `main.cpp`: `setApplicationName`, `setApplicationDisplayName`
+- `main()` (`main.cpp`; у «Ножниц» — `editor.cpp`): `setApplicationName`, `setApplicationDisplayName`
   (по-русски, это имя окна), `setDesktopFileName` (= app_id окна и имя
   .desktop), `QQuickStyle::setStyle("Basic")`, `IconProvider` для
   `image://icon/<имя>` (значки темы в QML), `engine.loadFromModule(…)`.
@@ -31,10 +31,13 @@ CMake, `qt_add_qml_module`. Вид — Sedmio.Style (навык `sedmio-theme`).
 ## Общие элементы
 
 `SText` (Onest с осью wght — `weight:`, а не `font.weight`), `SIcon`
-(`symbolic: true` — символ Lucide), `SButton`, `SSwitch`, `SSlider` —
-копии в каждой программе (у программ разные пакеты: сломанное
-обновление одной не задевает другую). Источник — `sedmio-preferences/app/qml`,
-у копии в шапке «Копия из …». Меняя оформление элемента, меняй все копии.
+(`symbolic: true` — символ Lucide), `SButton` — копии в каждой программе
+(у программ разные пакеты: сломанное обновление одной не задевает
+другую); `SSwitch`, `SSlider`, `SField` — пока только в «Параметрах» и
+оболочке. Источник — `sedmio-preferences/app/qml`. Копии есть ещё в
+оболочке, окнах паролей (`…/sedmio/agents`), входе (`login-ui`) и
+установщике. Меняя оформление элемента, меняй все копии
+(`find packages -name SText.qml -not -path '*/src/*'`).
 
 ## Тексты
 

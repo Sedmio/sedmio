@@ -11,14 +11,15 @@ docs/decisions.md §11).
 
 ## Два вида пакетов
 
-- **Из файлов** (sedmio-settings, sedmio-shell, sedmio-session…): в
+- **Из файлов** (sedmio-settings, sedmio-shell, sedmio-update…): в
   `files/` лежит дерево как в системе, `package()` копирует его
   (`cp -a "$startdir/files/." "$pkgdir/"`) и выставляет права: каталоги
   755, файлы 644, исполняемые — явным `chmod 755` по списку. Новый
   скрипт без строки `chmod 755` в PKGBUILD придёт без права запуска.
 - **Компилируемые** (есть `build()`): исходники в `app/` или `code/`,
   не в `src/` — её стирает `makepkg --cleanbuild`, и она в .gitignore.
-  CMake + Qt 6, `qt_add_qml_module`.
+  CMake + Qt 6, `qt_add_qml_module`. Часто у них есть и `files/` (службы,
+  .desktop, скрипты) — sedmio-session, -preferences, -store, -screenshot.
 
 Чужие проекты со своими правками (quickshell, calamares, plasma-nm,
 plasma-pa, powerdevil, xdg-desktop-portal-kde) — PKGBUILD из Arch плюс
@@ -34,9 +35,10 @@ plasma-pa, powerdevil, xdg-desktop-portal-kde) — PKGBUILD из Arch плюс
   пересоберёт («уже собран»), а `release-repo.sh` откажется выкладывать
   пакет той же версии с другим содержимым. Одна ветка — один подъём на
   пакет, даже если правок в нём несколько.
-- Компилируемый пакет не может зависеть от наших пакетов в `depends`
-  (makepkg --syncdeps ставит их из репозиториев, а там их нет). То, что
-  нужно в работе (sedmio-theme и т. п.), тянет `sedmio-base`.
+- Зависимости сборки `build-packages.sh` ставит сам (`sudo pacman -S
+  --asdeps`), кроме наших пакетов — их в репозиториях машины нет, и
+  собирает с `--nodeps`. Поэтому наши пакеты в `depends` писать можно;
+  ручной `makepkg -s` на них упадёт — собирать с `-d`.
 - Тяжёлый готовый пакет (claude-desktop) — `_prebuilt=1`: не
   пересобирается, если эта версия уже собрана.
 - Новый пакет, который должен быть в системе, — ещё и в `depends`
@@ -58,13 +60,16 @@ JOBS=4 scripts/build-packages.sh   # меньше потоков (по умол�
 Компилируемые — только если такой версии ещё нет. Без закрытого ключа
 сборка идёт без подписи: для ISO годится, выпускать нельзя.
 
-Проверить один пакет до выпуска (в виртуалке):
+Проверить один пакет до выпуска: собрать на хосте в свой каталог (не
+в out/repo) и поставить в виртуалку (навык `sedmio-vm`):
 
 ```sh
 cd packages/<пакет> && PKGDEST=/tmp/pkgs makepkg -fd --noconfirm
 ```
 
-Свой каталог PKGDEST, чтобы не путать с out/repo.
+Ручной makepkg потоки не ограничивает: для компилируемого —
+`CMAKE_BUILD_PARALLEL_LEVEL=8 MAKEFLAGS=-j8` (или `JOBS` у
+build-packages.sh).
 
 ## Выпуск
 

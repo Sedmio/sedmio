@@ -23,11 +23,14 @@ kded, powerdevil, порталы. Всё видимое — своё. Решен
 - Найти ключ: поменять настройку мышью и посмотреть, что изменилось в
   `~/.config` (`ls -lt ~/.config | head`).
 
-## Скрипты KWin (QML)
+## Скрипты KWin
 
-Пример — `sedmio-snap` (sedmio-shell, `/usr/share/kwin/scripts`),
+Скрипты — `/usr/share/kwin/scripts/<Id>/` с `metadata.json`. На QML
+(`"X-Plasma-API": "declarativescript"`) — `sedmio-snap` (sedmio-shell),
+на JS (`"javascript"`, там есть `workspace.windowList()`) —
 `sedmio-windowkeys` (sedmio-settings). Модулю оболочки скрипт
-привязывается полем `kwinScripts` (навык `sedmio-shell`).
+привязывается полем `kwinScripts` (навык `sedmio-shell`). Ловушки ниже —
+для скриптов на QML.
 
 - KWin кэширует QML по Id: перезалил под тем же Id — грузится старый.
   Отлаживать под новым Id, включать `kwriteconfig6 --file kwinrc --group

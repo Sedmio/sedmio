@@ -23,7 +23,7 @@ Sedmio — личный дистрибутив на Arch Linux для двух �
 packages/<пакет>/     PKGBUILD + files/ (как в системе) или app/ (исходники)
   sedmio-shell/         оболочка: панель, рамка, обои, модули (Quickshell)
   sedmio-theme/         темы (Sedmio.Style), рамки окон KWin, символы Lucide
-  sedmio-settings/      настройки по умолчанию, скрипты /usr/lib/sedmio
+  sedmio-settings/      настройки по умолчанию (/etc/xdg, клавиши, kconf_update)
   sedmio-session/       сеанс: запуск KWin и служб, заставка
   sedmio-preferences/   «Параметры»
   sedmio-files/         «Файлы» и окно выбора файла для всех программ
