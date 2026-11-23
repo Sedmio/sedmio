@@ -3,9 +3,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
+import qs
 
 // Уведомления: сервер org.freedesktop.Notifications (раньше его держал
 // plasmashell), всплывающие карточки, история и режим «Не беспокоить».
+// Сервер в Quickshell один на процесс и имя на шине не отпускает, пока
+// процесс жив, — поэтому выключение модуля перезапускает оболочку
+// (restartOnDisable в module.json).
 Singleton {
     id: root
 
@@ -79,7 +83,7 @@ Singleton {
             times[notification.id] = new Date();
             root.arrived = times;
 
-            if (!notification.transient && ShellState.notificationsScreen === "") root.unread++;
+            if (!notification.transient && ShellState.centerScreen === "") root.unread++;
 
             if (!root.doNotDisturb || notification.urgency === NotificationUrgency.Critical)
                 root.add(notification);

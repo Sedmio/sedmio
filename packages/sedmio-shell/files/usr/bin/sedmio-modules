@@ -13,8 +13,8 @@
 строки «<имя>=on|off»; строки нет — как сказано в module.json ("default").
 Оболочка перечитывает файл сразу; скрипты KWin модуля ("kwinScripts")
 включаются и выключаются здесь же, тоже на ходу. Модуль, который можно
-остановить только вместе с оболочкой ("restartOnDisable", движок буфера
-обмена), при выключении перезапускает её.
+остановить только вместе с оболочкой ("restartOnDisable": движок буфера
+обмена, сервер уведомлений), при выключении перезапускает её.
 """
 
 import json
@@ -169,7 +169,7 @@ def cmd_info(args):
         print(m["description"])
     print("Включён" if is_on(m, choices) else "Выключен", end="")
     print(", по умолчанию " + ("включён" if default_on(m) else "выключен"))
-    parts = [p for p in ("status", "screen", "main", "panel") if m.get(p)]
+    parts = [p for p in ("status", "screen", "main", "panel", "center", "popups", "tile") if m.get(p)]
     if parts:
         print("Части оболочки: " + ", ".join(parts))
     if m.get("kwinScripts"):

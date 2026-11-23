@@ -37,10 +37,10 @@ PanelWindow {
 
     readonly property bool launcherOpen: isHere(ShellState.launcherScreen)
     readonly property bool controlOpen: isHere(ShellState.controlScreen)
-    readonly property bool historyOpen: isHere(ShellState.notificationsScreen)
+    readonly property bool centerOpen: isHere(ShellState.centerScreen)
     readonly property bool panelOpen: isHere(ShellState.panelScreen)
     readonly property bool quickMenuOpen: isHere(ShellState.quickMenuScreen)
-    readonly property bool anyOpen: launcherOpen || controlOpen || historyOpen || panelOpen || quickMenuOpen
+    readonly property bool anyOpen: launcherOpen || controlOpen || centerOpen || panelOpen || quickMenuOpen
 
     // ── Док ─────────────────────────────────────────────────────────────
     // Прячется, пока на этом экране развёрнуто окно (или во весь экран):
@@ -170,15 +170,16 @@ PanelWindow {
     readonly property bool isFocusedScreen: isHere(ShellState.focusedScreen())
     // Карточки операций (копирование файлов) — там же, над уведомлениями.
     readonly property bool notificationsShown: isFocusedScreen
-        && (NotificationState.popups.length > 0 || JobsState.popups.length > 0)
-        && ShellState.notificationsScreen === ""
+        && ((popups.item ? popups.item.count : 0) > 0 || JobsState.popups.length > 0)
+        && ShellState.centerScreen === ""
         && !(controlOpen && controlPlace === "topRight")
     readonly property bool osdShown: OsdState.shown && isHere(OsdState.screenName)
 
     // Справа сверху один выдвижной ящик: в нём либо всплывающие карточки,
-    // либо центр уведомлений.
+    // либо центр уведомлений. Уведомления — модуль: карточки — его часть
+    // "popups", центр — "center"; выключен — остаются карточки операций.
     readonly property real notificationsWidth: 400
-    property real notificationsHeight: historyOpen ? history.wantedHeight + 28
+    property real notificationsHeight: centerOpen ? (center.item ? center.item.wantedHeight : 0) + 28
         : notificationsShown ? notifications.implicitHeight + 20 : 0
     Behavior on notificationsHeight { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
 
@@ -479,7 +480,7 @@ PanelWindow {
             height: quickMenu.height
         }
         MouseArea {
-            visible: frame.historyOpen
+            visible: frame.centerOpen
             x: frame.width - DesktopLayout.insetRight - frame.notificationsWidth
             y: DesktopLayout.insetTop
             width: frame.notificationsWidth
@@ -721,22 +722,30 @@ PanelWindow {
             }
         }
 
-        NotificationCenter {
-            id: history
-            open: frame.historyOpen
+        // Центр — часть "center" модуля (ModulePart): open, maxHeight,
+        // wantedHeight, сигнал closeRequested(bool).
+        ModulePart {
+            id: center
+            module: ShellState.centerModule
+            part: "center"
+            props: ({ open: frame.centerOpen, maxHeight: hole.height - 60 })
             x: frame.width - DesktopLayout.insetRight - frame.notificationsWidth + 14
             y: DesktopLayout.insetTop + 14
             width: frame.notificationsWidth - 28
             height: frame.notificationsHeight - 28
-            maxHeight: hole.height - 60
             clip: true
-            opacity: frame.historyOpen ? 1 : 0
+            opacity: frame.centerOpen ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
-            onCloseRequested: restoreFocus => ShellState.closeAll(restoreFocus)
+            Connections {
+                target: center.item
+                ignoreUnknownSignals: true
+                function onCloseRequested(restoreFocus) { ShellState.closeAll(restoreFocus); }
+            }
         }
 
-        // Карточки операций (старые сверху), под ними уведомления (новые сверху)
+        // Карточки операций (старые сверху), под ними уведомления (новые
+        // сверху) — часть "popups" модуля, отдаёт count.
         Column {
             id: notifications
             x: frame.width - DesktopLayout.insetRight - width - 10
@@ -763,15 +772,13 @@ PanelWindow {
                 }
             }
 
-            Repeater {
-                // ScriptModel меняет список точечно: карточки не
-                // пересоздаются и их таймеры не сбрасываются.
-                model: ScriptModel { values: NotificationState.popups }
-                NotificationCard {
-                    required property var modelData
-                    notification: modelData
-                    width: notifications.width
-                }
+            ModulePart {
+                id: popups
+                module: Modules.withPart("popups")[0] ?? ""
+                part: "popups"
+                props: ({ urgentOnly: false })
+                width: notifications.width
+                visible: item !== null && item.count > 0
             }
         }
 

@@ -15,14 +15,18 @@ Singleton {
 
     // Имя экрана, на котором открыт запуск программ; "" — закрыт.
     property string launcherScreen: ""
-    // То же для панели управления и центра уведомлений.
+    // То же для панели управления.
     property string controlScreen: ""
     // Раздел панели управления — у каждой кнопки панели свой:
     // "network" (сеть), "brightness" (яркость), "sound" (звук),
     // "calendar" (часы), "battery" (батарея); "bluetooth" — из плитки
     // в Пуске.
     property string controlSection: "calendar"
-    property string notificationsScreen: ""
+    // Центр справа сверху — часть "center" модуля (уведомления), Frame.
+    property string centerScreen: ""
+    // Чей центр: первый включённый модуль с этой частью ("" — нет такого).
+    readonly property string centerModule: Modules.withPart("center")[0] ?? ""
+    onCenterModuleChanged: if (centerModule === "" && centerScreen !== "") closeAll(false)
     // Шторка модуля сверху посередине (часть "panel", Frame): экран и
     // модуль, чья. Буфер обмена — шторка модуля clipboard.
     property string panelScreen: ""
@@ -31,7 +35,7 @@ Singleton {
     property string quickMenuScreen: ""
 
     readonly property bool anythingOpen: launcherScreen !== "" || controlScreen !== ""
-        || notificationsScreen !== "" || panelScreen !== "" || quickMenuScreen !== ""
+        || centerScreen !== "" || panelScreen !== "" || quickMenuScreen !== ""
 
     // Сколько открыто меню и списков окон у кнопок панелей: пока открыты,
     // док не прячется (меню прикреплены к его кнопкам).
@@ -71,7 +75,7 @@ Singleton {
         rememberFocus();
         quickMenuScreen = "";
         controlScreen = "";
-        notificationsScreen = "";
+        centerScreen = "";
         panelScreen = "";
         launcherScreen = screenName;
     }
@@ -87,7 +91,7 @@ Singleton {
         rememberFocus();
         quickMenuScreen = "";
         launcherScreen = "";
-        notificationsScreen = "";
+        centerScreen = "";
         panelScreen = "";
         controlSection = section;
         controlScreen = screenName;
@@ -97,19 +101,19 @@ Singleton {
         return controlScreen === screenName && controlSection === section;
     }
 
-    function toggleNotifications(screenName) {
-        if (notificationsScreen === screenName) closeAll();
-        else openNotifications(screenName);
+    function toggleCenter(screenName) {
+        if (centerScreen === screenName) closeAll();
+        else openCenter(screenName);
     }
 
-    function openNotifications(screenName) {
+    function openCenter(screenName) {
+        if (centerModule === "") return;
         rememberFocus();
         quickMenuScreen = "";
         launcherScreen = "";
         controlScreen = "";
         panelScreen = "";
-        notificationsScreen = screenName;
-        NotificationState.markRead();
+        centerScreen = screenName;
     }
 
     // Шторка модуля: та же шторка того же модуля — закрыть.
@@ -124,7 +128,7 @@ Singleton {
         quickMenuScreen = "";
         launcherScreen = "";
         controlScreen = "";
-        notificationsScreen = "";
+        centerScreen = "";
         panelModule = module;
         panelScreen = screenName;
     }
@@ -142,7 +146,7 @@ Singleton {
         rememberFocus();
         launcherScreen = "";
         controlScreen = "";
-        notificationsScreen = "";
+        centerScreen = "";
         panelScreen = "";
         quickMenuScreen = screenName;
     }
@@ -152,7 +156,7 @@ Singleton {
         if (!anythingOpen) return;
         launcherScreen = "";
         controlScreen = "";
-        notificationsScreen = "";
+        centerScreen = "";
         panelScreen = "";
         quickMenuScreen = "";
         if (restoreFocus !== false && windowBefore) windowBefore.activate();

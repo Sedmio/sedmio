@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Notifications
 import Quickshell.Widgets
+import qs
 import Sedmio.Style
 
 // Карточка уведомления: значок программы, заголовок, текст, кнопки действий.

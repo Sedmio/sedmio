@@ -1,8 +1,13 @@
 {
-    "name": "Кнопка уведомлений",
-    "description": "Колокольчик на панели: новые уведомления и ход копирования файлов. Сами уведомления и Meta+N работают и без него.",
+    "name": "Уведомления",
+    "description": "Сообщения программ: всплывающие карточки, центр уведомлений (Meta+N), колокольчик на панели, «Не беспокоить». Без него уведомления не показываются; ход копирования файлов виден всё равно.",
     "icon": "preferences-desktop-notification",
     "group": "Панель",
     "order": 60,
-    "status": "Button.qml"
+    "status": "Button.qml",
+    "main": "Main.qml",
+    "center": "Center.qml",
+    "popups": "Popups.qml",
+    "tile": "Tile.qml",
+    "restartOnDisable": true
 }

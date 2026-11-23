@@ -1,11 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import qs
 import Sedmio.Style
 
-// Центр уведомлений: операции программ (копирование файлов) и все
-// пришедшие и не закрытые уведомления, новые сверху, и «Очистить всё». Выезжает справа сверху, там же, где всплывают карточки.
-// Подложку рисует DrawerShape в слое рамки, здесь только то, что на ней.
+// Центр уведомлений (часть "center"): операции программ (копирование
+// файлов) и все пришедшие и не закрытые уведомления, новые сверху, и
+// «Очистить всё». Выезжает справа сверху, там же, где всплывают карточки.
+// Открыли — всё увидено. Подложку рисует DrawerShape в слое рамки, здесь
+// только то, что на ней.
 Item {
     id: root
     property bool open: false
@@ -20,6 +23,7 @@ Item {
 
     onOpenChanged: {
         if (!open) return;
+        NotificationState.markRead();
         list.positionViewAtBeginning();
         keys.forceActiveFocus();
     }

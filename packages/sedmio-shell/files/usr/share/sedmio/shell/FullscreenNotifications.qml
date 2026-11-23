@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Services.Notifications
 import Quickshell.Wayland
 import Sedmio.Style
 
@@ -12,13 +11,13 @@ import Sedmio.Style
 PanelWindow {
     id: root
 
-    readonly property var urgent: NotificationState.popups.filter(n => n.urgency === NotificationUrgency.Critical)
     readonly property var failed: JobsState.popups.filter(j => j.state === "finished" && j.error !== 0)
 
     // Имя экрана — снаружи (см. FullscreenOsd).
     required property string screenName
 
-    visible: (urgent.length > 0 || failed.length > 0) && ShellState.fullscreenOn(screenName)
+    readonly property int urgent: urgentCards.item ? urgentCards.item.count : 0
+    visible: (urgent > 0 || failed.length > 0) && ShellState.fullscreenOn(screenName)
     anchors.top: true
     anchors.right: true
     margins.top: 12
@@ -46,13 +45,14 @@ PanelWindow {
             }
         }
 
-        Repeater {
-            model: ScriptModel { values: root.urgent }
-            NotificationCard {
-                required property var modelData
-                notification: modelData
-                width: cards.width
-            }
+        // Срочные — часть "popups" модуля уведомлений.
+        ModulePart {
+            id: urgentCards
+            module: Modules.withPart("popups")[0] ?? ""
+            part: "popups"
+            props: ({ urgentOnly: true })
+            width: cards.width
+            visible: root.urgent > 0
         }
     }
 }

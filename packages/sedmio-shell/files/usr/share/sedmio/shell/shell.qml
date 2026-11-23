@@ -93,18 +93,6 @@ ShellRoot {
         function close(): void { ShellState.closeAll(); }
     }
 
-    // Центр уведомлений: Meta+N (usr/share/kglobalaccel/sedmio-notifications.desktop).
-    IpcHandler {
-        target: "notifications"
-        function toggle(): void {
-            if (ShellState.notificationsScreen !== "") ShellState.closeAll();
-            else ShellState.openNotifications(ShellState.focusedScreen());
-        }
-        function open(): void { ShellState.openNotifications(ShellState.focusedScreen()); }
-        function close(): void { ShellState.closeAll(); }
-        function clear(): void { NotificationState.clearAll(); }
-    }
-
     // Меню быстрых ссылок: Meta+X (usr/share/kglobalaccel/sedmio-quickmenu.desktop).
     IpcHandler {
         target: "quickmenu"
@@ -144,13 +132,10 @@ ShellRoot {
     // plasma-nm, просьба о пожертвованиях), не загружаются вовсе —
     // /etc/xdg/kded5rc. Выгружать их на ходу нельзя: kded6 от этого падает.
 
-    // Сервер уведомлений живёт в NotificationState, сервер заданий (ход
-    // копирования файлов) — в JobsState; обращение запускает их сразу, а не
-    // при первом показе. Движок буфера обмена — в модуле clipboard.
-    Component.onCompleted: {
-        NotificationState.popups;
-        JobsState.active;
-    }
+    // Сервер заданий (ход копирования файлов) живёт в JobsState; обращение
+    // запускает его сразу, а не при первом показе. Сервер уведомлений — в
+    // модуле notifications, движок буфера обмена — в модуле clipboard.
+    Component.onCompleted: JobsState.active
 
     // Заставка входа (sedmio-splash, на шине — как KSplash) ждёт сигнала
     // «рабочий стол готов», иначе висит до своего таймаута. Шлём, когда

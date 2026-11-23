@@ -12,7 +12,7 @@ BarButton {
     readonly property int count: NotificationState.history.length
     readonly property var running: JobsState.running
 
-    active: ShellState.notificationsScreen === screenName
+    active: ShellState.centerScreen === screenName
     hint: {
         if (running.length === 1)
             return (running[0].title || "Операция") + ": " + running[0].percent + "%";
@@ -28,7 +28,7 @@ BarButton {
             NotificationState.setDoNotDisturb(!NotificationState.doNotDisturb);
         } else {
             if (tooltip) tooltip.hide();
-            ShellState.toggleNotifications(screenName);
+            ShellState.toggleCenter(screenName);
         }
     }
 

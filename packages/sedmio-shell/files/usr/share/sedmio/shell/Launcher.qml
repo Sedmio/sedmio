@@ -279,7 +279,10 @@ Item {
         }
     }
 
-    // Плитки. С Bluetooth их три — последняя во всю ширину.
+    // Плитки: Bluetooth, плитки модулей (часть "tile": «Не беспокоить»),
+    // режим питания. Нечётное число — последняя во всю ширину.
+    readonly property var moduleTiles: Modules.withPart("tile")
+    readonly property int tileCount: (adapter !== null ? 1 : 0) + moduleTiles.length + 1
     readonly property var adapter: Bluetooth.defaultAdapter
     readonly property var btConnected: adapter ? adapter.devices.values.filter(d => d.connected) : []
 
@@ -305,18 +308,19 @@ Item {
             onDetails: ShellState.openControl(ShellState.launcherScreen, "bluetooth")
         }
 
-        QuickTile {
-            Layout.fillWidth: true
-            Layout.preferredWidth: 1
-            icon: NotificationState.doNotDisturb ? "notifications-disabled" : "notifications"
-            title: "Не беспокоить"
-            subtitle: NotificationState.doNotDisturb ? "Только срочные" : "Выключено"
-            active: NotificationState.doNotDisturb
-            onToggled: NotificationState.setDoNotDisturb(!NotificationState.doNotDisturb)
+        Repeater {
+            model: root.moduleTiles
+            ModulePart {
+                required property string modelData
+                module: modelData
+                part: "tile"
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+            }
         }
 
         PowerModeTile {
-            Layout.columnSpan: root.adapter !== null ? 2 : 1
+            Layout.columnSpan: root.tileCount % 2 === 1 ? 2 : 1
             Layout.fillWidth: true
             Layout.preferredWidth: 1
         }
