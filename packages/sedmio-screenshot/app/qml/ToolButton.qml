@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import Sedmio.Style
 
 // Кнопка-значок полосы инструментов. checked — выбранный инструмент.
@@ -39,18 +40,24 @@ Item {
         onClicked: if (root.enabled_) root.clicked()
     }
 
-    // Подсказка снизу.
-    Rectangle {
+    // Подсказка снизу. Popup, а не дочерний прямоугольник: соседние
+    // полосы рисуются позже кнопки и закрывали подсказку; Popup лежит над
+    // всем окном, а margins не дают ему вылезти за края.
+    Popup {
         visible: area.containsMouse && root.hint !== ""
-        z: 10
-        anchors { top: parent.bottom; topMargin: 6; horizontalCenter: parent.horizontalCenter }
-        width: tip.implicitWidth + 16
-        height: tip.implicitHeight + 8
-        radius: 7
-        color: Theme.ink
-        SText {
-            id: tip
-            anchors.centerIn: parent
+        x: (root.width - width) / 2
+        y: root.height + 6
+        margins: 4
+        padding: 0
+        closePolicy: Popup.NoAutoClose
+        enter: null
+        exit: null
+        background: Rectangle { radius: 7; color: Theme.ink }
+        contentItem: SText {
+            leftPadding: 8
+            rightPadding: 8
+            topPadding: 4
+            bottomPadding: 4
             text: root.hint
             size: 12
             color: Theme.paper
